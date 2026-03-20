@@ -1,20 +1,26 @@
 import React, { useEffect, useState } from 'react';
-import { Layers, CheckCircle2, Circle, RotateCcw, ServerCrash } from 'lucide-react';
+import { Layers, CheckCircle2, Circle, RotateCcw, ServerCrash, AlertCircle } from 'lucide-react';
 import { useVpnStore } from '../store/vpnStore';
 import { GlassCard } from '../components/ui/GlassCard';
 import './Configs.css';
 
 export const Configs: React.FC = () => {
-  const { configs, fetchConfigs, switchConfig, isSwitching, isLoadingConfigs } = useVpnStore();
+  const { configs, fetchConfigs, switchConfig, isSwitching, isLoadingConfigs, error } = useVpnStore();
   const [switchedMsg, setSwitchedMsg] = useState<string | null>(null);
+  const [switchError, setSwitchError] = useState<string | null>(null);
 
   useEffect(() => { fetchConfigs(); }, []);
 
   const handleSwitch = async (name: string) => {
+    setSwitchError(null);
     const ok = await switchConfig(name);
     if (ok) {
       setSwitchedMsg(`Switched to ${name}`);
       setTimeout(() => setSwitchedMsg(null), 3500);
+    } else {
+      const msg = error ?? 'Failed to switch config';
+      setSwitchError(msg);
+      setTimeout(() => setSwitchError(null), 5000);
     }
   };
 
@@ -42,6 +48,13 @@ export const Configs: React.FC = () => {
       {switchedMsg && (
         <div className="configs-page__toast">
           <CheckCircle2 size={15} /> {switchedMsg}
+        </div>
+      )}
+
+      {/* Error toast */}
+      {switchError && (
+        <div className="configs-page__toast configs-page__toast--error">
+          <AlertCircle size={15} /> {switchError}
         </div>
       )}
 

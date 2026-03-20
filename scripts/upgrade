@@ -79,6 +79,10 @@ chmod 640 "$install_dir/server/.env"
 chmod -R o-rwx "$install_dir"
 chmod 640 "$install_dir/server/.env"
 
+# Ensure data_dir is root-owned (service runs as root).
+chown root:root "$data_dir"
+chmod 750 "$data_dir"
+
 #=================================================
 # START SERVICE
 #=================================================

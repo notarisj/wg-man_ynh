@@ -24,6 +24,7 @@ export function extractYnhUser(headers: Record<string, string | string[] | undef
   const ynh_user =
     headers['ynh_user'] ||
     headers['ynh-user'] ||
+    headers['x-ynh-user'] ||    // ngx.req.set_header path via $http_ynh_user at proxy time
     headers['remote-user'] ||
     headers['auth-user'] ||
     headers['x-remote-user'] ||

@@ -27,6 +27,12 @@
   animation: slide-up var(--dur-normal) var(--ease) both;
 }
 
+.configs-page__toast--error {
+  background: rgba(239,68,68,0.12);
+  border-color: rgba(239,68,68,0.25);
+  color: #f87171;
+}
+
 .configs-page__empty {
   display: flex;
   flex-direction: column;

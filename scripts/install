@@ -81,6 +81,12 @@ chmod 640 "$install_dir/server/.env"
 chmod -R o-rwx "$install_dir"
 chmod 640 "$install_dir/server/.env"
 
+# The service runs as root (wg-quick requires CAP_NET_ADMIN), so the data
+# directory must be accessible by root. YunoHost's data_dir resource creates
+# it owned by the app system user; override that here.
+chown root:root "$data_dir"
+chmod 750 "$data_dir"
+
 #=================================================
 # CONFIGURE NGINX
 #=================================================

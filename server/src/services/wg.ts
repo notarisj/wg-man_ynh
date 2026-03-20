@@ -1,5 +1,5 @@
 import { execFile } from 'child_process';
-import { readdir, readFile, writeFile, copyFile, chmod, stat } from 'fs/promises';
+import { readdir, readFile, writeFile, copyFile, chmod, stat, mkdir } from 'fs/promises';
 import path from 'path';
 
 // ── Environment config ──────────────────────────────────────
@@ -285,6 +285,7 @@ export async function switchConfig(configName: string): Promise<{ success: boole
   }
 
   // VULN-05: write state file using fs instead of shell echo
+  await mkdir(path.dirname(STATE_FILE), { recursive: true });
   await writeFile(STATE_FILE, configName, 'utf-8');
 
   return { success: true, message: `Switched to ${configName}` };
