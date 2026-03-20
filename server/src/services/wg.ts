@@ -1,5 +1,5 @@
 import { execFile } from 'child_process';
-import { readdir, readFile, writeFile, chmod, stat, mkdir } from 'fs/promises';
+import { readdir, readFile, writeFile, appendFile, chmod, stat, mkdir } from 'fs/promises';
 import path from 'path';
 
 // ── Environment config ──────────────────────────────────────
@@ -37,6 +37,11 @@ function runCmd(bin: string, args: string[]): Promise<{ stdout: string; stderr: 
       resolve({ stdout: stdout ?? '', stderr: stderr ?? '', ok: !err });
     });
   });
+}
+
+async function appendLog(line: string): Promise<void> {
+  const ts = new Date().toISOString().replace('T', ' ').substring(0, 19);
+  await appendFile(LOG_FILE, `${ts} - ${line}\n`, 'utf-8').catch(() => {});
 }
 
 // ── SYS-02: validate monitor script ownership ──────────────
@@ -322,12 +327,16 @@ export async function switchConfig(configName: string): Promise<{ success: boole
   // Bring up
   const { ok: upOk, stderr: upErr } = await runCmd('wg-quick', ['up', STATIC_IFACE]);
   if (!upOk) {
-    return { success: false, message: `wg-quick up failed: ${upErr.trim() || 'unknown error'}` };
+    const msg = `wg-quick up failed: ${upErr.trim() || 'unknown error'}`;
+    await appendLog(`ERROR: Failed to switch to ${configName} — ${upErr.trim().split('\n').pop() ?? 'unknown error'}`);
+    return { success: false, message: msg };
   }
 
   // VULN-05: write state file using fs instead of shell echo
   await mkdir(path.dirname(STATE_FILE), { recursive: true });
   await writeFile(STATE_FILE, configName, 'utf-8');
+
+  await appendLog(`MANUAL-SWITCH: ${configName} is now active as ${STATIC_IFACE}`);
 
   return { success: true, message: `Switched to ${configName}` };
 }
