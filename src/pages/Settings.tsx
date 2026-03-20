@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { useVpnStore } from '../store/vpnStore';
 import { GlassCard } from '../components/ui/GlassCard';
+import { CronScheduler } from '../components/ui/CronScheduler';
 import './Settings.css';
 
 export const Settings: React.FC = () => {
@@ -95,6 +96,9 @@ export const Settings: React.FC = () => {
           also lets you trigger it on-demand from the Dashboard.
         </div>
       </GlassCard>
+
+      {/* Cron scheduler */}
+      <CronScheduler />
 
       {/* API Info */}
       <GlassCard className="settings-card">

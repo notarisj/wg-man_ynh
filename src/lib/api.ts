@@ -36,6 +36,14 @@ export type WgConfig = {
   ipv6LeakRisk: boolean;
 };
 
+export type CronStatus = {
+  enabled:    boolean;
+  schedule:   string | null;
+  cronFile:   string;
+  scriptPath: string;
+  logFile:    string;
+};
+
 export type ApiResult<T> =
   | { ok: true; data: T }
   | { ok: false; error: string };
@@ -78,6 +86,11 @@ export const api = {
   disconnect: () => apiFetch<{ success: boolean; message: string }>('/disconnect', { method: 'POST' }),
   switchConfig: (name: string) =>
     apiFetch<{ success: boolean; message: string }>(`/switch/${encodeURIComponent(name)}`, { method: 'POST' }),
+  cron: {
+    get:     ()               => apiFetch<CronStatus>('/cron'),
+    set:     (schedule: string) => apiFetch<{ ok: boolean }>('/cron', { method: 'POST', body: JSON.stringify({ schedule }) }),
+    disable: ()               => apiFetch<{ ok: boolean }>('/cron', { method: 'DELETE' }),
+  },
 };
 
 // ── WebSocket Manager ───────────────────────────────────────

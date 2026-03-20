@@ -9,6 +9,7 @@ import {
   runMonitor,
   tailLog,
 } from '../services/wg';
+import { getCronStatus, setCron, disableCron } from '../services/cron';
 
 const router = Router();
 
@@ -117,6 +118,46 @@ router.post('/disconnect', mutationLimiter, requireAdmin, async (_req, res) => {
   } catch (err: any) {
     console.error('[api] Failed to disconnect:', err);
     res.status(500).json({ error: 'Failed to disconnect' });
+  }
+});
+
+// ── Cron management ──────────────────────────────────────────
+
+/** GET /api/cron — read current cron job status */
+router.get('/cron', async (_req, res) => {
+  try {
+    const status = await getCronStatus();
+    res.json(status);
+  } catch (err: any) {
+    console.error('[api] Failed to read cron status:', err);
+    res.status(500).json({ error: 'Failed to read cron status' });
+  }
+});
+
+/** POST /api/cron — enable or update the cron schedule */
+router.post('/cron', mutationLimiter, requireAdmin, async (req, res) => {
+  const { schedule } = req.body as { schedule?: unknown };
+  if (typeof schedule !== 'string' || !schedule.trim()) {
+    res.status(400).json({ error: 'schedule is required' });
+    return;
+  }
+  try {
+    await setCron(schedule.trim());
+    res.json({ ok: true });
+  } catch (err: any) {
+    console.error('[api] Failed to set cron:', err);
+    res.status(400).json({ error: err.message ?? 'Failed to set cron' });
+  }
+});
+
+/** DELETE /api/cron — disable (remove) the cron job */
+router.delete('/cron', mutationLimiter, requireAdmin, async (_req, res) => {
+  try {
+    await disableCron();
+    res.json({ ok: true });
+  } catch (err: any) {
+    console.error('[api] Failed to disable cron:', err);
+    res.status(500).json({ error: 'Failed to disable cron' });
   }
 });
 
