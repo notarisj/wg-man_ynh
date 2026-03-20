@@ -132,7 +132,10 @@ export const useVpnStore = create<VpnStore>((set, get) => ({
       if (msg.type === 'status') {
         set({ status: msg.payload, lastUpdated: msg.ts, error: null });
       } else if (msg.type === 'logs') {
-        set({ logs: msg.payload });
+        // Don't overwrite a larger HTTP fetch with the WS's smaller push
+        if (msg.payload.length >= get().logs.length) {
+          set({ logs: msg.payload });
+        }
       }
     });
     ws.connect();
