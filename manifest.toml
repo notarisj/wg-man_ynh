@@ -80,3 +80,6 @@ ram.runtime = "64M"
 
   [resources.apt]
   packages = ["wireguard-tools"]
+
+  [resources.permissions]
+  main.url = "/"
