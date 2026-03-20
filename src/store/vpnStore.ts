@@ -97,10 +97,7 @@ export const useVpnStore = create<VpnStore>((set, get) => ({
     if (!res.ok) {
       set({ error: res.error });
     } else {
-      setTimeout(() => {
-        get().fetchStatus();
-        get().fetchLogs(10);
-      }, 1500);
+      // WS push will deliver updated status + logs within PUSH_INTERVAL_MS
     }
   },
 
@@ -110,12 +107,8 @@ export const useVpnStore = create<VpnStore>((set, get) => ({
     set({ isDisconnecting: false });
     if (!res.ok) {
       set({ error: res.error });
-    } else {
-      setTimeout(() => {
-        get().fetchStatus();
-        get().fetchLogs(10);
-      }, 1000);
     }
+    // WS push will deliver updated status + logs within PUSH_INTERVAL_MS
   },
 
   switchConfig: async (name: string) => {
@@ -125,7 +118,8 @@ export const useVpnStore = create<VpnStore>((set, get) => ({
     if (!res.ok) {
       set({ error: res.error });
     } else {
-      await Promise.all([get().fetchStatus(), get().fetchConfigs(), get().fetchLogs(10)]);
+      get().fetchConfigs();
+      // WS push will deliver updated status + logs within PUSH_INTERVAL_MS
     }
   },
 
@@ -137,6 +131,8 @@ export const useVpnStore = create<VpnStore>((set, get) => ({
     const unsub = ws.subscribe((msg) => {
       if (msg.type === 'status') {
         set({ status: msg.payload, lastUpdated: msg.ts, error: null });
+      } else if (msg.type === 'logs') {
+        set({ logs: msg.payload });
       }
     });
     ws.connect();

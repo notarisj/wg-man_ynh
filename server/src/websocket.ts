@@ -1,6 +1,6 @@
 import { WebSocketServer, WebSocket } from 'ws';
 import { IncomingMessage, Server } from 'http';
-import { getStatus } from './services/wg';
+import { getStatus, tailLog } from './services/wg';
 import { authenticateRaw } from './middleware/auth';
 
 const PUSH_INTERVAL_MS = 5000;
@@ -19,13 +19,15 @@ export function createWebSocketServer(httpServer: Server): WebSocketServer {
 
     console.log(`[WS] Client connected: ${user.username} from ${req.socket.remoteAddress}`);
 
-    // Send initial status immediately
+    // Send initial status + logs immediately
     sendStatus(ws);
+    sendLogs(ws);
 
     // Poll and push every PUSH_INTERVAL_MS
     const interval = setInterval(() => {
       if (ws.readyState === WebSocket.OPEN) {
         sendStatus(ws);
+        sendLogs(ws);
       }
     }, PUSH_INTERVAL_MS);
 
@@ -61,10 +63,18 @@ async function sendStatus(ws: WebSocket): Promise<void> {
     if (ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify({ type: 'status', payload: status, ts: Date.now() }));
     }
-  } catch (err: any) {
+  } catch {
     if (ws.readyState === WebSocket.OPEN) {
-      // VULN-07: don't leak internal error details over websocket
       ws.send(JSON.stringify({ type: 'error', payload: { message: 'Status check failed' }, ts: Date.now() }));
     }
   }
+}
+
+async function sendLogs(ws: WebSocket): Promise<void> {
+  try {
+    const logs = await tailLog(10);
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: 'logs', payload: logs, ts: Date.now() }));
+    }
+  } catch { /* ignore */ }
 }

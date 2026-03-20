@@ -33,10 +33,7 @@ export const Dashboard: React.FC = () => {
   useEffect(() => {
     fetchStatus();
     fetchConfigs();
-    fetchLogs(10);
-    // Poll logs every 10 s while Dashboard is visible (WS only pushes status)
-    const logPoll = setInterval(() => fetchLogs(10), 10_000);
-    return () => clearInterval(logPoll);
+    fetchLogs(10); // initial load; WS pushes keep it live after that
   }, []);
 
   const handleConnect = useCallback(() => connect(), [connect]);

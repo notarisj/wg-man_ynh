@@ -76,6 +76,7 @@ export const api = {
 
 type WsMessage =
   | { type: 'status'; payload: VpnStatus; ts: number }
+  | { type: 'logs';   payload: string[];  ts: number }
   | { type: 'error';  payload: { message: string }; ts: number }
   | { type: 'pong' };
 
