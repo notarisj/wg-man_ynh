@@ -10,6 +10,8 @@ ynh_install_nodejs --nodejs_version="$nodejs_version"
 ynh_use_nodejs
 # Save the resolved node binary path so conf/systemd.service can reference it via __NODE__
 ynh_app_setting_set --key=node --value="$ynh_node"
+# Also expose as a bash variable so ynh_replace_vars can substitute __NODE__ in conf templates
+node="$ynh_node"
 
 #=================================================
 # COPY APPLICATION SOURCE

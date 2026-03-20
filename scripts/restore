@@ -10,6 +10,7 @@ ynh_install_nodejs --nodejs_version="$nodejs_version"
 ynh_use_nodejs
 # Re-save node path in case the binary location changed after reinstall
 ynh_app_setting_set --key=node --value="$ynh_node"
+node="$ynh_node"
 
 #=================================================
 # RESTORE APP FILES
