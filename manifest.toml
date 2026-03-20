@@ -75,6 +75,14 @@ ram.runtime = "64M"
   pattern.regexp = "^[0-9.:a-fA-F]+$"
   pattern.error = "Must be a valid IPv4 or IPv6 address"
 
+  [install.dex_domain]
+  ask.en = "Dex OIDC domain for LDAP login (e.g. dex.yourdomain.com) — leave empty to use SSOwat authentication only"
+  type = "string"
+  default = ""
+  optional = true
+  pattern.regexp = "^$|^[a-zA-Z0-9._-]+$"
+  pattern.error = "Must be a valid domain name or empty"
+
 [resources]
 
   # Provisions the wg-man system user/group required by install_dir

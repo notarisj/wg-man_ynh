@@ -17,6 +17,21 @@ ynh_script_progression "Removing nginx configuration..."
 ynh_remove_nginx_config
 
 #=================================================
+# REMOVE DEX OIDC CLIENT
+# Delete the static-client stanza and regenerate Dex config.
+#=================================================
+dex_domain=$(ynh_app_setting_get --key=dex_domain)
+if [ -n "$dex_domain" ] && [ -f "/var/www/dex/config.yaml.d/${app}.yaml" ]; then
+    ynh_script_progression "Removing Dex OIDC client registration..."
+    ynh_secure_remove "/var/www/dex/config.yaml.d/${app}.yaml"
+
+    if [ -x /var/www/dex/regenerate_config.sh ]; then
+        bash /var/www/dex/regenerate_config.sh
+    fi
+    ynh_systemd_action --service_name=dex --action=restart
+fi
+
+#=================================================
 # REMOVE NODE.JS
 #=================================================
 ynh_script_progression "Removing Node.js..."

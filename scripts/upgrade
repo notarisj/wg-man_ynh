@@ -27,6 +27,25 @@ if [ -z "$session_secret" ]; then
 fi
 
 #=================================================
+# PREPARE DEX OIDC VARIABLES
+# dex_domain is saved in app settings from install time.
+#=================================================
+dex_issuer=""
+dex_client_id=""
+dex_client_secret=""
+
+if [ -n "$dex_domain" ]; then
+    # Preserve the existing client secret across upgrades
+    dex_client_secret=$(ynh_app_setting_get --key=dex_client_secret)
+    if [ -z "$dex_client_secret" ]; then
+        dex_client_secret=$(ynh_string_random --length=32)
+        ynh_app_setting_set --key=dex_client_secret --value="$dex_client_secret"
+    fi
+    dex_client_id="$app"
+    dex_issuer="https://${dex_domain}/"
+fi
+
+#=================================================
 # INSTALL / UPDATE NODE.JS
 #=================================================
 ynh_script_progression "Updating Node.js $nodejs_version..."
@@ -85,6 +104,26 @@ ynh_add_systemd_config
 ynh_script_progression "Updating .env configuration..."
 ynh_add_config --template=".env" --destination="$install_dir/server/.env"
 chmod 640 "$install_dir/server/.env"
+
+#=================================================
+# UPDATE DEX OIDC CLIENT
+# Rewrite the client config in case the redirect URI changed (e.g. path change).
+#=================================================
+if [ -n "$dex_domain" ]; then
+    ynh_script_progression "Updating Dex OIDC client registration..."
+
+    mkdir -p /var/www/dex/config.yaml.d
+
+    ynh_add_config \
+        --template="dex-client.yaml" \
+        --destination="/var/www/dex/config.yaml.d/${app}.yaml"
+    chmod 640 "/var/www/dex/config.yaml.d/${app}.yaml"
+
+    if [ -x /var/www/dex/regenerate_config.sh ]; then
+        bash /var/www/dex/regenerate_config.sh
+    fi
+    ynh_systemd_action --service_name=dex --action=restart
+fi
 
 #=================================================
 # FIX PERMISSIONS

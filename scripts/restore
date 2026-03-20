@@ -22,7 +22,9 @@ ynh_restore "$data_dir"
 #=================================================
 # FIX PERMISSIONS
 #=================================================
-chmod -R o-rwx "$install_dir"
+# PKG-01: restore root:root 750 after ynh_restore (which may set different ownership)
+chown -R root:root "$install_dir"
+chmod -R 750 "$install_dir"
 chmod 640 "$install_dir/server/.env"
 
 #=================================================

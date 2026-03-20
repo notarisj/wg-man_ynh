@@ -15,6 +15,21 @@ session_secret=$(ynh_string_random --length=64)
 ynh_app_setting_set --key=session_secret --value="$session_secret"
 
 #=================================================
+# PREPARE DEX OIDC VARIABLES (for .env substitution)
+# dex_domain is set by the install question; empty means no Dex integration.
+#=================================================
+dex_issuer=""
+dex_client_id=""
+dex_client_secret=""
+
+if [ -n "$dex_domain" ]; then
+    dex_client_secret=$(ynh_string_random --length=32)
+    ynh_app_setting_set --key=dex_client_secret --value="$dex_client_secret"
+    dex_client_id="$app"
+    dex_issuer="https://${dex_domain}/"
+fi
+
+#=================================================
 # INSTALL NODE.JS
 #=================================================
 ynh_script_progression "Installing Node.js $nodejs_version..."
@@ -80,10 +95,37 @@ fi
 
 #=================================================
 # CONFIGURE .env
+# dex_issuer / dex_client_id / dex_client_secret are set above and will be
+# substituted as __DEX_ISSUER__ / __DEX_CLIENT_ID__ / __DEX_CLIENT_SECRET__
 #=================================================
 ynh_script_progression "Writing .env configuration..."
 ynh_add_config --template=".env" --destination="$install_dir/server/.env"
 chmod 640 "$install_dir/server/.env"
+
+#=================================================
+# REGISTER AS DEX OIDC CLIENT
+# Write a static-client stanza into Dex's config.yaml.d/ directory and
+# regenerate the Dex config so the new client is active immediately.
+#=================================================
+if [ -n "$dex_domain" ]; then
+    ynh_script_progression "Registering $app as a Dex OIDC static client..."
+
+    mkdir -p /var/www/dex/config.yaml.d
+
+    # dex-client.yaml template uses __APP__, __DOMAIN__, __PATH__, __DEX_CLIENT_SECRET__
+    ynh_add_config \
+        --template="dex-client.yaml" \
+        --destination="/var/www/dex/config.yaml.d/${app}.yaml"
+    chmod 640 "/var/www/dex/config.yaml.d/${app}.yaml"
+
+    # Regenerate the Dex config.yaml from head + config.yaml.d fragments
+    if [ -x /var/www/dex/regenerate_config.sh ]; then
+        bash /var/www/dex/regenerate_config.sh
+    fi
+
+    # Reload Dex so it picks up the new client
+    ynh_systemd_action --service_name=dex --action=restart
+fi
 
 #=================================================
 # SET FILE PERMISSIONS

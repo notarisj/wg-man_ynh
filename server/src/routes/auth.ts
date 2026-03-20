@@ -169,15 +169,34 @@ router.get('/callback', async (req: Request, res: Response) => {
 });
 
 /**
- * GET /api/auth/logout — destroys the app session and redirects to YunoHost
- * SSOwat logout. SEC-05: the redirect target is derived from the server-side
- * APP_PUBLIC_URL, not from the Host / X-Forwarded-Host request header.
+ * GET /api/auth/logout
+ *
+ * Behaviour depends on how the user authenticated:
+ *
+ * - Dex OIDC session (req.session.user is set): destroy the local session and
+ *   redirect to the app's own login page so the user can sign back in with Dex.
+ *
+ * - SSOwat header auth (no session): redirect to YunoHost SSO logout, which
+ *   invalidates the SSOwat cookie and shows the portal login page.
+ *
+ * SEC-05: redirect targets are derived from the server-side APP_PUBLIC_URL,
+ * never from the Host / X-Forwarded-Host request header.
  */
 router.get('/logout', (req: Request, res: Response) => {
-  // SEC-05: use the configured server origin, never req.hostname
+  const base   = appBasePath();
   const origin = trustedOrigin();
+
+  // Capture before destroying the session
+  const isDexSession = !!req.session?.user;
+
   req.session.destroy(() => {
-    res.redirect(`${origin}/yunohost/sso/?action=logout`);
+    if (isDexSession) {
+      // Redirect to the app base path — AuthGuard will show the login screen
+      res.redirect(base || '/');
+    } else {
+      // SSOwat auth — invalidate the YunoHost portal session
+      res.redirect(`${origin}/yunohost/sso/?action=logout`);
+    }
   });
 });
 
