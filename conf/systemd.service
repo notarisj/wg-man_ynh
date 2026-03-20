@@ -25,7 +25,8 @@ ReadWritePaths=/etc/wireguard __DATA_DIR__ /var/log
 ProtectHome=true
 PrivateTmp=true
 RestrictAddressFamilies=AF_INET AF_INET6 AF_NETLINK AF_UNIX
-SystemCallFilter=@system-service @network-io
+# SystemCallFilter is intentionally omitted: Node.js requires a broad set of
+# syscalls that cannot be reliably restricted without breaking the runtime.
 CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_RAW
 AmbientCapabilities=CAP_NET_ADMIN CAP_NET_RAW
 
