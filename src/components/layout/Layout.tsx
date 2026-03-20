@@ -9,7 +9,7 @@ interface LayoutProps {
 
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { startWebSocket, stopWebSocket } = useVpnStore();
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => localStorage.getItem('sidebar-collapsed') === 'true');
   const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
@@ -25,7 +25,11 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     return () => mq.removeEventListener('change', handler);
   }, []);
 
-  const toggleCollapse = useCallback(() => setCollapsed((c) => !c), []);
+  const toggleCollapse = useCallback(() => setCollapsed((c) => {
+    const next = !c;
+    localStorage.setItem('sidebar-collapsed', String(next));
+    return next;
+  }), []);
   const closeMobile = useCallback(() => setMobileOpen(false), []);
   const toggleMobile = useCallback(() => setMobileOpen((o) => !o), []);
 
