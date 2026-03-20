@@ -21,7 +21,7 @@ LimitNOFILE=65535
 # ── SYS-01: Hardening ─────────────────────────────────────
 NoNewPrivileges=true
 ProtectSystem=strict
-ReadWritePaths=/etc/wireguard __DATA_DIR__ /var/log /run /var/run
+ReadWritePaths=/etc/wireguard __DATA_DIR__ /var/log /var/lib /run /var/run
 ProtectHome=true
 PrivateTmp=true
 RestrictAddressFamilies=AF_INET AF_INET6 AF_NETLINK AF_UNIX
