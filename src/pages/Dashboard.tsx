@@ -28,15 +28,12 @@ export const Dashboard: React.FC = () => {
   const {
     status, fetchStatus, fetchConfigs, fetchLogs,
     logs, connect, disconnect, isConnecting, isDisconnecting,
-    startWebSocket, stopWebSocket,
   } = useVpnStore();
 
   useEffect(() => {
     fetchStatus();
     fetchConfigs();
     fetchLogs(10);
-    startWebSocket();
-    return () => stopWebSocket();
   }, []);
 
   const handleConnect = useCallback(() => connect(), [connect]);
