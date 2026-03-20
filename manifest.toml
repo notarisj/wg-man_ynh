@@ -67,13 +67,11 @@ ram.runtime = "64M"
 
   [resources.install_dir]
   dir = "/opt/__APP__"
-  owner = "root"
-  group = "root"
+  owner = "root:root"
 
   [resources.data_dir]
   dir = "/var/lib/__APP__"
-  owner = "root"
-  group = "root"
+  owner = "root:root"
 
   [resources.ports]
   main.default = 3001
