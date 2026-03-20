@@ -6,15 +6,15 @@ source /usr/share/yunohost/helpers
 # STOP AND REMOVE SERVICE
 #=================================================
 ynh_script_progression "Stopping $app service..."
-ynh_systemctl --action=stop --service="$app"
+ynh_systemd_action --service_name="$app" --action="stop"
 yunohost service remove "$app"
-ynh_config_remove_systemd
+ynh_remove_systemd_config
 
 #=================================================
 # REMOVE NGINX CONFIGURATION
 #=================================================
 ynh_script_progression "Removing nginx configuration..."
-ynh_config_remove_nginx
+ynh_remove_nginx_config
 
 #=================================================
 # REMOVE NODE.JS
@@ -26,7 +26,7 @@ ynh_remove_nodejs
 # REMOVE APP FILES
 #=================================================
 ynh_script_progression "Removing application files..."
-ynh_safe_rm "$install_dir"
-ynh_safe_rm "$data_dir"
+ynh_secure_remove "$install_dir"
+ynh_secure_remove "$data_dir"
 
 ynh_script_progression "Removal of $app completed"

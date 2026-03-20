@@ -28,19 +28,19 @@ chmod 640 "$install_dir/server/.env"
 # RESTORE NGINX
 #=================================================
 ynh_script_progression "Restoring nginx configuration..."
-ynh_config_add_nginx
+ynh_add_nginx_config
 
 #=================================================
 # RESTORE SYSTEMD SERVICE
 #=================================================
 ynh_script_progression "Restoring systemd service..."
-ynh_config_add_systemd
+ynh_add_systemd_config
 yunohost service add "$app" --description="WireGuard VPN Manager" --log="/var/log/$app.log"
 
 #=================================================
 # START SERVICE
 #=================================================
 ynh_script_progression "Starting $app..."
-ynh_systemctl --action=start --service="$app"
+ynh_systemd_action --service_name="$app" --action="start"
 
 ynh_script_progression "Restoration of $app completed"
