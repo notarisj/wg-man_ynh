@@ -1,5 +1,5 @@
 import { execFile } from 'child_process';
-import { readdir, readFile, writeFile, copyFile, chmod, stat, mkdir } from 'fs/promises';
+import { readdir, readFile, writeFile, chmod, stat, mkdir } from 'fs/promises';
 import path from 'path';
 
 // ── Environment config ──────────────────────────────────────
@@ -307,8 +307,16 @@ export async function switchConfig(configName: string): Promise<{ success: boole
     // non-critical
   }
 
-  // VULN-05: copy config using fs instead of shell
-  await copyFile(confPath, staticConf);
+  // VULN-05: write config using fs instead of shell.
+  // Strip DNS= lines: wg-quick passes them to resolvconf whose dnsmasq hook
+  // fails on YunoHost. A server manages its own DNS and the VPN shouldn't
+  // override it. Named config files retain their DNS= lines for metadata display.
+  const rawConf = await readFile(confPath, 'utf-8');
+  const strippedConf = rawConf
+    .split('\n')
+    .filter((line) => !/^\s*DNS\s*=/i.test(line))
+    .join('\n');
+  await writeFile(staticConf, strippedConf, 'utf-8');
   await chmod(staticConf, 0o600);
 
   // Bring up
