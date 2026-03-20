@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { IncomingMessage } from 'http';
+import { timingSafeEqual } from 'crypto';
 
 declare global {
   namespace Express {
@@ -43,22 +44,26 @@ export function extractYnhUser(headers: Record<string, string | string[] | undef
 }
 
 /**
- * Verify the shared proxy secret that nginx forwards.
+ * SEC-02: timing-safe proxy secret comparison to prevent enumeration attacks.
  * In dev mode or when PROXY_SECRET is unset the check is skipped.
- * Exported so auth routes can reuse the same check.
  */
 export function verifyProxySecret(headers: Record<string, string | string[] | undefined>): boolean {
   if (IS_DEV || !PROXY_SECRET) return true;
   const sent = headers['x-wg-secret'];
-  return sent === PROXY_SECRET;
+  if (!sent || typeof sent !== 'string') return false;
+  // Reject immediately on length mismatch to avoid buffer allocation issues,
+  // but do so after confirming sent is a string (no timing leak from type check).
+  if (sent.length !== PROXY_SECRET.length) return false;
+  try {
+    return timingSafeEqual(Buffer.from(sent), Buffer.from(PROXY_SECRET));
+  } catch {
+    return false;
+  }
 }
 
 /**
  * Authenticate a raw IncomingMessage (used for WebSocket upgrade).
  * Returns the user object or null when authentication fails.
- * Mirrors the same logic as ssowatAuth() — including the admin fallback when
- * the proxy secret is verified but YNH_USER is absent (some SSOwat versions
- * do not inject user headers on WebSocket upgrade requests).
  */
 export function authenticateRaw(req: IncomingMessage): { username: string; email?: string } | null {
   const headers = req.headers as Record<string, string | string[] | undefined>;
@@ -69,11 +74,13 @@ export function authenticateRaw(req: IncomingMessage): { username: string; email
   if (IS_DEV) return { username: 'dev-user', email: 'dev@localhost' };
   const user = extractYnhUser(headers);
   if (user) return user;
-  // Same fallback as ssowatAuth(): secret verified → request came from nginx
-  if (PROXY_SECRET) {
-    console.warn('[auth/ws] YNH_USER absent on WS upgrade — using admin fallback');
-    return { username: 'admin' };
-  }
+  // SEC-03: no admin fallback — a verified proxy secret proves the request came
+  // from nginx, but does NOT prove the user is authenticated. Reject and log so
+  // the operator can diagnose the SSOwat misconfiguration.
+  console.error(
+    '[auth/ws] SECURITY: Proxy secret matched but YNH_USER absent on WS upgrade — rejecting. ' +
+    'Verify SSOwat is active for this location and the app permission is granted to the user.',
+  );
   return null;
 }
 
@@ -82,14 +89,6 @@ export function authenticateRaw(req: IncomingMessage): { username: string; email
  *
  * Production: nginx (via YunoHost SSOwat) injects YNH_USER/YNH_EMAIL headers
  * and the shared PROXY_SECRET after successful portal authentication.
- *
- * When PROXY_SECRET is configured and verified, any request that reaches the
- * backend is trusted to have come from nginx (which already authenticated the
- * user via SSOwat). If YNH_USER is missing in this case we fall back to
- * 'admin' — this covers SSOwat versions that authenticate but don't inject
- * user headers. The secret check is what prevents local SSRF abuse.
- *
- * When PROXY_SECRET is NOT configured, YNH_USER is strictly required.
  *
  * Development: falls back to a mock user for local frontend work.
  */
@@ -103,7 +102,7 @@ export function ssowatAuth(req: Request, res: Response, next: NextFunction): voi
     return;
   }
 
-  // AUTH-01: verify shared proxy secret
+  // AUTH-01: verify shared proxy secret (SEC-02: timing-safe comparison)
   const secretValid = verifyProxySecret(headers);
   if (!secretValid) {
     console.warn(`[auth] Rejected request — invalid proxy secret from ${req.socket.remoteAddress}`);
@@ -126,27 +125,22 @@ export function ssowatAuth(req: Request, res: Response, next: NextFunction): voi
     return;
   }
 
-  // If the proxy secret is configured and matched, the request provably came
-  // from nginx, which means SSOwat already authenticated the user. Fall back
-  // to 'admin' to handle SSOwat versions that don't inject YNH_USER headers.
-  // Without a configured secret, reject — we have no way to trust the origin.
-  if (PROXY_SECRET) {
-    console.warn('[auth] YNH_USER header absent but proxy secret matched — using admin fallback');
-    req.user = { username: 'admin' };
-    next();
-    return;
-  }
-
-  // No proxy secret configured and no YNH_USER header — reject.
-  console.warn(`[auth] Rejected request — no YNH_USER header, no proxy secret from ${req.socket.remoteAddress}`);
-  res.status(401).json({ error: 'Authentication required' });
+  // SEC-03: no admin fallback. The proxy secret proves origin (nginx) but not
+  // user identity. A missing YNH_USER header means SSOwat did not inject user
+  // info — treat this as unauthenticated and log a diagnostic message.
+  console.error(
+    '[auth] SECURITY: Proxy secret matched but YNH_USER header is absent — rejecting. ' +
+    'Check SSOwat configuration and ensure the app permission is granted to the user.',
+  );
+  res.status(401).json({
+    error: 'Authentication headers missing — check SSOwat configuration',
+  });
 }
 
 /**
- * VULN-06: RBAC middleware — restrict mutating endpoints to authenticated users.
- * Access control is enforced at the YunoHost level: the app permission is set to
- * the 'admins' group, so SSOwat only lets admins reach the backend at all.
- * Any request that passes ssowatAuth() is therefore already admin-authorised.
+ * RBAC middleware — restrict mutating endpoints to authenticated users.
+ * Access control is enforced at the YunoHost level (admins group), so any
+ * request that passes ssowatAuth() is already group-authorised.
  */
 export function requireAdmin(req: Request, res: Response, next: NextFunction): void {
   if (!req.user) {
@@ -157,7 +151,7 @@ export function requireAdmin(req: Request, res: Response, next: NextFunction): v
 }
 
 /**
- * VULN-09: CSRF protection — require X-Requested-With header on mutations.
+ * CSRF protection — require X-Requested-With header on mutations.
  */
 export function csrfProtection(req: Request, res: Response, next: NextFunction): void {
   if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method)) {

@@ -58,6 +58,8 @@ ynh_script_progression "Rebuilding frontend..."
 pushd "$install_dir"
 VITE_APP_PATH="$path/" $ynh_npm ci 2>&1
 VITE_APP_PATH="$path/" $ynh_npm run build 2>&1
+# PKG-03: remove dev dependencies after build
+$ynh_npm prune --production 2>&1
 popd
 
 #=================================================
@@ -67,6 +69,8 @@ ynh_script_progression "Rebuilding backend..."
 pushd "$install_dir/server"
 $ynh_npm ci 2>&1
 $ynh_npm run build 2>&1
+# PKG-03: remove dev dependencies after build (typescript, @types/*, etc.)
+$ynh_npm prune --production 2>&1
 popd
 
 #=================================================
@@ -85,7 +89,9 @@ chmod 640 "$install_dir/server/.env"
 #=================================================
 # FIX PERMISSIONS
 #=================================================
-chmod -R o-rwx "$install_dir"
+# PKG-01: set install_dir to root:root 750
+chown -R root:root "$install_dir"
+chmod -R 750 "$install_dir"
 chmod 640 "$install_dir/server/.env"
 
 # Ensure data_dir is root-owned (service runs as root).

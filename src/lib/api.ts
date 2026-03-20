@@ -31,6 +31,9 @@ export type WgConfig = {
   address: string | null;
   endpoint: string | null;
   comment: string | null;
+  missingDns: boolean;
+  /** WG-B: true when AllowedIPs routes all IPv4 but not IPv6 — potential traffic leak */
+  ipv6LeakRisk: boolean;
 };
 
 export type ApiResult<T> =
@@ -87,12 +90,18 @@ type WsMessage =
 
 type WsCallback = (msg: WsMessage) => void;
 
+const WS_RECONNECT_BASE_MS  = 1_000;  // initial delay
+const WS_RECONNECT_MAX_MS   = 30_000; // cap
+const WS_RECONNECT_FACTOR   = 2;      // exponential growth
+
 export class VpnWebSocket {
   private ws: WebSocket | null = null;
   private callbacks: WsCallback[] = [];
   private pingInterval: ReturnType<typeof setInterval> | null = null;
   private reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
   private shouldConnect = true;
+  // FE-03: exponential backoff state
+  private reconnectDelay = WS_RECONNECT_BASE_MS;
 
   get wsUrl(): string {
     const base = import.meta.env.VITE_WS_URL ?? '';
@@ -108,6 +117,8 @@ export class VpnWebSocket {
     try {
       this.ws = new WebSocket(this.wsUrl);
       this.ws.onopen = () => {
+        // FE-03: reset backoff on successful connection
+        this.reconnectDelay = WS_RECONNECT_BASE_MS;
         this.pingInterval = setInterval(() => {
           if (this.ws?.readyState === WebSocket.OPEN) {
             this.ws.send(JSON.stringify({ type: 'ping' }));
@@ -123,7 +134,9 @@ export class VpnWebSocket {
       this.ws.onclose = () => {
         this.clearPing();
         if (this.shouldConnect) {
-          this.reconnectTimeout = setTimeout(() => this.connect(), 3000);
+          // FE-03: exponential backoff capped at WS_RECONNECT_MAX_MS
+          this.reconnectTimeout = setTimeout(() => this.connect(), this.reconnectDelay);
+          this.reconnectDelay = Math.min(this.reconnectDelay * WS_RECONNECT_FACTOR, WS_RECONNECT_MAX_MS);
         }
       };
       this.ws.onerror = () => this.ws?.close();

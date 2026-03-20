@@ -41,11 +41,11 @@ ram.runtime = "64M"
   pattern.error = "Must be an absolute path with safe characters only"
 
   [install.wg_config_pattern]
-  ask.en = "Glob pattern for tunnel config files (e.g. *.conf or vpn-*.conf)"
+  ask.en = "Glob pattern for tunnel config files (e.g. wg-*.conf or vpn-*.conf) — must start with at least one letter/digit before the wildcard"
   type = "string"
-  default = "*.conf"
-  pattern.regexp = "^[a-zA-Z0-9*_.-]+$"
-  pattern.error = "Only alphanumeric characters, *, _, -, and . are allowed"
+  default = "wg-*.conf"
+  pattern.regexp = "^[a-zA-Z0-9][a-zA-Z0-9*_.-]*$"
+  pattern.error = "Must start with an alphanumeric character (e.g. wg-*.conf). A bare *.conf is not allowed as it would expose all config files."
 
   [install.wg_static_interface]
   ask.en = "Name of the always-on WireGuard interface"

@@ -10,9 +10,10 @@ interface AuthGuardProps {
 type AuthState = 'loading' | 'ok' | 'forbidden';
 
 const AUTH_ERROR_MESSAGES: Record<string, string> = {
-  callback_failed:  'OIDC login failed — please try again.',
-  not_configured:   'Dex OIDC is not configured on this server.',
+  callback_failed:      'OIDC login failed — please try again.',
+  not_configured:       'Dex OIDC is not configured on this server.',
   oidc_callback_failed: 'OIDC callback error — please try again.',
+  forbidden:            'Access denied — your account is not in an allowed group. Contact your administrator.',
 };
 
 export const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {

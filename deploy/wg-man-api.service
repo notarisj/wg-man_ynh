@@ -4,6 +4,7 @@ After=network.target
 
 [Service]
 Type=simple
+# Root is required — wg-quick and wg commands need CAP_NET_ADMIN
 User=root
 WorkingDirectory=/opt/wg-man/server
 Environment=NODE_ENV=production
@@ -15,8 +16,17 @@ StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=wg-man
 
-# Limits
 LimitNOFILE=65535
+
+# SEC-13: systemd hardening — mirrors conf/systemd.service
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/etc/wireguard /var/lib/wg-man /var/log /var/lib /run /var/run
+ProtectHome=true
+PrivateTmp=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_NETLINK AF_UNIX
+CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_RAW
+AmbientCapabilities=CAP_NET_ADMIN CAP_NET_RAW
 
 [Install]
 WantedBy=multi-user.target

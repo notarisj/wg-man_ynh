@@ -50,6 +50,8 @@ pushd "$install_dir"
 # VITE_APP_PATH sets the Vite `base` option so assets and routes use the correct sub-path
 VITE_APP_PATH="$path/" $ynh_npm ci 2>&1
 VITE_APP_PATH="$path/" $ynh_npm run build 2>&1
+# PKG-03: remove dev dependencies after build — the compiled output is in dist/
+$ynh_npm prune --production 2>&1
 popd
 
 #=================================================
@@ -59,6 +61,8 @@ ynh_script_progression "Building backend (TypeScript)..."
 pushd "$install_dir/server"
 $ynh_npm ci 2>&1
 $ynh_npm run build 2>&1
+# PKG-03: remove dev dependencies after build (typescript, @types/*, etc.)
+$ynh_npm prune --production 2>&1
 popd
 
 #=================================================
@@ -84,12 +88,14 @@ chmod 640 "$install_dir/server/.env"
 #=================================================
 # SET FILE PERMISSIONS
 #=================================================
-chmod -R o-rwx "$install_dir"
+# PKG-01: set install_dir to root:root 750 so other system users cannot read
+# application files or the .env (which contains PROXY_SECRET / SESSION_SECRET).
+chown -R root:root "$install_dir"
+chmod -R 750 "$install_dir"
 chmod 640 "$install_dir/server/.env"
 
 # The service runs as root (wg-quick requires CAP_NET_ADMIN), so the data
-# directory must be accessible by root. YunoHost's data_dir resource creates
-# it owned by the app system user; override that here.
+# directory must be accessible by root.
 chown root:root "$data_dir"
 chmod 750 "$data_dir"
 

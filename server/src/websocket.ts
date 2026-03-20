@@ -4,12 +4,22 @@ import { getStatus, tailLog } from './services/wg';
 import { authenticateRaw } from './middleware/auth';
 
 const PUSH_INTERVAL_MS = 5000;
+// SEC-07: cap concurrent WebSocket connections to prevent resource exhaustion.
+// Each connection spawns a setInterval that runs wg + ping every 5 s.
+const MAX_WS_CLIENTS = parseInt(process.env.MAX_WS_CLIENTS || '10', 10);
 
 export function createWebSocketServer(httpServer: Server): WebSocketServer {
   // API-03: cap incoming frame size to 1 KiB
   const wss = new WebSocketServer({ server: httpServer, path: '/ws', maxPayload: 1024 });
 
   wss.on('connection', (ws: WebSocket, req: IncomingMessage) => {
+    // SEC-07: reject connections beyond the limit before authentication so the
+    // auth check itself is not a resource sink.
+    if (wss.clients.size > MAX_WS_CLIENTS) {
+      ws.close(1013 /* Try Again Later */, 'Too many connections');
+      return;
+    }
+
     // VULN-02: authenticate WebSocket on upgrade
     const user = authenticateRaw(req);
     if (!user) {
