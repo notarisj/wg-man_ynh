@@ -126,6 +126,16 @@ if [ -n "$dex_domain" ]; then
 fi
 
 #=================================================
+# UPDATE APP ICON IN YUNOHOST PORTAL
+#=================================================
+if [ -f "$YNH_APP_BASEDIR/doc/icon.png" ]; then
+    icon_hash=$(sha256sum "$YNH_APP_BASEDIR/doc/icon.png" | cut -d' ' -f1)
+    mkdir -p /usr/share/yunohost/applogos
+    cp "$YNH_APP_BASEDIR/doc/icon.png" "/usr/share/yunohost/applogos/${icon_hash}.png"
+    yunohost app setting "$app" _permissions.main.logo_hash -v "$icon_hash"
+fi
+
+#=================================================
 # FIX PERMISSIONS
 #=================================================
 # PKG-01: set install_dir to root:root 750
