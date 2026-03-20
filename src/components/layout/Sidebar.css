@@ -172,6 +172,19 @@
   color: var(--clr-text-muted);
 }
 
+.sidebar__footer-body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.sidebar__version {
+  font-size: 10px;
+  color: var(--clr-text-dim);
+  font-family: 'JetBrains Mono', monospace;
+  margin-top: 1px;
+}
+
 .sidebar__status-icon-wrap {
   display: flex;
 }

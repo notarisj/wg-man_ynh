@@ -85,9 +85,12 @@ export const Sidebar: React.FC = () => {
         <div className={`sidebar__status-icon-wrap${status?.connected ? ' ok' : ''}`}>
           {statusIcon}
         </div>
-        <span className="sidebar__footer-text">
-          {status?.connected ? 'VPN Active' : 'VPN Inactive'}
-        </span>
+        <div className="sidebar__footer-body">
+          <span className="sidebar__footer-text">
+            {status?.connected ? 'VPN Active' : 'VPN Inactive'}
+          </span>
+          <span className="sidebar__version">v{__APP_VERSION__}</span>
+        </div>
       </div>
     </aside>
   );

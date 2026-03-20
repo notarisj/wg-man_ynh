@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import {
   UserCircle, Info, ExternalLink, Shield,
-  Clock, Server,
+  Clock, Server, Tag,
 } from 'lucide-react';
 import { useVpnStore } from '../store/vpnStore';
 import { GlassCard } from '../components/ui/GlassCard';
@@ -112,6 +112,21 @@ export const Settings: React.FC = () => {
         <div className="settings-row">
           <span className="settings-label">Auth</span>
           <span className="settings-value mono">YNH_USER header (nginx)</span>
+        </div>
+      </GlassCard>
+
+      {/* About */}
+      <GlassCard className="settings-card">
+        <div className="settings-card__title">
+          <Tag size={16} /> About
+        </div>
+        <div className="settings-row">
+          <span className="settings-label">Version</span>
+          <span className="settings-value mono">v{__APP_VERSION__}</span>
+        </div>
+        <div className="settings-row">
+          <span className="settings-label">License</span>
+          <span className="settings-value">MIT</span>
         </div>
       </GlassCard>
     </div>
