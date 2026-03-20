@@ -31,10 +31,10 @@ validateEnv();
 
 // ── Safe command execution (no shell) ───────────────────────
 
-function runCmd(bin: string, args: string[]): Promise<{ stdout: string; stderr: string }> {
+function runCmd(bin: string, args: string[]): Promise<{ stdout: string; stderr: string; ok: boolean }> {
   return new Promise((resolve) => {
-    execFile(bin, args, { timeout: 10_000 }, (_err, stdout, stderr) => {
-      resolve({ stdout: stdout ?? '', stderr: stderr ?? '' });
+    execFile(bin, args, { timeout: 30_000 }, (err, stdout, stderr) => {
+      resolve({ stdout: stdout ?? '', stderr: stderr ?? '', ok: !err });
     });
   });
 }
@@ -312,9 +312,9 @@ export async function switchConfig(configName: string): Promise<{ success: boole
   await chmod(staticConf, 0o600);
 
   // Bring up
-  const { stderr: upErr } = await runCmd('wg-quick', ['up', STATIC_IFACE]);
-  if (upErr && upErr.includes('Error')) {
-    return { success: false, message: 'wg-quick up failed' };
+  const { ok: upOk, stderr: upErr } = await runCmd('wg-quick', ['up', STATIC_IFACE]);
+  if (!upOk) {
+    return { success: false, message: `wg-quick up failed: ${upErr.trim() || 'unknown error'}` };
   }
 
   // VULN-05: write state file using fs instead of shell echo

@@ -13,6 +13,10 @@ const STATIC_DIR = path.resolve(__dirname, '../../dist'); // built frontend
 
 const app = express();
 
+// Trust the loopback nginx proxy so that express-rate-limit and req.ip
+// correctly reflect the real client IP from X-Forwarded-For.
+app.set('trust proxy', 'loopback');
+
 // Security headers (relaxed for local API usage)
 app.use(
   helmet({
