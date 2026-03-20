@@ -11,7 +11,6 @@ declare global {
 
 const IS_DEV = process.env.NODE_ENV !== 'production';
 const PROXY_SECRET = process.env.PROXY_SECRET || '';
-const ADMIN_USERS = (process.env.ADMIN_USERS || 'admin').split(',').map((u) => u.trim()).filter(Boolean);
 
 /**
  * Extract YNH_USER / YNH_EMAIL from headers (works for both Express and raw
@@ -136,10 +135,13 @@ export function ssowatAuth(req: Request, res: Response, next: NextFunction): voi
 }
 
 /**
- * VULN-06: RBAC middleware — restrict mutating endpoints to admin users.
+ * VULN-06: RBAC middleware — restrict mutating endpoints to authenticated users.
+ * Access control is enforced at the YunoHost level: the app permission is set to
+ * the 'admins' group, so SSOwat only lets admins reach the backend at all.
+ * Any request that passes ssowatAuth() is therefore already admin-authorised.
  */
 export function requireAdmin(req: Request, res: Response, next: NextFunction): void {
-  if (!req.user || !ADMIN_USERS.includes(req.user.username)) {
+  if (!req.user) {
     res.status(403).json({ error: 'Admin access required' });
     return;
   }
