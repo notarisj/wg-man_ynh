@@ -65,9 +65,8 @@ chmod 640 "$install_dir/server/.env"
 #=================================================
 # SET FILE PERMISSIONS
 #=================================================
-chown -R root:root "$install_dir"
 chmod -R o-rwx "$install_dir"
-chown -R root:root "$data_dir"
+chmod 640 "$install_dir/server/.env"
 
 #=================================================
 # CONFIGURE NGINX

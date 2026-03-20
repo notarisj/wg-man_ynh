@@ -65,13 +65,15 @@ ram.runtime = "64M"
 
 [resources]
 
+  # Provisions the wg-man system user/group required by install_dir
+  # The service itself still runs as root (wg-quick needs CAP_NET_ADMIN)
+  [resources.system_user]
+
   [resources.install_dir]
   dir = "/opt/__APP__"
-  owner = "root:root"
 
   [resources.data_dir]
   dir = "/var/lib/__APP__"
-  owner = "root:root"
 
   [resources.ports]
   main.default = 3001
