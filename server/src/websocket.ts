@@ -1,16 +1,23 @@
 import { WebSocketServer, WebSocket } from 'ws';
 import { IncomingMessage, Server } from 'http';
 import { getStatus } from './services/wg';
+import { authenticateRaw } from './middleware/auth';
 
 const PUSH_INTERVAL_MS = 5000;
 
 export function createWebSocketServer(httpServer: Server): WebSocketServer {
-  const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
+  // API-03: cap incoming frame size to 1 KiB
+  const wss = new WebSocketServer({ server: httpServer, path: '/ws', maxPayload: 1024 });
 
   wss.on('connection', (ws: WebSocket, req: IncomingMessage) => {
-    // In production, the YNH_USER header is already verified by nginx
-    // before traffic reaches this server — no additional auth needed on WS
-    console.log(`[WS] Client connected from ${req.socket.remoteAddress}`);
+    // VULN-02: authenticate WebSocket on upgrade
+    const user = authenticateRaw(req);
+    if (!user) {
+      ws.close(4401, 'Unauthorized');
+      return;
+    }
+
+    console.log(`[WS] Client connected: ${user.username} from ${req.socket.remoteAddress}`);
 
     // Send initial status immediately
     sendStatus(ws);
@@ -56,7 +63,8 @@ async function sendStatus(ws: WebSocket): Promise<void> {
     }
   } catch (err: any) {
     if (ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ type: 'error', payload: { message: err.message }, ts: Date.now() }));
+      // VULN-07: don't leak internal error details over websocket
+      ws.send(JSON.stringify({ type: 'error', payload: { message: 'Status check failed' }, ts: Date.now() }));
     }
   }
 }

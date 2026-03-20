@@ -37,31 +37,43 @@ ram.runtime = "64M"
   ask.en = "Directory containing WireGuard .conf files"
   type = "string"
   default = "/etc/wireguard"
+  pattern.regexp = "^/[a-zA-Z0-9/_.-]+$"
+  pattern.error = "Must be an absolute path with safe characters only"
 
   [install.wg_config_pattern]
   ask.en = "Glob pattern for tunnel config files (e.g. *.conf or vpn-*.conf)"
   type = "string"
   default = "*.conf"
+  pattern.regexp = "^[a-zA-Z0-9*_.-]+$"
+  pattern.error = "Only alphanumeric characters, *, _, -, and . are allowed"
 
   [install.wg_static_interface]
   ask.en = "Name of the always-on WireGuard interface"
   type = "string"
   default = "wg0"
+  pattern.regexp = "^[a-zA-Z0-9_-]+$"
+  pattern.error = "Only alphanumeric characters, underscores, and hyphens"
 
   [install.monitor_script]
   ask.en = "Full path to the VPN monitor script (a default stub is installed if the file does not exist)"
   type = "string"
   default = "/usr/local/bin/vpn-monitor.sh"
+  pattern.regexp = "^/[a-zA-Z0-9/_.-]+$"
+  pattern.error = "Must be an absolute path with safe characters only"
 
   [install.log_file]
   ask.en = "Path to the VPN monitor log file"
   type = "string"
   default = "/var/log/vpn-monitor.log"
+  pattern.regexp = "^/[a-zA-Z0-9/_.-]+$"
+  pattern.error = "Must be an absolute path with safe characters only"
 
   [install.check_ip]
   ask.en = "IP address used for ping-based connectivity checks"
   type = "string"
   default = "1.1.1.1"
+  pattern.regexp = "^[0-9.:a-fA-F]+$"
+  pattern.error = "Must be a valid IPv4 or IPv6 address"
 
 [resources]
 

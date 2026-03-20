@@ -9,6 +9,15 @@ ynh_script_progression "Stopping $app for upgrade..."
 ynh_systemd_action --service_name="$app" --action="stop"
 
 #=================================================
+# GENERATE PROXY SECRET IF MISSING (AUTH-01)
+#=================================================
+proxy_secret=$(ynh_app_setting_get --key=proxy_secret)
+if [ -z "$proxy_secret" ]; then
+    proxy_secret=$(ynh_string_random --length=48)
+    ynh_app_setting_set --key=proxy_secret --value="$proxy_secret"
+fi
+
+#=================================================
 # INSTALL / UPDATE NODE.JS
 #=================================================
 ynh_script_progression "Updating Node.js $nodejs_version..."

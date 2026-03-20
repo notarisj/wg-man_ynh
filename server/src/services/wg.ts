@@ -1,18 +1,64 @@
-import { exec } from 'child_process';
-import { promisify } from 'util';
-import { readdir, readFile } from 'fs/promises';
+import { execFile } from 'child_process';
+import { readdir, readFile, writeFile, copyFile, chmod, stat } from 'fs/promises';
 import path from 'path';
 
-const execAsync = promisify(exec);
+// ── Environment config ──────────────────────────────────────
 
 const CONFIG_DIR = process.env.WG_CONFIG_DIR || '/etc/wireguard';
 const CONFIG_PATTERN = process.env.WG_CONFIG_PATTERN || 'nl-ams-wg-*.conf';
 const STATIC_IFACE = process.env.WG_STATIC_INTERFACE || 'wg-vpn';
-const MONITOR_SCRIPT = process.env.MONITOR_SCRIPT || '/home/notaris/scripts/vpn-monitor.sh';
+const MONITOR_SCRIPT = process.env.MONITOR_SCRIPT || '/usr/local/bin/vpn-monitor.sh';
 const LOG_FILE = process.env.LOG_FILE || '/var/log/vpn-monitor.log';
 const STATE_FILE = process.env.STATE_FILE || '/var/lib/vpn-monitor.current';
 const CHECK_IP = process.env.CHECK_IP || '1.1.1.1';
 const MAX_HANDSHAKE_AGE = parseInt(process.env.MAX_HANDSHAKE_AGE || '120', 10);
+
+// ── Validation helpers (run once at import time) ────────────
+
+const SAFE_PATH_RE = /^\/[a-zA-Z0-9/_.-]+$/;
+const SAFE_IFACE_RE = /^[a-zA-Z0-9_-]+$/;
+const SAFE_IP_RE = /^[0-9.:a-fA-F]+$/;
+
+function validateEnv(): void {
+  if (!SAFE_PATH_RE.test(CONFIG_DIR)) throw new Error(`Unsafe WG_CONFIG_DIR: ${CONFIG_DIR}`);
+  if (!SAFE_IFACE_RE.test(STATIC_IFACE)) throw new Error(`Unsafe WG_STATIC_INTERFACE: ${STATIC_IFACE}`);
+  if (!SAFE_PATH_RE.test(MONITOR_SCRIPT)) throw new Error(`Unsafe MONITOR_SCRIPT: ${MONITOR_SCRIPT}`);
+  if (!SAFE_PATH_RE.test(LOG_FILE)) throw new Error(`Unsafe LOG_FILE: ${LOG_FILE}`);
+  if (!SAFE_PATH_RE.test(STATE_FILE)) throw new Error(`Unsafe STATE_FILE: ${STATE_FILE}`);
+  if (!SAFE_IP_RE.test(CHECK_IP)) throw new Error(`Unsafe CHECK_IP: ${CHECK_IP}`);
+}
+validateEnv();
+
+// ── Safe command execution (no shell) ───────────────────────
+
+function runCmd(bin: string, args: string[]): Promise<{ stdout: string; stderr: string }> {
+  return new Promise((resolve) => {
+    execFile(bin, args, { timeout: 10_000 }, (_err, stdout, stderr) => {
+      resolve({ stdout: stdout ?? '', stderr: stderr ?? '' });
+    });
+  });
+}
+
+// ── SYS-02: validate monitor script ownership ──────────────
+
+async function validateMonitorScript(): Promise<void> {
+  try {
+    const s = await stat(MONITOR_SCRIPT);
+    if (s.uid !== 0) {
+      console.warn(`[wg] WARNING: MONITOR_SCRIPT ${MONITOR_SCRIPT} is not owned by root (uid=${s.uid})`);
+    }
+    // Check it is not world-writable
+    // eslint-disable-next-line no-bitwise
+    if (s.mode & 0o002) {
+      throw new Error(`MONITOR_SCRIPT ${MONITOR_SCRIPT} is world-writable — refusing to execute`);
+    }
+  } catch (err: any) {
+    if (err.code === 'ENOENT') return; // will fail gracefully when invoked
+    throw err;
+  }
+}
+
+// ── Types ───────────────────────────────────────────────────
 
 export interface WgStatus {
   connected: boolean;
@@ -36,15 +82,11 @@ export interface WgConfig {
   address: string | null;
   endpoint: string | null;
   comment: string | null;
+  /** WG-03: true when the config file has no DNS directive */
+  missingDns: boolean;
 }
 
-async function runCmd(cmd: string): Promise<{ stdout: string; stderr: string }> {
-  try {
-    return await execAsync(cmd, { timeout: 10000 });
-  } catch (err: any) {
-    return { stdout: err.stdout || '', stderr: err.stderr || '' };
-  }
-}
+// ── Service functions ───────────────────────────────────────
 
 export async function getStatus(): Promise<WgStatus> {
   const base: WgStatus = {
@@ -63,7 +105,7 @@ export async function getStatus(): Promise<WgStatus> {
   };
 
   // Check if wg-vpn interface exists
-  const { stdout: ifaceOut } = await runCmd(`wg show interfaces`);
+  const { stdout: ifaceOut } = await runCmd('wg', ['show', 'interfaces']);
   const ifaces = ifaceOut.trim().split(/\s+/);
   if (!ifaces.includes(STATIC_IFACE)) {
     return base;
@@ -80,7 +122,7 @@ export async function getStatus(): Promise<WgStatus> {
   }
 
   // Parse wg show dump for stats
-  const { stdout: dumpOut } = await runCmd(`wg show ${STATIC_IFACE} dump`);
+  const { stdout: dumpOut } = await runCmd('wg', ['show', STATIC_IFACE, 'dump']);
   const lines = dumpOut.trim().split('\n');
 
   if (lines.length >= 1) {
@@ -108,10 +150,8 @@ export async function getStatus(): Promise<WgStatus> {
     }
   }
 
-  // Ping check
-  const { stdout: pingOut } = await runCmd(
-    `ping -c 1 -W 3 -I ${STATIC_IFACE} ${CHECK_IP}`
-  );
+  // Ping check (execFile — no shell)
+  const { stdout: pingOut } = await runCmd('ping', ['-c', '1', '-W', '3', '-I', STATIC_IFACE, CHECK_IP]);
   base.pingOk = pingOut.includes('1 received') || pingOut.includes('1 packets received');
 
   // Determine connected: handshake recent + ping OK
@@ -122,11 +162,32 @@ export async function getStatus(): Promise<WgStatus> {
   ) {
     base.connected = true;
   } else if (base.lastHandshake !== null && base.handshakeAge !== null && base.handshakeAge < MAX_HANDSHAKE_AGE) {
-    // Handshake is fresh even if ping failed (e.g. firewall)
     base.connected = true;
   }
 
   return base;
+}
+
+/**
+ * WG-01: extract only safe metadata from a config file.
+ * PrivateKey content is never returned or stored beyond the regex scan.
+ */
+function parseConfigMeta(content: string): {
+  address: string | null;
+  endpoint: string | null;
+  comment: string | null;
+  missingDns: boolean;
+} {
+  const addrMatch = content.match(/^Address\s*=\s*(.+)$/m);
+  const epMatch = content.match(/^Endpoint\s*=\s*(.+)$/m);
+  const commentMatch = content.match(/^#\s*Device:\s*(.+)$/m);
+  const dnsMatch = content.match(/^DNS\s*=/m);
+  return {
+    address: addrMatch ? addrMatch[1].trim().split(',')[0] : null,
+    endpoint: epMatch ? epMatch[1].trim() : null,
+    comment: commentMatch ? commentMatch[1].trim() : null,
+    missingDns: !dnsMatch,
+  };
 }
 
 export async function listConfigs(): Promise<WgConfig[]> {
@@ -146,7 +207,7 @@ export async function listConfigs(): Promise<WgConfig[]> {
     // no state file yet
   }
 
-  // Filter to matching pattern (nl-ams-wg-*.conf) but not wg-vpn itself
+  // Filter to matching pattern but not the static interface itself
   const prefix = CONFIG_PATTERN.replace('*', '').replace('.conf', '');
   const configs = files.filter(
     (f) => f.startsWith(prefix) && f.endsWith('.conf') && f !== `${STATIC_IFACE}.conf`
@@ -157,18 +218,13 @@ export async function listConfigs(): Promise<WgConfig[]> {
     const name = filename.replace('.conf', '');
     const filePath = path.join(CONFIG_DIR, filename);
 
-    let address: string | null = null;
-    let endpoint: string | null = null;
-    let comment: string | null = null;
+    let meta: ReturnType<typeof parseConfigMeta> = {
+      address: null, endpoint: null, comment: null, missingDns: true,
+    };
 
     try {
       const content = await readFile(filePath, 'utf-8');
-      const addrMatch = content.match(/^Address\s*=\s*(.+)$/m);
-      const epMatch = content.match(/^Endpoint\s*=\s*(.+)$/m);
-      const commentMatch = content.match(/^#\s*Device:\s*(.+)$/m);
-      address = addrMatch ? addrMatch[1].trim().split(',')[0] : null;
-      endpoint = epMatch ? epMatch[1].trim() : null;
-      comment = commentMatch ? commentMatch[1].trim() : null;
+      meta = parseConfigMeta(content);
     } catch {
       // can't read config
     }
@@ -177,9 +233,10 @@ export async function listConfigs(): Promise<WgConfig[]> {
       name,
       filename,
       isActive: name === activeConfig,
-      address,
-      endpoint,
-      comment,
+      address: meta.address,
+      endpoint: meta.endpoint,
+      comment: meta.comment,
+      missingDns: meta.missingDns,
     });
   }
 
@@ -195,50 +252,57 @@ export async function switchConfig(configName: string): Promise<{ success: boole
   const confPath = path.join(CONFIG_DIR, `${configName}.conf`);
   const staticConf = path.join(CONFIG_DIR, `${STATIC_IFACE}.conf`);
 
-  // Verify the config file exists before proceeding
+  // Verify the config file exists
   try {
-    await readFile(confPath, 'utf-8');
+    await stat(confPath);
   } catch {
     return { success: false, message: 'Config not found' };
   }
 
   // Bring down existing interface
-  await runCmd(`wg-quick down ${STATIC_IFACE}`);
-  await runCmd(`ip link delete ${STATIC_IFACE}`);
+  await runCmd('wg-quick', ['down', STATIC_IFACE]);
+  await runCmd('ip', ['link', 'delete', STATIC_IFACE]);
 
   // Clear lingering IP rules
-  const confContent = await readFile(confPath, 'utf-8').catch(() => '');
-  const addrMatch = confContent.match(/^Address\s*=\s*([0-9.]+)/m);
-  if (addrMatch) {
-    await runCmd(`ip -4 rule del from ${addrMatch[1]} table 1000`);
+  try {
+    const confContent = await readFile(confPath, 'utf-8');
+    const addrMatch = confContent.match(/^Address\s*=\s*([0-9.]+)/m);
+    if (addrMatch) {
+      await runCmd('ip', ['-4', 'rule', 'del', 'from', addrMatch[1], 'table', '1000']);
+    }
+  } catch {
+    // non-critical
   }
 
-  // Copy config
-  const { stdout: cpOut, stderr: cpErr } = await runCmd(`cp "${confPath}" "${staticConf}" && chmod 600 "${staticConf}"`);
+  // VULN-05: copy config using fs instead of shell
+  await copyFile(confPath, staticConf);
+  await chmod(staticConf, 0o600);
 
   // Bring up
-  const { stderr: upErr } = await runCmd(`wg-quick up ${STATIC_IFACE}`);
+  const { stderr: upErr } = await runCmd('wg-quick', ['up', STATIC_IFACE]);
   if (upErr && upErr.includes('Error')) {
-    return { success: false, message: `wg-quick up failed: ${upErr}` };
+    return { success: false, message: 'wg-quick up failed' };
   }
 
-  // Write state
-  await runCmd(`echo "${configName}" > "${STATE_FILE}"`);
+  // VULN-05: write state file using fs instead of shell echo
+  await writeFile(STATE_FILE, configName, 'utf-8');
 
   return { success: true, message: `Switched to ${configName}` };
 }
 
 export async function disconnectVPN(): Promise<{ success: boolean; message: string }> {
-  const { stderr } = await runCmd(`wg-quick down ${STATIC_IFACE}`);
-  await runCmd(`ip link delete ${STATIC_IFACE}`);
+  const { stderr } = await runCmd('wg-quick', ['down', STATIC_IFACE]);
+  await runCmd('ip', ['link', 'delete', STATIC_IFACE]);
   if (stderr && stderr.includes('Error') && !stderr.includes('Cannot find device')) {
-    return { success: false, message: stderr };
+    return { success: false, message: 'Disconnect failed' };
   }
   return { success: true, message: 'VPN disconnected' };
 }
 
 export async function runMonitor(): Promise<{ success: boolean; output: string }> {
-  const { stdout, stderr } = await runCmd(`bash "${MONITOR_SCRIPT}"`);
+  // SYS-02: validate monitor script before execution
+  await validateMonitorScript();
+  const { stdout, stderr } = await runCmd('bash', [MONITOR_SCRIPT]);
   return {
     success: !stderr.includes('CRITICAL'),
     output: (stdout + stderr).trim(),
@@ -246,7 +310,7 @@ export async function runMonitor(): Promise<{ success: boolean; output: string }
 }
 
 export async function tailLog(lines = 100): Promise<string[]> {
-  const { stdout } = await runCmd(`tail -n ${lines} "${LOG_FILE}"`);
+  const { stdout } = await runCmd('tail', ['-n', String(lines), LOG_FILE]);
   if (!stdout.trim()) return [];
   return stdout
     .trim()

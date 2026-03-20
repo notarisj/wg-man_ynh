@@ -40,7 +40,10 @@ async function apiFetch<T>(
   try {
     const res = await fetch(`${BASE_URL}/api${path}`, {
       credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+      },
       ...options,
     });
 

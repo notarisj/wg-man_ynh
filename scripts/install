@@ -3,6 +3,12 @@ source _common.sh
 source /usr/share/yunohost/helpers
 
 #=================================================
+# GENERATE PROXY SECRET (AUTH-01)
+#=================================================
+proxy_secret=$(ynh_string_random --length=48)
+ynh_app_setting_set --key=proxy_secret --value="$proxy_secret"
+
+#=================================================
 # INSTALL NODE.JS
 #=================================================
 ynh_script_progression "Installing Node.js $nodejs_version..."
@@ -51,10 +57,15 @@ popd
 
 #=================================================
 # INSTALL DEFAULT MONITOR SCRIPT (IF ABSENT)
+# SYS-02: ensure root ownership and no world-write
 #=================================================
 if [ ! -f "$monitor_script" ]; then
     ynh_script_progression "Installing default vpn-monitor.sh to $monitor_script..."
-    install -m 755 "$YNH_APP_BASEDIR/conf/vpn-monitor.sh" "$monitor_script"
+    install -o root -g root -m 755 "$YNH_APP_BASEDIR/conf/vpn-monitor.sh" "$monitor_script"
+else
+    # Ensure existing script is not world-writable
+    chmod o-w "$monitor_script"
+    chown root:root "$monitor_script"
 fi
 
 #=================================================
