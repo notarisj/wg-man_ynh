@@ -11,9 +11,11 @@ export const Configs: React.FC = () => {
   useEffect(() => { fetchConfigs(); }, []);
 
   const handleSwitch = async (name: string) => {
-    await switchConfig(name);
-    setSwitchedMsg(`Switched to ${name}`);
-    setTimeout(() => setSwitchedMsg(null), 3500);
+    const ok = await switchConfig(name);
+    if (ok) {
+      setSwitchedMsg(`Switched to ${name}`);
+      setTimeout(() => setSwitchedMsg(null), 3500);
+    }
   };
 
   return (

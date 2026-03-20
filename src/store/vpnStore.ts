@@ -32,7 +32,7 @@ interface VpnStore {
   fetchLogs: (lines?: number) => Promise<void>;
   connect: () => Promise<void>;
   disconnect: () => Promise<void>;
-  switchConfig: (name: string) => Promise<void>;
+  switchConfig: (name: string) => Promise<boolean>;
   startWebSocket: () => void;
   stopWebSocket: () => void;
   clearError: () => void;
@@ -117,9 +117,11 @@ export const useVpnStore = create<VpnStore>((set, get) => ({
     set({ isSwitching: null });
     if (!res.ok) {
       set({ error: res.error });
+      return false;
     } else {
       get().fetchConfigs();
       // WS push will deliver updated status + logs within PUSH_INTERVAL_MS
+      return true;
     }
   },
 
