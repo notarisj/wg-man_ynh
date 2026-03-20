@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { RefreshCw, UserCircle } from 'lucide-react';
+import { RefreshCw, UserCircle, Menu } from 'lucide-react';
 import { useVpnStore } from '../../store/vpnStore';
 import './Header.css';
 
@@ -11,7 +11,11 @@ const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
   '/settings':{ title: 'Settings',   subtitle: 'Application configuration' },
 };
 
-export const Header: React.FC = () => {
+interface HeaderProps {
+  onMobileMenuToggle: () => void;
+}
+
+export const Header: React.FC<HeaderProps> = ({ onMobileMenuToggle }) => {
   const location = useLocation();
   const meta = PAGE_TITLES[location.pathname] ?? PAGE_TITLES['/'];
   const { fetchStatus, fetchConfigs, isLoadingStatus, lastUpdated, user } = useVpnStore();
@@ -30,6 +34,13 @@ export const Header: React.FC = () => {
   return (
     <header className="header">
       <div className="header__left">
+        <button
+          className="btn btn-ghost btn-icon header__mobile-menu"
+          onClick={onMobileMenuToggle}
+          aria-label="Toggle navigation"
+        >
+          <Menu size={20} />
+        </button>
         <div>
           <h1 className="header__title">{meta.title}</h1>
           <p className="header__subtitle">{meta.subtitle}</p>

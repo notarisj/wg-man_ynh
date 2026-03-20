@@ -8,6 +8,8 @@ import {
   Shield,
   ShieldCheck,
   ShieldOff,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from 'lucide-react';
 import { useVpnStore } from '../../store/vpnStore';
 import './Sidebar.css';
@@ -25,7 +27,16 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/settings',icon: <Settings2 size={20} />,       label: 'Settings' },
 ];
 
-export const Sidebar: React.FC = () => {
+interface SidebarProps {
+  collapsed: boolean;
+  mobileOpen: boolean;
+  onToggleCollapse: () => void;
+  onMobileClose: () => void;
+}
+
+export const Sidebar: React.FC<SidebarProps> = ({
+  collapsed, mobileOpen, onToggleCollapse, onMobileClose,
+}) => {
   const status = useVpnStore((s) => s.status);
   const location = useLocation();
 
@@ -39,8 +50,11 @@ export const Sidebar: React.FC = () => {
     ? status.currentConfig ?? 'Connected'
     : 'Disconnected';
 
+  const cls = ['sidebar', collapsed ? 'sidebar--collapsed' : '', mobileOpen ? 'sidebar--mobile-open' : '']
+    .filter(Boolean).join(' ');
+
   return (
-    <aside className="sidebar">
+    <aside className={cls}>
       {/* Logo / Brand */}
       <div className="sidebar__brand">
         <div className="sidebar__logo">
@@ -72,12 +86,27 @@ export const Sidebar: React.FC = () => {
               to={to}
               className={`sidebar__nav-item${isActive ? ' sidebar__nav-item--active' : ''}`}
               aria-label={label}
+              title={label}
+              onClick={onMobileClose}
             >
               <span className="sidebar__nav-icon">{icon}</span>
               <span className="sidebar__nav-label">{label}</span>
             </NavLink>
           );
         })}
+
+        {/* Desktop-only collapse toggle */}
+        <button
+          className="sidebar__nav-item sidebar__toggle-btn"
+          onClick={onToggleCollapse}
+          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          title={collapsed ? 'Expand' : 'Collapse'}
+        >
+          <span className="sidebar__nav-icon">
+            {collapsed ? <PanelLeftOpen size={20} /> : <PanelLeftClose size={20} />}
+          </span>
+          <span className="sidebar__nav-label">Collapse</span>
+        </button>
       </nav>
 
       {/* Footer */}

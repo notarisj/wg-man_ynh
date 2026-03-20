@@ -69,8 +69,13 @@
   color: var(--clr-text);
 }
 
-@media (max-width: 600px) {
+.header__mobile-menu {
+  display: none;
+}
+
+@media (max-width: 768px) {
   .header { padding: 14px 16px; }
   .header__subtitle { display: none; }
   .header__last-update { display: none; }
+  .header__mobile-menu { display: flex; }
 }

@@ -11,6 +11,7 @@
   backdrop-filter: blur(20px);
   z-index: 100;
   overflow: hidden;
+  transition: width var(--dur-normal) var(--ease);
 }
 
 /* Brand */
@@ -183,6 +184,7 @@
   color: var(--clr-text-dim);
   font-family: 'JetBrains Mono', monospace;
   margin-top: 1px;
+  white-space: nowrap;
 }
 
 .sidebar__status-icon-wrap {
@@ -198,4 +200,117 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* ── Collapsible sidebar ───────────────────────────────────── */
+
+.sidebar--collapsed {
+  width: var(--sidebar-w-collapsed);
+}
+
+.sidebar--collapsed .sidebar__brand {
+  justify-content: center;
+  gap: 0;
+}
+
+.sidebar--collapsed .sidebar__brand-text,
+.sidebar--collapsed .sidebar__footer-body,
+.sidebar--collapsed .sidebar__nav-label {
+  opacity: 0;
+  max-width: 0;
+  overflow: hidden;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+/* In collapsed mode show only the dot — hide the label */
+.sidebar--collapsed .sidebar__status {
+  justify-content: center;
+  padding: 6px;
+  margin: 8px auto;
+  width: 36px;
+  border-radius: var(--r-md);
+  gap: 0;
+}
+
+.sidebar--collapsed .sidebar__status-label {
+  opacity: 0;
+  max-width: 0;
+  overflow: hidden;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.sidebar__brand-text,
+.sidebar__nav-label,
+.sidebar__footer-body,
+.sidebar__status-label {
+  transition: opacity var(--dur-normal) var(--ease), max-width var(--dur-normal) var(--ease);
+  max-width: 200px;
+}
+
+.sidebar__status {
+  transition: opacity var(--dur-normal) var(--ease), max-height var(--dur-normal) var(--ease);
+}
+
+.sidebar--collapsed .sidebar__footer {
+  justify-content: center;
+  gap: 0;
+  padding: 14px 0;
+}
+
+.sidebar--collapsed .sidebar__nav-item {
+  justify-content: center;
+  padding: 10px;
+  gap: 0;
+}
+
+/* Collapse toggle button (desktop-only) */
+.sidebar__toggle-btn {
+  background: none;
+  border: none;
+  font: inherit;
+  cursor: pointer;
+  color: var(--clr-text-muted);
+  margin-top: auto;
+  width: 100%;
+  text-align: left;
+}
+
+.sidebar__toggle-btn:hover {
+  background: var(--clr-surface-md);
+  color: var(--clr-text);
+}
+
+/* ── Mobile ────────────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+  .sidebar {
+    transform: translateX(-100%);
+    transition: transform var(--dur-normal) var(--ease);
+    width: var(--sidebar-w) !important;
+    z-index: 200;
+  }
+
+  .sidebar--mobile-open {
+    transform: translateX(0);
+  }
+
+  /* Override collapsed — always show full content on mobile when open */
+  .sidebar--collapsed .sidebar__brand { justify-content: flex-start; gap: 12px; }
+  .sidebar--collapsed .sidebar__footer { justify-content: flex-start; gap: 10px; padding: 14px 16px; }
+  .sidebar--collapsed .sidebar__nav-item { justify-content: flex-start; padding: 10px 12px; gap: 12px; }
+  .sidebar--collapsed .sidebar__status { justify-content: flex-start; padding: 8px 12px; margin: 12px 10px; width: auto; gap: 10px; }
+  .sidebar--collapsed .sidebar__brand-text,
+  .sidebar--collapsed .sidebar__footer-body,
+  .sidebar--collapsed .sidebar__nav-label,
+  .sidebar--collapsed .sidebar__status-label {
+    opacity: 1;
+    max-width: 200px;
+    overflow: visible;
+    pointer-events: auto;
+  }
+
+  /* Hide desktop collapse toggle on mobile */
+  .sidebar__toggle-btn { display: none; }
 }

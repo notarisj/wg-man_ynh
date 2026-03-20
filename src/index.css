@@ -262,6 +262,20 @@ button { cursor: pointer; border: none; font: inherit; }
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  transition: margin-left var(--dur-normal) var(--ease);
+}
+
+.app-layout.sidebar-collapsed .main-content {
+  margin-left: var(--sidebar-w-collapsed);
+}
+
+.sidebar-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 150;
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
 }
 
 
@@ -276,7 +290,7 @@ button { cursor: pointer; border: none; font: inherit; }
 
 /* ── Responsive ───────────────────────────────────────────── */
 @media (max-width: 768px) {
-  .main-content { margin-left: 0; }
+  .main-content { margin-left: 0 !important; }
   .page { padding: 16px; }
 }
 
