@@ -97,8 +97,10 @@ export const useVpnStore = create<VpnStore>((set, get) => ({
     if (!res.ok) {
       set({ error: res.error });
     } else {
-      // Refresh status after connect
-      setTimeout(() => get().fetchStatus(), 1500);
+      setTimeout(() => {
+        get().fetchStatus();
+        get().fetchLogs(10);
+      }, 1500);
     }
   },
 
@@ -109,7 +111,10 @@ export const useVpnStore = create<VpnStore>((set, get) => ({
     if (!res.ok) {
       set({ error: res.error });
     } else {
-      setTimeout(() => get().fetchStatus(), 1000);
+      setTimeout(() => {
+        get().fetchStatus();
+        get().fetchLogs(10);
+      }, 1000);
     }
   },
 
@@ -120,8 +125,7 @@ export const useVpnStore = create<VpnStore>((set, get) => ({
     if (!res.ok) {
       set({ error: res.error });
     } else {
-      // Refresh both status and configs
-      await Promise.all([get().fetchStatus(), get().fetchConfigs()]);
+      await Promise.all([get().fetchStatus(), get().fetchConfigs(), get().fetchLogs(10)]);
     }
   },
 
