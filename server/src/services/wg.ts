@@ -113,10 +113,43 @@ export async function getStatus(): Promise<WgStatus> {
 
   base.interface = STATIC_IFACE;
 
-  // Read current config name from state file
+  // Derive currentConfig from the actual running config file content.
+  // The monitor script may switch configs without updating our state file,
+  // so comparing STATIC_IFACE.conf byte-for-byte against named configs is
+  // the only reliable source of truth.
   try {
-    const stateContent = await readFile(STATE_FILE, 'utf-8');
-    base.currentConfig = stateContent.trim();
+    const staticConfPath = path.join(CONFIG_DIR, `${STATIC_IFACE}.conf`);
+    const staticContent = await readFile(staticConfPath, 'utf-8');
+
+    const files = await readdir(CONFIG_DIR);
+    const prefix = CONFIG_PATTERN.replace('*', '').replace('.conf', '');
+    const candidates = files.filter(
+      (f) => f.startsWith(prefix) && f.endsWith('.conf') && f !== `${STATIC_IFACE}.conf`
+    );
+
+    let matched: string | null = null;
+    for (const filename of candidates) {
+      try {
+        const content = await readFile(path.join(CONFIG_DIR, filename), 'utf-8');
+        if (content === staticContent) {
+          matched = filename.replace('.conf', '');
+          break;
+        }
+      } catch {
+        // skip unreadable configs
+      }
+    }
+
+    if (matched) {
+      base.currentConfig = matched;
+      // Keep state file in sync so listConfigs() reflects reality
+      await mkdir(path.dirname(STATE_FILE), { recursive: true });
+      await writeFile(STATE_FILE, matched, 'utf-8').catch(() => {});
+    } else {
+      // Fall back to state file if no content match (e.g. config was modified)
+      const stateContent = await readFile(STATE_FILE, 'utf-8').catch(() => '');
+      base.currentConfig = stateContent.trim() || null;
+    }
   } catch {
     base.currentConfig = null;
   }
