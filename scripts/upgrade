@@ -1,0 +1,76 @@
+#!/bin/bash
+source _common.sh
+source /usr/share/yunohost/helpers
+
+#=================================================
+# STOP SERVICE
+#=================================================
+ynh_script_progression "Stopping $app for upgrade..."
+ynh_systemctl --action=stop --service="$app"
+
+#=================================================
+# INSTALL / UPDATE NODE.JS
+#=================================================
+ynh_script_progression "Updating Node.js $nodejs_version..."
+ynh_install_nodejs --nodejs_version="$nodejs_version"
+ynh_use_nodejs
+ynh_app_setting_set --key=node --value="$ynh_node"
+
+#=================================================
+# UPDATE APPLICATION SOURCE
+#=================================================
+ynh_script_progression "Updating application source..."
+
+rsync -a \
+    --exclude='.git' \
+    --exclude='scripts' \
+    --exclude='conf' \
+    --exclude='manifest.toml' \
+    --exclude='node_modules' \
+    --exclude='server/node_modules' \
+    --exclude='dist' \
+    --exclude='server/dist' \
+    "$YNH_APP_BASEDIR/" "$install_dir/"
+
+#=================================================
+# REBUILD FRONTEND
+#=================================================
+ynh_script_progression "Rebuilding frontend..."
+pushd "$install_dir"
+VITE_APP_PATH="$path/" $ynh_npm ci 2>&1
+VITE_APP_PATH="$path/" $ynh_npm run build 2>&1
+popd
+
+#=================================================
+# REBUILD BACKEND
+#=================================================
+ynh_script_progression "Rebuilding backend..."
+pushd "$install_dir/server"
+$ynh_npm ci 2>&1
+$ynh_npm run build 2>&1
+popd
+
+#=================================================
+# UPDATE CONFIGURATIONS
+#=================================================
+ynh_script_progression "Updating nginx configuration..."
+ynh_config_add_nginx
+
+ynh_script_progression "Updating systemd service..."
+ynh_config_add_systemd
+
+#=================================================
+# FIX PERMISSIONS
+#=================================================
+chown -R root:root "$install_dir"
+chmod -R o-rwx "$install_dir"
+chmod 640 "$install_dir/server/.env"
+chown -R root:root "$data_dir"
+
+#=================================================
+# START SERVICE
+#=================================================
+ynh_script_progression "Restarting $app..."
+ynh_systemctl --action=start --service="$app"
+
+ynh_script_progression "Upgrade of $app completed"

@@ -1,0 +1,91 @@
+#!/bin/bash
+source _common.sh
+source /usr/share/yunohost/helpers
+
+#=================================================
+# INSTALL NODE.JS
+#=================================================
+ynh_script_progression "Installing Node.js $nodejs_version..."
+ynh_install_nodejs --nodejs_version="$nodejs_version"
+ynh_use_nodejs
+# Save the resolved node binary path so conf/systemd.service can reference it via __NODE__
+ynh_app_setting_set --key=node --value="$ynh_node"
+
+#=================================================
+# COPY APPLICATION SOURCE
+#=================================================
+ynh_script_progression "Copying application source..."
+
+# Copy repo contents to install_dir, excluding packaging and build artefacts
+rsync -a \
+    --exclude='.git' \
+    --exclude='scripts' \
+    --exclude='conf' \
+    --exclude='manifest.toml' \
+    --exclude='node_modules' \
+    --exclude='server/node_modules' \
+    --exclude='dist' \
+    --exclude='server/dist' \
+    "$YNH_APP_BASEDIR/" "$install_dir/"
+
+#=================================================
+# BUILD FRONTEND
+#=================================================
+ynh_script_progression "Building frontend (vite)..."
+pushd "$install_dir"
+# VITE_APP_PATH sets the Vite `base` option so assets and routes use the correct sub-path
+VITE_APP_PATH="$path/" $ynh_npm ci 2>&1
+VITE_APP_PATH="$path/" $ynh_npm run build 2>&1
+popd
+
+#=================================================
+# BUILD BACKEND
+#=================================================
+ynh_script_progression "Building backend (TypeScript)..."
+pushd "$install_dir/server"
+$ynh_npm ci 2>&1
+$ynh_npm run build 2>&1
+popd
+
+#=================================================
+# INSTALL DEFAULT MONITOR SCRIPT (IF ABSENT)
+#=================================================
+if [ ! -f "$monitor_script" ]; then
+    ynh_script_progression "Installing default vpn-monitor.sh to $monitor_script..."
+    install -m 755 "$YNH_APP_BASEDIR/conf/vpn-monitor.sh" "$monitor_script"
+fi
+
+#=================================================
+# CONFIGURE .env
+#=================================================
+ynh_script_progression "Writing .env configuration..."
+ynh_config_add --template=".env" --destination="$install_dir/server/.env"
+chmod 640 "$install_dir/server/.env"
+
+#=================================================
+# SET FILE PERMISSIONS
+#=================================================
+chown -R root:root "$install_dir"
+chmod -R o-rwx "$install_dir"
+chown -R root:root "$data_dir"
+
+#=================================================
+# CONFIGURE NGINX
+#=================================================
+ynh_script_progression "Configuring nginx..."
+ynh_config_add_nginx
+
+#=================================================
+# CONFIGURE SYSTEMD
+#=================================================
+ynh_script_progression "Configuring systemd service..."
+ynh_config_add_systemd
+yunohost service add "$app" --description="WireGuard VPN Manager" --log="/var/log/$app.log"
+
+#=================================================
+# START SERVICE
+#=================================================
+ynh_script_progression "Starting $app..."
+ynh_systemctl --action=start --service="$app"
+
+ynh_script_progression "Installation of $app completed"

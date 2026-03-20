@@ -1,0 +1,22 @@
+[Unit]
+Description=WG Manager API — __APP__
+After=network.target
+
+[Service]
+Type=simple
+# Root is required — wg-quick and wg commands need CAP_NET_ADMIN
+User=root
+WorkingDirectory=__INSTALL_DIR__/server
+Environment=NODE_ENV=production
+EnvironmentFile=__INSTALL_DIR__/server/.env
+ExecStart=__NODE__ __INSTALL_DIR__/server/dist/index.js
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=__APP__
+
+LimitNOFILE=65535
+
+[Install]
+WantedBy=multi-user.target

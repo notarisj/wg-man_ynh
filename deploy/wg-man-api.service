@@ -1,0 +1,22 @@
+[Unit]
+Description=WG Manager API Server
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/wg-man/server
+Environment=NODE_ENV=production
+EnvironmentFile=/opt/wg-man/server/.env
+ExecStart=/usr/bin/node /opt/wg-man/server/dist/index.js
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=wg-man
+
+# Limits
+LimitNOFILE=65535
+
+[Install]
+WantedBy=multi-user.target

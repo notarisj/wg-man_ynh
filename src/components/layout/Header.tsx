@@ -1,0 +1,67 @@
+import React, { useState } from 'react';
+import { useLocation } from 'react-router-dom';
+import { RefreshCw, UserCircle, Radio } from 'lucide-react';
+import { useVpnStore } from '../../store/vpnStore';
+import './Header.css';
+
+const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
+  '/':        { title: 'Dashboard',   subtitle: 'Real-time VPN overview' },
+  '/configs': { title: 'Configs',     subtitle: 'Manage WireGuard configurations' },
+  '/logs':    { title: 'Logs',        subtitle: 'Monitor activity & events' },
+  '/settings':{ title: 'Settings',   subtitle: 'Application configuration' },
+};
+
+export const Header: React.FC = () => {
+  const location = useLocation();
+  const meta = PAGE_TITLES[location.pathname] ?? PAGE_TITLES['/'];
+  const { fetchStatus, fetchConfigs, isLoadingStatus, lastUpdated, user, liveMode, setLiveMode } = useVpnStore();
+  const [refreshing, setRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await Promise.all([fetchStatus(), fetchConfigs()]);
+    setTimeout(() => setRefreshing(false), 600);
+  };
+
+  const timeStr = lastUpdated
+    ? new Date(lastUpdated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+    : null;
+
+  return (
+    <header className="header">
+      <div className="header__left">
+        <div>
+          <h1 className="header__title">{meta.title}</h1>
+          <p className="header__subtitle">{meta.subtitle}</p>
+        </div>
+      </div>
+      <div className="header__right">
+        {timeStr && (
+          <span className="header__last-update">Updated {timeStr}</span>
+        )}
+        <button
+          className={`btn btn-ghost btn-sm header__live-btn${liveMode ? ' header__live-btn--active' : ''}`}
+          onClick={() => setLiveMode(!liveMode)}
+          aria-label={liveMode ? 'Disable live mode' : 'Enable live mode'}
+          title={liveMode ? 'Live mode ON — click to disable (refreshes every 5s)' : 'Enable live mode (auto-refresh every 5s)'}
+        >
+          <span className={`header__live-dot${liveMode ? ' header__live-dot--on' : ''}`} />
+          <Radio size={14} />
+          Live
+        </button>
+        <button
+          className={`btn btn-ghost btn-icon header__refresh${refreshing || isLoadingStatus ? ' spinning' : ''}`}
+          onClick={handleRefresh}
+          aria-label="Refresh status"
+          title="Refresh"
+        >
+          <RefreshCw size={16} />
+        </button>
+        <div className="header__user">
+          <UserCircle size={20} className="header__user-icon" />
+          {user && <span className="header__username">{user.username}</span>}
+        </div>
+      </div>
+    </header>
+  );
+};

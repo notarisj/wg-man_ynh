@@ -1,0 +1,13 @@
+#!/bin/bash
+source _common.sh
+source /usr/share/yunohost/helpers
+
+ynh_script_progression "Backing up $app..."
+
+# Back up the full install directory (includes built dist and node_modules)
+ynh_backup "$install_dir"
+
+# Back up the data directory (VPN state file)
+ynh_backup "$data_dir"
+
+ynh_script_progression "Backup of $app completed"

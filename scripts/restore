@@ -1,0 +1,48 @@
+#!/bin/bash
+source _common.sh
+source /usr/share/yunohost/helpers
+
+#=================================================
+# REINSTALL NODE.JS
+#=================================================
+ynh_script_progression "Reinstalling Node.js $nodejs_version..."
+ynh_install_nodejs --nodejs_version="$nodejs_version"
+ynh_use_nodejs
+# Re-save node path in case the binary location changed after reinstall
+ynh_app_setting_set --key=node --value="$ynh_node"
+
+#=================================================
+# RESTORE APP FILES
+#=================================================
+ynh_script_progression "Restoring application files..."
+ynh_restore "$install_dir"
+ynh_restore "$data_dir"
+
+#=================================================
+# FIX PERMISSIONS
+#=================================================
+chown -R root:root "$install_dir"
+chmod -R o-rwx "$install_dir"
+chmod 640 "$install_dir/server/.env"
+chown -R root:root "$data_dir"
+
+#=================================================
+# RESTORE NGINX
+#=================================================
+ynh_script_progression "Restoring nginx configuration..."
+ynh_config_add_nginx
+
+#=================================================
+# RESTORE SYSTEMD SERVICE
+#=================================================
+ynh_script_progression "Restoring systemd service..."
+ynh_config_add_systemd
+yunohost service add "$app" --description="WireGuard VPN Manager" --log="/var/log/$app.log"
+
+#=================================================
+# START SERVICE
+#=================================================
+ynh_script_progression "Starting $app..."
+ynh_systemctl --action=start --service="$app"
+
+ynh_script_progression "Restoration of $app completed"

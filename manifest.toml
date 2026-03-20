@@ -1,0 +1,82 @@
+packaging_format = 2
+
+id = "wg-man"
+name = "WG Manager"
+description.en = "WireGuard VPN configuration manager with YunoHost SSO authentication"
+version = "0.1.0~ynh1"
+
+maintainers = []
+
+[upstream]
+license = "MIT"
+
+[integration]
+yunohost = ">= 11.2"
+architectures = ["amd64", "arm64"]
+multi_instance = false
+ldap = false
+sso = true
+disk = "300M"
+ram.build = "256M"
+ram.runtime = "64M"
+
+[install]
+
+  [install.domain]
+  type = "domain"
+
+  [install.path]
+  type = "path"
+  default = "/wg-man"
+
+  [install.init_main_permission]
+  type = "group"
+  default = "admins"
+
+  [install.wg_config_dir]
+  ask.en = "Directory containing WireGuard .conf files"
+  type = "string"
+  default = "/etc/wireguard"
+
+  [install.wg_config_pattern]
+  ask.en = "Glob pattern for tunnel config files (e.g. *.conf or vpn-*.conf)"
+  type = "string"
+  default = "*.conf"
+
+  [install.wg_static_interface]
+  ask.en = "Name of the always-on WireGuard interface"
+  type = "string"
+  default = "wg0"
+
+  [install.monitor_script]
+  ask.en = "Full path to the VPN monitor script (a default stub is installed if the file does not exist)"
+  type = "string"
+  default = "/usr/local/bin/vpn-monitor.sh"
+
+  [install.log_file]
+  ask.en = "Path to the VPN monitor log file"
+  type = "string"
+  default = "/var/log/vpn-monitor.log"
+
+  [install.check_ip]
+  ask.en = "IP address used for ping-based connectivity checks"
+  type = "string"
+  default = "1.1.1.1"
+
+[resources]
+
+  [resources.install_dir]
+  dir = "/opt/__APP__"
+  owner = "root"
+  group = "root"
+
+  [resources.data_dir]
+  dir = "/var/lib/__APP__"
+  owner = "root"
+  group = "root"
+
+  [resources.ports]
+  main.default = 3001
+
+  [resources.apt]
+  packages = ["wireguard-tools"]
