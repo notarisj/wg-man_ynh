@@ -18,6 +18,15 @@ if [ -z "$proxy_secret" ]; then
 fi
 
 #=================================================
+# GENERATE SESSION SECRET IF MISSING
+#=================================================
+session_secret=$(ynh_app_setting_get --key=session_secret)
+if [ -z "$session_secret" ]; then
+    session_secret=$(ynh_string_random --length=64)
+    ynh_app_setting_set --key=session_secret --value="$session_secret"
+fi
+
+#=================================================
 # INSTALL / UPDATE NODE.JS
 #=================================================
 ynh_script_progression "Updating Node.js $nodejs_version..."

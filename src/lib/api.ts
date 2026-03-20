@@ -5,6 +5,10 @@
 // import.meta.env.BASE_URL reflects the Vite `base` config (e.g. "/wg-man/" when installed at sub-path)
 const BASE_URL = import.meta.env.VITE_API_URL ?? import.meta.env.BASE_URL.replace(/\/$/, '');
 
+export const getLogoutUrl  = () => `${BASE_URL}/api/auth/logout`;
+export const getDexLoginUrl = () => `${BASE_URL}/api/auth/login`;
+export const getSsoLoginUrl = () => '/yunohost/sso/';
+
 export type VpnStatus = {
   connected: boolean;
   interface: string | null;
@@ -63,6 +67,7 @@ async function apiFetch<T>(
 
 export const api = {
   me: () => apiFetch<{ user: { username: string; email?: string } }>('/me'),
+  authConfig: () => apiFetch<{ dexEnabled: boolean }>('/auth/config'),
   status: () => apiFetch<VpnStatus>('/status'),
   configs: () => apiFetch<WgConfig[]>('/configs'),
   logs: (lines = 100) => apiFetch<string[]>(`/logs?lines=${lines}`),

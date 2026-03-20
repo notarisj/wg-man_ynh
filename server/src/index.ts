@@ -1,9 +1,11 @@
 import 'dotenv/config';
 import express from 'express';
+import session from 'express-session';
 import cors from 'cors';
 import helmet from 'helmet';
 import path from 'path';
 import { createServer } from 'http';
+import authRouter from './routes/auth';
 import vpnRouter from './routes/vpn';
 import { createWebSocketServer } from './websocket';
 
@@ -37,12 +39,32 @@ if (!IS_PROD) {
 
 app.use(express.json());
 
+// Session middleware — used by the Dex OIDC auth flow
+const SESSION_SECRET = process.env.SESSION_SECRET || '';
+if (IS_PROD && !SESSION_SECRET) {
+  console.warn('[wg-man] WARNING: SESSION_SECRET is not set — sessions will not persist across restarts');
+}
+app.use(session({
+  secret: SESSION_SECRET || 'dev-only-secret-change-in-production',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    httpOnly: true,
+    secure: IS_PROD,   // require HTTPS in production
+    sameSite: 'lax',
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+  },
+}));
+
 // Health check (no auth required)
 app.get('/healthz', (_req, res) => {
   res.json({ status: 'ok', ts: Date.now() });
 });
 
-// API routes
+// Auth routes (OIDC + logout) — mounted before vpnRouter so they bypass ssowatAuth
+app.use('/api/auth', authRouter);
+
+// API routes (protected by ssowatAuth inside vpnRouter)
 app.use('/api', vpnRouter);
 
 // Serve built frontend in production

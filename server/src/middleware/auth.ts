@@ -45,8 +45,9 @@ export function extractYnhUser(headers: Record<string, string | string[] | undef
 /**
  * Verify the shared proxy secret that nginx forwards.
  * In dev mode or when PROXY_SECRET is unset the check is skipped.
+ * Exported so auth routes can reuse the same check.
  */
-function verifyProxySecret(headers: Record<string, string | string[] | undefined>): boolean {
+export function verifyProxySecret(headers: Record<string, string | string[] | undefined>): boolean {
   if (IS_DEV || !PROXY_SECRET) return true;
   const sent = headers['x-wg-secret'];
   return sent === PROXY_SECRET;
@@ -94,6 +95,13 @@ export function authenticateRaw(req: IncomingMessage): { username: string; email
  */
 export function ssowatAuth(req: Request, res: Response, next: NextFunction): void {
   const headers = req.headers as Record<string, string | string[] | undefined>;
+
+  // Session auth: user authenticated via Dex OIDC (req.session set by auth routes)
+  if (req.session?.user) {
+    req.user = req.session.user;
+    next();
+    return;
+  }
 
   // AUTH-01: verify shared proxy secret
   const secretValid = verifyProxySecret(headers);
