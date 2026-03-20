@@ -126,27 +126,6 @@ if [ -n "$dex_domain" ]; then
 fi
 
 #=================================================
-# UPDATE APP ICON IN YUNOHOST PORTAL
-#=================================================
-if [ -f "$YNH_APP_BASEDIR/doc/icon.png" ]; then
-    icon_hash=$(sha256sum "$YNH_APP_BASEDIR/doc/icon.png" | cut -d' ' -f1)
-    mkdir -p /usr/share/yunohost/applogos
-    cp "$YNH_APP_BASEDIR/doc/icon.png" "/usr/share/yunohost/applogos/${icon_hash}.png"
-    # Write logo_hash into the nested _permissions.main section of settings.yml
-    python3 - "$app" "$icon_hash" <<'PYEOF'
-import sys, yaml
-app, icon_hash = sys.argv[1], sys.argv[2]
-path = f"/etc/yunohost/apps/{app}/settings.yml"
-with open(path) as f:
-    s = yaml.safe_load(f) or {}
-s.setdefault("_permissions", {}).setdefault("main", {})["logo_hash"] = icon_hash
-with open(path, "w") as f:
-    yaml.dump(s, f, default_flow_style=False, allow_unicode=True)
-PYEOF
-    yunohost app ssowatconf
-fi
-
-#=================================================
 # FIX PERMISSIONS
 #=================================================
 # PKG-01: set install_dir to root:root 750
