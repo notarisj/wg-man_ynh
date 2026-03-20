@@ -55,12 +55,25 @@ function verifyProxySecret(headers: Record<string, string | string[] | undefined
 /**
  * Authenticate a raw IncomingMessage (used for WebSocket upgrade).
  * Returns the user object or null when authentication fails.
+ * Mirrors the same logic as ssowatAuth() — including the admin fallback when
+ * the proxy secret is verified but YNH_USER is absent (some SSOwat versions
+ * do not inject user headers on WebSocket upgrade requests).
  */
 export function authenticateRaw(req: IncomingMessage): { username: string; email?: string } | null {
   const headers = req.headers as Record<string, string | string[] | undefined>;
-  if (!verifyProxySecret(headers)) return null;
+  if (!verifyProxySecret(headers)) {
+    console.warn('[auth/ws] Rejected WebSocket — invalid proxy secret');
+    return null;
+  }
   if (IS_DEV) return { username: 'dev-user', email: 'dev@localhost' };
-  return extractYnhUser(headers);
+  const user = extractYnhUser(headers);
+  if (user) return user;
+  // Same fallback as ssowatAuth(): secret verified → request came from nginx
+  if (PROXY_SECRET) {
+    console.warn('[auth/ws] YNH_USER absent on WS upgrade — using admin fallback');
+    return { username: 'admin' };
+  }
+  return null;
 }
 
 /**
