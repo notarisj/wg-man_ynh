@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import {
   UserCircle, Info, ExternalLink, Shield,
-  Clock, Server, Tag,
+  Clock, Server, Tag, GitBranch,
 } from 'lucide-react';
 import { useVpnStore } from '../store/vpnStore';
 import { GlassCard } from '../components/ui/GlassCard';
@@ -127,6 +127,19 @@ export const Settings: React.FC = () => {
         <div className="settings-row">
           <span className="settings-label">License</span>
           <span className="settings-value">MIT</span>
+        </div>
+        <div className="settings-row">
+          <span className="settings-label">Source</span>
+          <a
+            className="settings-value settings-github-link"
+            href="https://github.com/notarisj/wg-man_ynh"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <GitBranch size={14} />
+            notarisj/wg-man_ynh
+            <ExternalLink size={12} className="settings-github-link__ext" />
+          </a>
         </div>
       </GlassCard>
     </div>
