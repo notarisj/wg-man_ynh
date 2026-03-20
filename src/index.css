@@ -246,20 +246,22 @@ button { cursor: pointer; border: none; font: inherit; }
 .dot-muted  { background: var(--clr-text-dim); }
 
 /* ── App Layout ───────────────────────────────────────────── */
-#root { display: flex; min-height: 100vh; }
+#root { display: flex; height: 100vh; overflow: hidden; }
 
 .app-layout {
   display: flex;
   width: 100%;
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
 }
 
 .main-content {
   flex: 1;
   margin-left: var(--sidebar-w);
-  min-height: 100vh;
+  height: 100vh;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 
@@ -268,6 +270,8 @@ button { cursor: pointer; border: none; font: inherit; }
   flex: 1;
   padding: 28px 32px;
   animation: slide-up var(--dur-slow) var(--ease) both;
+  overflow-y: auto;
+  min-height: 0;
 }
 
 /* ── Responsive ───────────────────────────────────────────── */
