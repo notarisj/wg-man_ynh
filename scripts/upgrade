@@ -75,7 +75,7 @@ rsync -a \
 #=================================================
 ynh_script_progression "Rebuilding frontend..."
 pushd "$install_dir"
-VITE_APP_PATH="$path/" $ynh_npm ci 2>&1
+VITE_APP_PATH="$path/" $ynh_npm ci --legacy-peer-deps 2>&1
 VITE_APP_PATH="$path/" $ynh_npm run build 2>&1
 # PKG-03: remove dev dependencies after build
 $ynh_npm prune --production 2>&1
@@ -86,7 +86,7 @@ popd
 #=================================================
 ynh_script_progression "Rebuilding backend..."
 pushd "$install_dir/server"
-$ynh_npm ci 2>&1
+$ynh_npm ci --legacy-peer-deps 2>&1
 $ynh_npm run build 2>&1
 # PKG-03: remove dev dependencies after build (typescript, @types/*, etc.)
 $ynh_npm prune --production 2>&1
