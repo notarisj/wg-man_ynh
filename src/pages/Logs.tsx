@@ -1,5 +1,5 @@
 import React, { useEffect, useLayoutEffect, useRef, useState, useCallback } from 'react';
-import { ScrollText, RefreshCw, ChevronsDown, Pause, Play, Search, X, ChevronUp } from 'lucide-react';
+import { ScrollText, RefreshCw, ChevronsDown, Pause, Play, Search, X, ChevronUp, ChevronDown, Check } from 'lucide-react';
 import { useVpnStore } from '../store/vpnStore';
 import './Logs.css';
 
@@ -11,6 +11,13 @@ function classifyLine(line: string): string {
   return 'info';
 }
 
+const LINE_OPTIONS = [
+  { value: 50,  label: 'Last 50' },
+  { value: 150, label: 'Last 150' },
+  { value: 300, label: 'Last 300' },
+  { value: 500, label: 'Last 500' },
+];
+
 const LOAD_MORE_STEP = 150;
 const MAX_LINE_COUNT = 2000;
 const SCROLL_THRESHOLD = 80; // px from top to trigger load-more
@@ -20,10 +27,12 @@ export const Logs: React.FC = () => {
   const [autoScroll, setAutoScroll] = useState(true);
   const [liveRefresh, setLiveRefresh] = useState(true);
   const [lineCount, setLineCount] = useState(150);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [loadingMore, setLoadingMore] = useState(false);
   const [reachedBeginning, setReachedBeginning] = useState(false);
 
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const terminalBodyRef = useRef<HTMLDivElement>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const loadMoreSessionRef = useRef<{ prevCount: number; prevScrollHeight: number; requestedCount: number } | null>(null);
@@ -37,6 +46,17 @@ export const Logs: React.FC = () => {
   useEffect(() => { logsLengthRef.current = logs.length; }, [logs]);
   useEffect(() => { searchRef.current = search; }, [search]);
   useEffect(() => { reachedBeginningRef.current = reachedBeginning; }, [reachedBeginning]);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
   // Debounced server-side search
   useEffect(() => {
@@ -137,6 +157,33 @@ export const Logs: React.FC = () => {
               <button className="page-search__clear" onClick={() => setSearch('')} aria-label="Clear search">
                 <X size={12} />
               </button>
+            )}
+          </div>
+          <div className="logs-select" ref={dropdownRef}>
+            <button
+              className="logs-select__trigger"
+              onClick={() => setDropdownOpen((v) => !v)}
+              aria-haspopup="listbox"
+              aria-expanded={dropdownOpen}
+            >
+              {LINE_OPTIONS.find((o) => o.value === lineCount)?.label ?? `Last ${lineCount}`}
+              <ChevronDown size={13} className={`logs-select__chevron${dropdownOpen ? ' open' : ''}`} />
+            </button>
+            {dropdownOpen && (
+              <div className="logs-select__menu" role="listbox">
+                {LINE_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    className={`logs-select__option${opt.value === lineCount ? ' selected' : ''}`}
+                    role="option"
+                    aria-selected={opt.value === lineCount}
+                    onClick={() => { setLineCount(opt.value); setDropdownOpen(false); }}
+                  >
+                    {opt.label}
+                    {opt.value === lineCount && <Check size={12} />}
+                  </button>
+                ))}
+              </div>
             )}
           </div>
         </div>
