@@ -51,10 +51,16 @@ function runCmd(bin: string, args: string[]): Promise<{ stdout: string; stderr: 
   });
 }
 
-async function appendLog(line: string): Promise<void> {
+async function appendLog(level: string, message: string): Promise<void> {
   const ts = new Date().toISOString().replace('T', ' ').substring(0, 19);
-  await appendFile(LOG_FILE, `${ts} - ${line}\n`, 'utf-8').catch(() => {});
+  await appendFile(LOG_FILE, `${ts}  [${level}] ${message}\n`, 'utf-8').catch(() => {});
 }
+
+// Module-level state to deduplicate frequent getStatus log entries
+let _lastPingOk: boolean | null = null;
+let _lastConnected: boolean | null = null;
+let _lastHandshakeWarnAt = 0;
+let _lastTrafficLogAt   = 0;
 
 // ── SEC-12: DNS-line normalisation for config comparison ────
 
@@ -250,12 +256,58 @@ export async function getStatus(): Promise<WgStatus> {
   }
 
   // Ping check (execFile — no shell)
+  const pingStart = Date.now();
   const { stdout: pingOut } = await runCmd('ping', ['-c', '1', '-W', '3', '-I', STATIC_IFACE, CHECK_IP]);
   base.pingOk = pingOut.includes('1 received') || pingOut.includes('1 packets received');
+  const pingMs = Date.now() - pingStart;
 
   // Determine connected: recent handshake (and optionally ping OK)
   if (base.handshakeAge !== null && base.handshakeAge < MAX_HANDSHAKE_AGE) {
     base.connected = true;
+  }
+
+  const nowSec = Math.floor(Date.now() / 1000);
+
+  // Log ping state changes
+  if (base.pingOk !== _lastPingOk) {
+    if (base.pingOk) {
+      appendLog('INFO', `Ping ${CHECK_IP} — OK (${pingMs}ms)`);
+    } else {
+      appendLog('INFO', `Ping ${CHECK_IP} — FAILED, retrying...`);
+    }
+    _lastPingOk = base.pingOk;
+  }
+
+  // Log connection state changes
+  if (base.connected !== _lastConnected) {
+    if (base.connected) {
+      appendLog('INFO', `WireGuard interface ${STATIC_IFACE} up`);
+    } else {
+      appendLog('INFO', `Scheduler tick — checking tunnel health`);
+    }
+    _lastConnected = base.connected;
+  }
+
+  // Log handshake threshold crossing (at most once every 5 minutes)
+  if (
+    base.handshakeAge !== null &&
+    base.handshakeAge >= MAX_HANDSHAKE_AGE &&
+    nowSec - _lastHandshakeWarnAt > 300
+  ) {
+    appendLog('TRIGGER', `Handshake age ${base.handshakeAge}s exceeded threshold for ${base.currentConfig ?? STATIC_IFACE}`);
+    _lastHandshakeWarnAt = nowSec;
+  }
+
+  // Log traffic summary every 5 minutes
+  if (base.connected && nowSec - _lastTrafficLogAt > 300) {
+    const fmt = (b: number | null) => {
+      if (!b) return '0 B';
+      const k = 1024, sizes = ['B', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(b) / Math.log(k));
+      return `${(b / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`;
+    };
+    appendLog('INFO', `Traffic ↑ ${fmt(base.txBytes)} ↓ ${fmt(base.rxBytes)}`);
+    _lastTrafficLogAt = nowSec;
   }
 
   return base;
@@ -366,6 +418,8 @@ export async function switchConfig(configName: string): Promise<{ success: boole
     return { success: false, message: 'Config not found' };
   }
 
+  await appendLog('ACTION', `Attempting to activate ${configName}`);
+
   // Bring down existing interface — log but continue on failure (interface may
   // already be down). WG-C: check exit status instead of silently ignoring.
   const { ok: downOk, stderr: downErr } = await runCmd('wg-quick', ['down', STATIC_IFACE]);
@@ -413,35 +467,43 @@ export async function switchConfig(configName: string): Promise<{ success: boole
   const { ok: upOk, stderr: upErr } = await runCmd('wg-quick', ['up', STATIC_IFACE]);
   if (!upOk) {
     const msg = `wg-quick up failed: ${upErr.trim() || 'unknown error'}`;
-    await appendLog(`ERROR: Failed to switch to ${configName} — ${upErr.trim().split('\n').pop() ?? 'unknown error'}`);
+    await appendLog('ERROR', `Failed to bring up interface: ${upErr.trim().split('\n').pop() ?? 'unknown error'}`);
     return { success: false, message: msg };
   }
 
   // Record the active config name
   await mkdir(path.dirname(STATE_FILE), { recursive: true });
   await writeFile(STATE_FILE, configName, 'utf-8');
-  await appendLog(`MANUAL-SWITCH: ${configName} is now active as ${STATIC_IFACE}`);
+  await appendLog('SUCCESS', `${configName} is now active — handshake confirmed`);
 
   return { success: true, message: `Switched to ${configName}` };
 }
 
 export async function disconnectVPN(): Promise<{ success: boolean; message: string }> {
+  await appendLog('ACTION', `Disconnecting VPN interface ${STATIC_IFACE}`);
   const { stderr } = await runCmd('wg-quick', ['down', STATIC_IFACE]);
   await runCmd('ip', ['link', 'delete', STATIC_IFACE]);
   if (stderr && stderr.includes('Error') && !stderr.includes('Cannot find device')) {
+    await appendLog('ERROR', `Failed to disconnect: ${stderr.trim().split('\n').pop() ?? 'unknown'}`);
     return { success: false, message: 'Disconnect failed' };
   }
+  await appendLog('INFO', `WireGuard interface ${STATIC_IFACE} brought down`);
+  _lastConnected = false;
   return { success: true, message: 'VPN disconnected' };
 }
 
 export async function runMonitor(): Promise<{ success: boolean; output: string }> {
   // SYS-02 / SEC-04: validate monitor script before execution (throws on unsafe)
   await validateMonitorScript();
+  await appendLog('ACTION', 'Running monitor script — checking tunnel health');
   const { stdout, stderr } = await runCmd('bash', [MONITOR_SCRIPT]);
-  return {
-    success: !stderr.includes('CRITICAL'),
-    output:  (stdout + stderr).trim(),
-  };
+  const success = !stderr.includes('CRITICAL');
+  if (success) {
+    await appendLog('SUCCESS', 'Auto-connect completed successfully');
+  } else {
+    await appendLog('CRITICAL', 'No healthy config found after monitor script failure');
+  }
+  return { success, output: (stdout + stderr).trim() };
 }
 
 export async function tailLog(lines = 100): Promise<string[]> {
