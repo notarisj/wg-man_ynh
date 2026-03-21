@@ -88,20 +88,24 @@
 
 .dashboard__resource-header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
+}
+
+.dashboard__resource-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .dashboard__resource-label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
   font-size: 12px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;
+  color: var(--clr-text-muted);
 }
 
 .dashboard__resource-right {
@@ -112,7 +116,7 @@
 }
 
 .dashboard__resource-value {
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   line-height: 1;
@@ -127,12 +131,12 @@
 .sparkline-svg {
   display: block;
   width: 100%;
-  height: 52px;
-  overflow: visible;
+  height: 44px;
+  overflow: hidden;
 }
 
 .sparkline-empty {
-  height: 52px;
+  height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;

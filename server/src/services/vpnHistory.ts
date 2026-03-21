@@ -69,6 +69,12 @@ async function check(): Promise<void> {
     const { connected, currentConfig: config, endpoint } = status;
 
     if (_tracker === null) {
+      // First run with no prior history: record the current state so the
+      // history page immediately reflects an ongoing connection rather than
+      // appearing empty until the VPN next disconnects and reconnects.
+      if (connected) {
+        await recordEvent({ ts: now, type: 'connected', config, endpoint });
+      }
       _tracker = { connected, config, endpoint };
       return;
     }

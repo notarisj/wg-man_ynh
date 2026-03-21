@@ -28,9 +28,9 @@ function formatAge(seconds: number | null): string {
 }
 
 function metricColor(pct: number): string {
-  if (pct >= 85) return 'var(--clr-red)';
+  if (pct >= 85) return '#ef4444';
   if (pct >= 65) return 'var(--clr-amber)';
-  return 'var(--clr-teal)';
+  return 'var(--clr-green)';
 }
 
 // ── Sparkline ─────────────────────────────────────────────────
@@ -39,27 +39,27 @@ const SparkLine: React.FC<{ data: number[]; gradId: string; color: string }> = (
     return <div className="sparkline-empty">Waiting for data…</div>;
   }
 
-  const W = 300; const H = 52; const PAD = 2;
+  const W = 300; const H = 44; const PAD = 4;
   const pts = data.map((v, i): [number, number] => [
     PAD + (i / (data.length - 1)) * (W - PAD * 2),
-    H - PAD - (Math.max(0, Math.min(100, v)) / 100) * (H - PAD * 2),
+    PAD + (1 - Math.max(0, Math.min(100, v)) / 100) * (H - PAD * 2),
   ]);
   const polyline = pts.map(([x, y]) => `${x},${y}`).join(' ');
-  const fill = `${PAD},${H} ${polyline} ${W - PAD},${H}`;
+  const fill = `${PAD},${H - PAD} ${polyline} ${W - PAD},${H - PAD}`;
   const [lx, ly] = pts[pts.length - 1];
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="sparkline-svg">
       <defs>
         <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity="0.3" />
-          <stop offset="100%" stopColor={color} stopOpacity="0.02" />
+          <stop offset="0%" stopColor={color} stopOpacity="0.2" />
+          <stop offset="100%" stopColor={color} stopOpacity="0" />
         </linearGradient>
       </defs>
       <polygon points={fill} fill={`url(#${gradId})`} />
       <polyline points={polyline} fill="none" stroke={color} strokeWidth="1.5"
         strokeLinejoin="round" strokeLinecap="round" />
-      <circle cx={lx} cy={ly} r={3} fill={color} />
+      <circle cx={lx} cy={ly} r={2.5} fill={color} />
     </svg>
   );
 };
@@ -73,12 +73,13 @@ const ResourceGraph: React.FC<{
   gradId: string;
   detail?: string | null;
 }> = ({ label, icon, value, history, gradId, detail }) => {
-  const color = value !== null ? metricColor(value) : 'var(--clr-teal)';
+  const color = value !== null ? metricColor(value) : 'var(--clr-text-dim)';
   return (
     <GlassCard className="dashboard__resource">
       <div className="dashboard__resource-header">
-        <div className="dashboard__resource-label" style={{ color }}>
-          {icon} {label}
+        <div className="dashboard__resource-left">
+          {icon}
+          <span className="dashboard__resource-label">{label}</span>
         </div>
         <div className="dashboard__resource-right">
           <span className="dashboard__resource-value" style={{ color }}>
