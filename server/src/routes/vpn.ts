@@ -21,20 +21,20 @@ router.use(ssowatAuth);
 // VULN-09: CSRF protection on state-mutating methods
 router.use(csrfProtection);
 
-// VULN-08: general API rate limit — 30 req/min per IP
+// VULN-08: general API rate limit — 30 req/min per IP (skipped in dev)
 const apiLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 30,
+  max: process.env.NODE_ENV === 'development' ? 0 : 30,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests' },
 });
 router.use(apiLimiter);
 
-// VULN-08: stricter limit for mutations — 5 req/min per IP
+// VULN-08: stricter limit for mutations — 5 req/min per IP (skipped in dev)
 const mutationLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 5,
+  max: process.env.NODE_ENV === 'development' ? 0 : 5,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests' },
