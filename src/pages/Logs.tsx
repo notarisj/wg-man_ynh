@@ -28,6 +28,7 @@ export const Logs: React.FC = () => {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const initialScrollDone = useRef(false);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -53,10 +54,12 @@ export const Logs: React.FC = () => {
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [liveRefresh, lineCount]);
 
-  // Auto-scroll to bottom
+  // Auto-scroll to bottom — instant on first load, smooth on live updates
   useEffect(() => {
     if (autoScroll && bottomRef.current) {
-      bottomRef.current.scrollIntoView({ behavior: 'smooth' });
+      const behavior = initialScrollDone.current ? 'smooth' : 'instant';
+      bottomRef.current.scrollIntoView({ behavior });
+      initialScrollDone.current = true;
     }
   }, [logs, autoScroll]);
 
