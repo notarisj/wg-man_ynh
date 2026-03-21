@@ -46,10 +46,8 @@
 /* Search field */
 .page-search {
   position: relative;
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  flex: 1;
-  max-width: 260px;
 }
 
 .page-search__icon {
@@ -61,7 +59,7 @@
 }
 
 .page-search__input {
-  width: 100%;
+  width: 220px;
   height: 34px;
   padding: 0 28px 0 30px;
   background: var(--clr-surface);
