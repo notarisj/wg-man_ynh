@@ -12,11 +12,9 @@ import type {
   AuthenticatorTransportFuture,
 } from '@simplewebauthn/server/esm/types/index';
 
-const DATA_DIR   = process.env.WG_DATA_DIR    || '/var/lib/wg-man';
+const DATA_DIR = process.env.WG_DATA_DIR  || '/var/lib/wg-man';
 const STORE_FILE = path.join(DATA_DIR, 'passkeys.json');
-const RP_ID      = process.env.PASSKEY_RP_ID     || 'localhost';
-const RP_NAME    = process.env.PASSKEY_RP_NAME   || 'WG Manager';
-const RP_ORIGIN  = process.env.PASSKEY_RP_ORIGIN || 'http://localhost:5173';
+const RP_NAME  = process.env.PASSKEY_RP_NAME || 'WG Manager';
 
 // ── Storage ──────────────────────────────────────────────────
 
@@ -35,6 +33,11 @@ type Store = {
    * Can only be set back to false by editing this file on the server via SSH.
    */
   registrationLocked: boolean;
+  /**
+   * WebAuthn Relying Party config — set once from the UI, change only via SSH.
+   * Locks in the domain so RP ID cannot drift between requests.
+   */
+  rpConfig?: { rpID: string; origin: string };
 };
 
 let _store: Store | null = null;
@@ -82,6 +85,7 @@ export async function isRegistrationLocked(): Promise<boolean> {
 export async function getStatus(): Promise<{
   registered: boolean;
   registrationLocked: boolean;
+  rpConfig: { rpID: string; origin: string } | null;
   credentials: Pick<StoredCredential, 'id' | 'registeredAt'>[];
   storeFile: string;
 }> {
@@ -89,9 +93,29 @@ export async function getStatus(): Promise<{
   return {
     registered: store.credentials.length > 0,
     registrationLocked: store.registrationLocked,
+    rpConfig: store.rpConfig ?? null,
     credentials: store.credentials.map(({ id, registeredAt }) => ({ id, registeredAt })),
     storeFile: STORE_FILE,
   };
+}
+
+export async function getRpConfig(): Promise<{ rpID: string; origin: string } | null> {
+  const store = await loadStore();
+  return store.rpConfig ?? null;
+}
+
+/**
+ * Persist the WebAuthn RP config. One-shot: once set, cannot be changed from the UI.
+ * To change, edit passkeys.json via SSH and restart the service.
+ */
+export async function setRpConfig(rpID: string, origin: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  const store = await loadStore();
+  if (store.rpConfig) {
+    return { ok: false, error: 'Domain already configured. Edit passkeys.json via SSH to change.' };
+  }
+  store.rpConfig = { rpID, origin };
+  await saveStore(store);
+  return { ok: true };
 }
 
 /** Prevent new passkey registrations. Only reversible via SSH. */
@@ -101,7 +125,7 @@ export async function lockRegistration(): Promise<void> {
   await saveStore(store);
 }
 
-export async function startRegistration(): Promise<
+export async function startRegistration(ctx: { rpID: string; origin: string }): Promise<
   { ok: true; options: Awaited<ReturnType<typeof generateRegistrationOptions>>; challenge: string }
   | { ok: false; locked: true }
 > {
@@ -116,7 +140,7 @@ export async function startRegistration(): Promise<
 
   const options = await generateRegistrationOptions({
     rpName: RP_NAME,
-    rpID: RP_ID,
+    rpID: ctx.rpID,
     userName: 'admin',
     userDisplayName: 'WG Manager Admin',
     attestationType: 'none',
@@ -133,6 +157,7 @@ export async function startRegistration(): Promise<
 export async function finishRegistration(
   response: RegistrationResponseJSON,
   expectedChallenge: string,
+  ctx: { rpID: string; origin: string },
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   try {
     // Double-check lock hasn't been applied between start and finish
@@ -142,8 +167,8 @@ export async function finishRegistration(
     const verification = await verifyRegistrationResponse({
       response,
       expectedChallenge,
-      expectedOrigin: RP_ORIGIN,
-      expectedRPID: RP_ID,
+      expectedOrigin: ctx.origin,
+      expectedRPID: ctx.rpID,
     });
 
     if (!verification.verified || !verification.registrationInfo) {
@@ -167,7 +192,7 @@ export async function finishRegistration(
   }
 }
 
-export async function startAuthentication(): Promise<{
+export async function startAuthentication(ctx: { rpID: string; origin: string }): Promise<{
   options: Awaited<ReturnType<typeof generateAuthenticationOptions>>;
   challenge: string;
 }> {
@@ -178,7 +203,7 @@ export async function startAuthentication(): Promise<{
   }));
 
   const options = await generateAuthenticationOptions({
-    rpID: RP_ID,
+    rpID: ctx.rpID,
     allowCredentials,
     userVerification: 'preferred',
   });
@@ -189,6 +214,7 @@ export async function startAuthentication(): Promise<{
 export async function finishAuthentication(
   response: AuthenticationResponseJSON,
   expectedChallenge: string,
+  ctx: { rpID: string; origin: string },
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   try {
     const store = await loadStore();
@@ -198,8 +224,8 @@ export async function finishAuthentication(
     const verification = await verifyAuthenticationResponse({
       response,
       expectedChallenge,
-      expectedOrigin: RP_ORIGIN,
-      expectedRPID: RP_ID,
+      expectedOrigin: ctx.origin,
+      expectedRPID: ctx.rpID,
       credential: {
         id: cred.id,
         publicKey: new Uint8Array(cred.publicKey),

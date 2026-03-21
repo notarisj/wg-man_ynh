@@ -8,7 +8,7 @@ declare module 'express-session' {
   interface SessionData {
     user?: { username: string; email?: string };
     /** Challenge stored with an expiry to prevent indefinite replay. */
-    passkeyChallenge?: { value: string; expiresAt: number };
+    passkeyChallenge?: { value: string; expiresAt: number; rpID: string; origin: string };
     /** Verification token — bound to username and generation to survive resets. */
     passkeyVerified?: { ts: number; username: string; generation: number };
   }

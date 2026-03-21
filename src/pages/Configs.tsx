@@ -45,6 +45,13 @@ export const Configs: React.FC = () => {
   const [passkeyPanelOpen, setPasskeyPanelOpen] = useState(false);
   const [cmdCopied, setCmdCopied]           = useState(false);
 
+  // Domain setup
+  const [domainRpID, setDomainRpID]         = useState(() => typeof window !== 'undefined' ? window.location.hostname : '');
+  const [domainOrigin, setDomainOrigin]     = useState(() => typeof window !== 'undefined' ? window.location.origin : '');
+  const [domainError, setDomainError]       = useState<string | null>(null);
+  const [isSavingDomain, setIsSavingDomain] = useState(false);
+  const [rpCmdCopied, setRpCmdCopied]       = useState(false);
+
   // Config name prefix derived from pattern (e.g. "wg-*.conf" → "wg-")
   const namePrefix = 'wg-';
 
@@ -112,6 +119,15 @@ export const Configs: React.FC = () => {
     setPasskeyMode('authenticate');
     setShowPasskey(true);
   }, []);
+
+  const handleSaveDomain = useCallback(async () => {
+    setDomainError(null);
+    setIsSavingDomain(true);
+    const res = await api.passkey.setupDomain(domainRpID.trim(), domainOrigin.trim());
+    setIsSavingDomain(false);
+    if (!res.ok) { setDomainError(res.error); return; }
+    api.passkey.status().then((s) => { if (s.ok) setPasskeyStatus(s.data); });
+  }, [domainRpID, domainOrigin]);
 
   // ── CRUD handlers ────────────────────────────────────────────
 
@@ -283,6 +299,81 @@ export const Configs: React.FC = () => {
               <AlertCircle size={13} /> No passkey registered yet. You will be prompted to create one when you first modify a config.
             </div>
           )}
+
+          {/* Domain configuration */}
+          <div className="passkey-panel__domain">
+            <div className="passkey-panel__creds-label" style={{ paddingBottom: 6 }}>WebAuthn Domain</div>
+            {passkeyStatus.rpConfig ? (
+              <>
+                <div className="passkey-panel__domain-locked">
+                  <span className="passkey-panel__domain-val mono">{passkeyStatus.rpConfig.origin}</span>
+                  <Lock size={11} style={{ flexShrink: 0, color: 'var(--clr-text-dim)' }} />
+                </div>
+                <div className="passkey-panel__ssh-note">
+                  To change, run via SSH:
+                </div>
+                <div className="passkey-panel__ssh-block">
+                  <Terminal size={12} />
+                  <code className="passkey-panel__ssh-cmd">
+                    {`sudo jq 'del(.rpConfig)' ${passkeyStatus.storeFile} | sudo tee ${passkeyStatus.storeFile} && sudo systemctl restart wg-man`}
+                  </code>
+                  <button
+                    className="passkey-panel__copy-btn"
+                    title="Copy command"
+                    onClick={() => {
+                      navigator.clipboard.writeText(`sudo jq 'del(.rpConfig)' ${passkeyStatus.storeFile} | sudo tee ${passkeyStatus.storeFile} && sudo systemctl restart wg-man`);
+                      setRpCmdCopied(true);
+                      setTimeout(() => setRpCmdCopied(false), 2000);
+                    }}
+                  >
+                    {rpCmdCopied ? <Check size={12} /> : <Copy size={12} />}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="passkey-panel__ssh-note" style={{ marginBottom: 8 }}>
+                  Lock in your domain so passkeys are always bound to it. Pre-filled from your current browser URL.
+                </div>
+                <div className="passkey-panel__domain-fields">
+                  <div className="passkey-panel__domain-field">
+                    <label className="passkey-panel__domain-label">RP ID (hostname)</label>
+                    <input
+                      className="passkey-panel__domain-input"
+                      value={domainRpID}
+                      onChange={(e) => setDomainRpID(e.target.value)}
+                      placeholder="example.com"
+                      spellCheck={false}
+                    />
+                  </div>
+                  <div className="passkey-panel__domain-field">
+                    <label className="passkey-panel__domain-label">Origin (full URL)</label>
+                    <input
+                      className="passkey-panel__domain-input"
+                      value={domainOrigin}
+                      onChange={(e) => setDomainOrigin(e.target.value)}
+                      placeholder="https://example.com"
+                      spellCheck={false}
+                    />
+                  </div>
+                </div>
+                {domainError && (
+                  <div className="configs-page__confirm-error" style={{ marginTop: 4 }}>
+                    <AlertCircle size={12} /> {domainError}
+                  </div>
+                )}
+                <button
+                  className="btn btn-sm"
+                  style={{ marginTop: 8, alignSelf: 'flex-start', background: 'rgba(34,197,94,0.08)', color: 'var(--clr-green)', border: '1px solid rgba(34,197,94,0.25)' }}
+                  onClick={handleSaveDomain}
+                  disabled={isSavingDomain || !domainRpID.trim() || !domainOrigin.trim()}
+                >
+                  {isSavingDomain ? <span className="spinner spinner-sm" /> : <Lock size={13} />}
+                  Lock Domain
+                </button>
+              </>
+            )}
+          </div>
 
           {passkeyStatus.credentials.length > 0 && (
             <div className="passkey-panel__creds">

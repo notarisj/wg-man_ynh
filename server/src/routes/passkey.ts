@@ -10,6 +10,8 @@ import {
   lockRegistration,
   clearPasskeys,
   getGeneration,
+  getRpConfig,
+  setRpConfig,
 } from '../services/passkey';
 
 const router = Router();
@@ -39,6 +41,46 @@ router.use(passkeyLimiter);
 const CHALLENGE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 const PASSKEY_WINDOW_MS = 5 * 60 * 1000;
 
+/**
+ * Resolve rpID and origin. Priority order:
+ *   1. Value stored in passkeys.json (set once from UI, locked — most secure)
+ *   2. PASSKEY_RP_ID / PASSKEY_RP_ORIGIN env vars
+ *   3. Origin header sent by the browser (reliable on same-origin fetch())
+ */
+async function getRpContext(req: import('express').Request): Promise<{ rpID: string; origin: string }> {
+  const stored = await getRpConfig();
+  if (stored) return stored;
+  const rawOrigin = req.get('origin') || `${req.protocol}://${req.hostname}`;
+  const rpID = process.env.PASSKEY_RP_ID || (() => {
+    try { return new URL(rawOrigin).hostname; } catch { return req.hostname; }
+  })();
+  const origin = process.env.PASSKEY_RP_ORIGIN || rawOrigin;
+  return { rpID, origin };
+}
+
+/** POST /api/passkey/setup-domain — store rpID + origin once; change only via SSH */
+router.post('/setup-domain', requireAdmin, async (req, res) => {
+  const { rpID, origin } = req.body ?? {};
+  if (!rpID || typeof rpID !== 'string' || !origin || typeof origin !== 'string') {
+    res.status(400).json({ error: 'rpID and origin are required' });
+    return;
+  }
+  try { new URL(origin); } catch {
+    res.status(400).json({ error: 'Invalid origin — must be a full URL (e.g. https://example.com)' });
+    return;
+  }
+  if (!/^[a-zA-Z0-9.-]+$/.test(rpID)) {
+    res.status(400).json({ error: 'Invalid rpID — must be a plain hostname (e.g. example.com)' });
+    return;
+  }
+  const result = await setRpConfig(rpID, origin);
+  if (!result.ok) {
+    res.status(409).json({ error: result.error, code: 'RP_LOCKED' });
+    return;
+  }
+  res.json({ ok: true });
+});
+
 /** GET /api/passkey/status */
 router.get('/status', async (_req, res) => {
   try {
@@ -51,12 +93,13 @@ router.get('/status', async (_req, res) => {
 /** POST /api/passkey/register/start */
 router.post('/register/start', requireAdmin, async (req, res) => {
   try {
-    const result = await startRegistration();
+    const ctx = await getRpContext(req);
+    const result = await startRegistration(ctx);
     if (!result.ok) {
       res.status(403).json({ error: 'Passkey registration is locked by an administrator', code: 'REGISTRATION_LOCKED' });
       return;
     }
-    req.session.passkeyChallenge = { value: result.challenge, expiresAt: Date.now() + CHALLENGE_TTL_MS };
+    req.session.passkeyChallenge = { value: result.challenge, expiresAt: Date.now() + CHALLENGE_TTL_MS, ...ctx };
     res.json(result.options);
   } catch (err: any) {
     res.status(500).json({ error: err.message ?? 'Failed to start registration' });
@@ -73,7 +116,7 @@ router.post('/register/finish', assertLimiter, requireAdmin, async (req, res) =>
   }
   delete req.session.passkeyChallenge;
 
-  const result = await finishRegistration(req.body, entry.value);
+  const result = await finishRegistration(req.body, entry.value, { rpID: entry.rpID, origin: entry.origin });
   if (!result.ok) { res.status(400).json({ error: result.error }); return; }
   res.json({ ok: true });
 });
@@ -83,8 +126,9 @@ router.post('/assert/start', requireAdmin, async (req, res) => {
   try {
     const status = await getStatus();
     if (!status.registered) { res.status(400).json({ error: 'No passkey registered' }); return; }
-    const { options, challenge } = await startAuthentication();
-    req.session.passkeyChallenge = { value: challenge, expiresAt: Date.now() + CHALLENGE_TTL_MS };
+    const ctx = await getRpContext(req);
+    const { options, challenge } = await startAuthentication(ctx);
+    req.session.passkeyChallenge = { value: challenge, expiresAt: Date.now() + CHALLENGE_TTL_MS, ...ctx };
     res.json(options);
   } catch (err: any) {
     res.status(500).json({ error: err.message ?? 'Failed to start authentication' });
@@ -101,7 +145,7 @@ router.post('/assert/finish', assertLimiter, requireAdmin, async (req, res) => {
   }
   delete req.session.passkeyChallenge;
 
-  const result = await finishAuthentication(req.body, entry.value);
+  const result = await finishAuthentication(req.body, entry.value, { rpID: entry.rpID, origin: entry.origin });
   if (!result.ok) { res.status(401).json({ error: result.error }); return; }
 
   req.session.passkeyVerified = {
