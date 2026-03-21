@@ -56,7 +56,7 @@ export const Logs: React.FC = () => {
 
   // Auto-scroll to bottom — instant on first load, smooth on live updates
   useEffect(() => {
-    if (autoScroll && bottomRef.current) {
+    if (autoScroll && bottomRef.current && logs.length > 0) {
       const behavior = initialScrollDone.current ? 'smooth' : 'instant';
       bottomRef.current.scrollIntoView({ behavior });
       initialScrollDone.current = true;
