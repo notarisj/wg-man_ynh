@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import {
   UserCircle, Info, ExternalLink, Shield,
   Clock, Server, Tag, GitBranch,
-  KeyRound, Lock, LockOpen, Terminal, Copy, Check, AlertCircle, Trash2,
+  KeyRound, Lock, Terminal, Copy, Check, AlertCircle, Trash2,
 } from 'lucide-react';
 import { useVpnStore } from '../store/vpnStore';
 import { GlassCard } from '../components/ui/GlassCard';
