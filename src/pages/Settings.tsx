@@ -128,13 +128,13 @@ export const Settings: React.FC = () => {
                 <div className="passkey-panel__ssh-block">
                   <Terminal size={12} />
                   <code className="passkey-panel__ssh-cmd">
-                    {`sudo jq '.registrationLocked = false' ${passkeyStatus.storeFile} | sudo tee ${passkeyStatus.storeFile} && sudo systemctl restart wg-man`}
+                    {`sudo jq '.registrationLocked = false' ${passkeyStatus.storeFile} > /tmp/pk.json && sudo mv /tmp/pk.json ${passkeyStatus.storeFile} && sudo systemctl restart wg-man`}
                   </code>
                   <button
                     className="passkey-panel__copy-btn"
                     title="Copy command"
                     onClick={() => {
-                      navigator.clipboard.writeText(`sudo jq '.registrationLocked = false' ${passkeyStatus.storeFile} | sudo tee ${passkeyStatus.storeFile} && sudo systemctl restart wg-man`);
+                      navigator.clipboard.writeText(`sudo jq '.registrationLocked = false' ${passkeyStatus.storeFile} > /tmp/pk.json && sudo mv /tmp/pk.json ${passkeyStatus.storeFile} && sudo systemctl restart wg-man`);
                       setCmdCopied(true);
                       setTimeout(() => setCmdCopied(false), 2000);
                     }}
@@ -164,13 +164,13 @@ export const Settings: React.FC = () => {
                   <div className="passkey-panel__ssh-block">
                     <Terminal size={12} />
                     <code className="passkey-panel__ssh-cmd">
-                      {`sudo jq 'del(.rpConfig)' ${passkeyStatus.storeFile} | sudo tee ${passkeyStatus.storeFile} && sudo systemctl restart wg-man`}
+                      {`sudo jq 'del(.rpConfig)' ${passkeyStatus.storeFile} > /tmp/pk.json && sudo mv /tmp/pk.json ${passkeyStatus.storeFile} && sudo systemctl restart wg-man`}
                     </code>
                     <button
                       className="passkey-panel__copy-btn"
                       title="Copy command"
                       onClick={() => {
-                        navigator.clipboard.writeText(`sudo jq 'del(.rpConfig)' ${passkeyStatus.storeFile} | sudo tee ${passkeyStatus.storeFile} && sudo systemctl restart wg-man`);
+                        navigator.clipboard.writeText(`sudo jq 'del(.rpConfig)' ${passkeyStatus.storeFile} > /tmp/pk.json && sudo mv /tmp/pk.json ${passkeyStatus.storeFile} && sudo systemctl restart wg-man`);
                         setRpCmdCopied(true);
                         setTimeout(() => setRpCmdCopied(false), 2000);
                       }}

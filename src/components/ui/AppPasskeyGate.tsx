@@ -97,7 +97,7 @@ export const AppPasskeyGate: React.FC<AppPasskeyGateProps> = ({ children }) => {
           <div className="app-gate__ssh-block">
             <Terminal size={13} />
             <code className="app-gate__ssh-cmd">
-              {`sudo jq '.registrationLocked = false' ${storeFile} | sudo tee ${storeFile} && sudo systemctl restart wg-man`}
+              {`echo '{"credentials":[],"registrationLocked":false}' | sudo tee ${storeFile} && sudo systemctl restart wg-man`}
             </code>
           </div>
           <p className="app-gate__hint">After running this command, refresh the page to register your passkey.</p>
