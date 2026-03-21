@@ -14,20 +14,24 @@ interface AppPasskeyGateProps {
 }
 
 export const AppPasskeyGate: React.FC<AppPasskeyGateProps> = ({ children }) => {
-  const [gateState, setGateState] = useState<GateState>('loading');
-  const [storeFile, setStoreFile]   = useState('');
-  const [authStatus, setAuthStatus] = useState<'idle' | 'busy' | 'error'>('idle');
-  const [authError, setAuthError]   = useState('');
+  const [gateState, setGateState]               = useState<GateState>('loading');
+  const [storeFile, setStoreFile]               = useState('');
+  const [registrationLocked, setRegistrationLocked] = useState(true);
+  const [authStatus, setAuthStatus]             = useState<'idle' | 'busy' | 'error'>('idle');
+  const [authError, setAuthError]               = useState('');
+  // After auth fails, offer to register a new passkey on this device
+  const [offerRegister, setOfferRegister]       = useState(false);
 
   const checkSession = useCallback(async () => {
     const res = await api.passkey.session();
     if (!res.ok) { setGateState('needs-auth'); return; }
-    const { verified, registered, registrationLocked, storeFile: sf } = res.data;
+    const { verified, registered, registrationLocked: locked, storeFile: sf } = res.data;
     setStoreFile(sf);
-    if (verified)                        setGateState('verified');
-    else if (registered)                 setGateState('needs-auth');
-    else if (!registrationLocked)        setGateState('needs-register');
-    else                                 setGateState('locked-out');
+    setRegistrationLocked(locked);
+    if (verified)              setGateState('verified');
+    else if (registered)       setGateState('needs-auth');
+    else if (!locked)          setGateState('needs-register');
+    else                       setGateState('locked-out');
   }, []);
 
   useEffect(() => { checkSession(); }, [checkSession]);
@@ -40,6 +44,7 @@ export const AppPasskeyGate: React.FC<AppPasskeyGateProps> = ({ children }) => {
   const doAuth = useCallback(async () => {
     setAuthStatus('busy');
     setAuthError('');
+    setOfferRegister(false);
     try {
       const startRes = await api.passkey.assertStart();
       if (!startRes.ok) { setAuthStatus('error'); setAuthError(startRes.error); return; }
@@ -50,13 +55,19 @@ export const AppPasskeyGate: React.FC<AppPasskeyGateProps> = ({ children }) => {
       setGateState('verified');
     } catch (err: any) {
       setAuthStatus('error');
-      setAuthError(err?.name === 'NotAllowedError' ? 'Authentication was cancelled or timed out.' : (err?.message ?? 'An unexpected error occurred.'));
+      const msg = err?.name === 'NotAllowedError'
+        ? 'Authentication was cancelled or timed out.'
+        : (err?.message ?? 'An unexpected error occurred.');
+      setAuthError(msg);
+      // Offer registration fallback when no passkey is found on this device
+      setOfferRegister(true);
     }
   }, []);
 
   const doRegister = useCallback(async () => {
     setAuthStatus('busy');
     setAuthError('');
+    setOfferRegister(false);
     try {
       const startRes = await api.passkey.registerStart();
       if (!startRes.ok) { setAuthStatus('error'); setAuthError(startRes.error); return; }
@@ -142,14 +153,26 @@ export const AppPasskeyGate: React.FC<AppPasskeyGateProps> = ({ children }) => {
         {authStatus === 'busy' ? (
           <p className="app-gate__hint">Waiting for authenticator…</p>
         ) : (
-          <button
-            className="btn btn-primary"
-            onClick={isRegister ? doRegister : doAuth}
-          >
-            {isRegister
-              ? <><KeyRound size={15} /> Create Passkey</>
-              : <><ShieldCheck size={15} /> Authenticate</>}
-          </button>
+          <div className="app-gate__actions">
+            <button
+              className="btn btn-primary"
+              onClick={isRegister ? doRegister : doAuth}
+            >
+              {isRegister
+                ? <><KeyRound size={15} /> Create Passkey</>
+                : <><ShieldCheck size={15} /> Authenticate</>}
+            </button>
+
+            {/* New device fallback: offer registration when auth fails and registration is open */}
+            {offerRegister && !registrationLocked && !isRegister && (
+              <button
+                className="btn btn-ghost btn-sm app-gate__register-fallback"
+                onClick={doRegister}
+              >
+                <KeyRound size={14} /> Register this device instead
+              </button>
+            )}
+          </div>
         )}
       </div>
     </div>
