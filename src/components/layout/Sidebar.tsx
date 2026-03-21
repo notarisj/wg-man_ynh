@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -39,6 +39,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const status = useVpnStore((s) => s.status);
   const location = useLocation();
+  const sidebarRef = useRef<HTMLElement>(null);
+
+  // Disable transitions during window resize so the sidebar snaps to its
+  // correct width instead of animating from the mobile-forced width.
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>;
+    const handleResize = () => {
+      const el = sidebarRef.current;
+      if (!el) return;
+      el.classList.add('sidebar--no-transition');
+      clearTimeout(timer);
+      timer = setTimeout(() => el.classList.remove('sidebar--no-transition'), 50);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => { window.removeEventListener('resize', handleResize); clearTimeout(timer); };
+  }, []);
 
   const statusIcon = status?.connected
     ? <ShieldCheck size={22} className="status-icon connected" />
@@ -54,7 +70,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     .filter(Boolean).join(' ');
 
   return (
-    <aside className={cls}>
+    <aside ref={sidebarRef} className={cls}>
       {/* Logo / Brand */}
       <div className="sidebar__brand">
         <div className="sidebar__logo">
