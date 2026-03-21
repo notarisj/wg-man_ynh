@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   Layers, CheckCircle2, Circle, RotateCcw, ServerCrash, AlertCircle,
-  Search, X, Plus, Pencil, Trash2, KeyRound, Lock, LockOpen, Terminal, ChevronDown, ChevronUp, Copy, Check,
+  Search, X, Plus, Pencil, Trash2,
 } from 'lucide-react';
 import { useVpnStore } from '../store/vpnStore';
 import { GlassCard } from '../components/ui/GlassCard';
@@ -11,48 +11,30 @@ import { api } from '../lib/api';
 import type { PasskeyStatus } from '../lib/api';
 import './Configs.css';
 
-// ── Passkey gate hook ─────────────────────────────────────────
-
 type PendingAction = { type: 'create' } | { type: 'edit'; name: string } | { type: 'delete'; name: string };
-
-// ── Page ──────────────────────────────────────────────────────
 
 export const Configs: React.FC = () => {
   const { configs, fetchConfigs, switchConfig, isSwitching, isLoadingConfigs, error } = useVpnStore();
 
-  const [switchedMsg, setSwitchedMsg]       = useState<string | null>(null);
-  const [switchError, setSwitchError]       = useState<string | null>(null);
-  const [search, setSearch]                 = useState('');
+  const [switchedMsg, setSwitchedMsg]     = useState<string | null>(null);
+  const [switchError, setSwitchError]     = useState<string | null>(null);
+  const [search, setSearch]               = useState('');
 
-  // Passkey state
-  const [passkeyStatus, setPasskeyStatus]   = useState<PasskeyStatus | null>(null);
-  const [showPasskey, setShowPasskey]       = useState(false);
-  const [passkeyMode, setPasskeyMode]       = useState<'register' | 'authenticate'>('authenticate');
-  const [pendingAction, setPendingAction]   = useState<PendingAction | null>(null);
+  // Passkey gate
+  const [passkeyStatus, setPasskeyStatus] = useState<PasskeyStatus | null>(null);
+  const [showPasskey, setShowPasskey]     = useState(false);
+  const [passkeyMode, setPasskeyMode]     = useState<'register' | 'authenticate'>('authenticate');
+  const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
 
-  // Editor state
-  const [editorOpen, setEditorOpen]         = useState(false);
-  const [editingConfig, setEditingConfig]   = useState<string | null>(null); // null = new
+  // Editor
+  const [editorOpen, setEditorOpen]       = useState(false);
+  const [editingConfig, setEditingConfig] = useState<string | null>(null);
 
   // Delete confirmation
-  const [confirmDelete, setConfirmDelete]   = useState<string | null>(null);
-  const [deleteError, setDeleteError]       = useState<string | null>(null);
-  const [isDeleting, setIsDeleting]         = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [deleteError, setDeleteError]     = useState<string | null>(null);
+  const [isDeleting, setIsDeleting]       = useState(false);
 
-  // Lock registration
-  const [lockPending, setLockPending]       = useState(false);
-  const [isLocking, setIsLocking]           = useState(false);
-  const [passkeyPanelOpen, setPasskeyPanelOpen] = useState(false);
-  const [cmdCopied, setCmdCopied]           = useState(false);
-
-  // Domain setup
-  const [domainRpID, setDomainRpID]         = useState(() => typeof window !== 'undefined' ? window.location.hostname : '');
-  const [domainOrigin, setDomainOrigin]     = useState(() => typeof window !== 'undefined' ? window.location.origin : '');
-  const [domainError, setDomainError]       = useState<string | null>(null);
-  const [isSavingDomain, setIsSavingDomain] = useState(false);
-  const [rpCmdCopied, setRpCmdCopied]       = useState(false);
-
-  // Config name prefix derived from pattern (e.g. "wg-*.conf" → "wg-")
   const namePrefix = 'wg-';
 
   useEffect(() => {
@@ -63,17 +45,9 @@ export const Configs: React.FC = () => {
   // ── Passkey gate ────────────────────────────────────────────
 
   const requirePasskey = useCallback((action: PendingAction) => {
-    if (!passkeyStatus?.registered) {
-      // No passkey yet — register first
-      setPendingAction(action);
-      setPasskeyMode('register');
-      setShowPasskey(true);
-    } else {
-      // Authenticate with existing passkey
-      setPendingAction(action);
-      setPasskeyMode('authenticate');
-      setShowPasskey(true);
-    }
+    setPendingAction(action);
+    setPasskeyMode(passkeyStatus?.registered ? 'authenticate' : 'register');
+    setShowPasskey(true);
   }, [passkeyStatus]);
 
   const onPasskeySuccess = useCallback(() => {
@@ -81,53 +55,14 @@ export const Configs: React.FC = () => {
     const action = pendingAction;
     setPendingAction(null);
     if (!action) return;
-
-    if (action.type === 'create') {
-      setEditingConfig(null);
-      setEditorOpen(true);
-    } else if (action.type === 'edit') {
-      setEditingConfig(action.name);
-      setEditorOpen(true);
-    } else if (action.type === 'delete') {
-      setConfirmDelete(action.name);
-    }
+    if (action.type === 'create') { setEditingConfig(null); setEditorOpen(true); }
+    else if (action.type === 'edit') { setEditingConfig(action.name); setEditorOpen(true); }
+    else if (action.type === 'delete') { setConfirmDelete(action.name); }
   }, [pendingAction]);
 
   const onPasskeyRegistered = useCallback(() => {
     api.passkey.status().then((res) => { if (res.ok) setPasskeyStatus(res.data); });
   }, []);
-
-  // Lock registration — called after passkey auth succeeds with lockPending=true
-  const onPasskeySuccessWithLock = useCallback(() => {
-    setShowPasskey(false);
-    setPendingAction(null);
-    if (lockPending) {
-      setLockPending(false);
-      setIsLocking(true);
-      api.passkey.lockRegistration().then((res) => {
-        setIsLocking(false);
-        if (res.ok) {
-          api.passkey.status().then((s) => { if (s.ok) setPasskeyStatus(s.data); });
-        }
-      });
-    }
-  }, [lockPending]);
-
-  const handleLockRegistration = useCallback(() => {
-    setLockPending(true);
-    setPendingAction(null);
-    setPasskeyMode('authenticate');
-    setShowPasskey(true);
-  }, []);
-
-  const handleSaveDomain = useCallback(async () => {
-    setDomainError(null);
-    setIsSavingDomain(true);
-    const res = await api.passkey.setupDomain(domainRpID.trim(), domainOrigin.trim());
-    setIsSavingDomain(false);
-    if (!res.ok) { setDomainError(res.error); return; }
-    api.passkey.status().then((s) => { if (s.ok) setPasskeyStatus(s.data); });
-  }, [domainRpID, domainOrigin]);
 
   // ── CRUD handlers ────────────────────────────────────────────
 
@@ -213,18 +148,6 @@ export const Configs: React.FC = () => {
           >
             <Plus size={15} /> New Config
           </button>
-          <button
-            className="configs-page__passkey-toggle"
-            onClick={() => setPasskeyPanelOpen((v) => !v)}
-            title="Passkey security settings"
-          >
-            <KeyRound size={13} className={
-              !passkeyStatus ? '' :
-              passkeyStatus.registrationLocked ? 'passkey-badge--lock' :
-              passkeyStatus.registered ? 'passkey-badge--ok' : 'passkey-badge--warn'
-            } />
-            {passkeyPanelOpen ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
-          </button>
         </div>
       </div>
 
@@ -238,158 +161,6 @@ export const Configs: React.FC = () => {
         <div className="configs-page__toast configs-page__toast--error">
           <AlertCircle size={15} /> {switchError}
         </div>
-      )}
-
-      {/* Passkey management panel */}
-      {passkeyPanelOpen && passkeyStatus && (
-        <GlassCard className="passkey-panel animate-slide-up">
-          <div className="passkey-panel__header">
-            <div className="passkey-panel__title">
-              {passkeyStatus.registrationLocked
-                ? <><Lock size={15} className="passkey-badge--lock" /> Passkey Registration Locked</>
-                : passkeyStatus.registered
-                ? <><KeyRound size={15} className="passkey-badge--ok" /> Passkey Active</>
-                : <><KeyRound size={15} className="passkey-badge--warn" /> No Passkey Registered</>}
-            </div>
-            {passkeyStatus.registered && !passkeyStatus.registrationLocked && (
-              <button
-                className="btn btn-sm"
-                style={{ background: 'rgba(245,158,11,0.08)', color: 'var(--clr-amber)', border: '1px solid rgba(245,158,11,0.25)' }}
-                onClick={handleLockRegistration}
-                disabled={isLocking}
-                title="Prevent any new passkeys from being registered via the UI"
-              >
-                {isLocking ? <span className="spinner spinner-sm" /> : <Lock size={13} />}
-                Lock Registration
-              </button>
-            )}
-          </div>
-
-          {passkeyStatus.registrationLocked ? (
-            <div className="passkey-panel__locked">
-              <div className="passkey-panel__locked-desc">
-                <Lock size={14} />
-                New passkey registration is <strong>disabled</strong>. To re-enable it, SSH into the server and run:
-              </div>
-              <div className="passkey-panel__ssh-block">
-                <Terminal size={12} />
-                <code className="passkey-panel__ssh-cmd">sudo jq '.registrationLocked = false' {passkeyStatus.storeFile} | sudo tee {passkeyStatus.storeFile}</code>
-                <button
-                  className="passkey-panel__copy-btn"
-                  title="Copy command"
-                  onClick={() => {
-                    navigator.clipboard.writeText(`sudo jq '.registrationLocked = false' ${passkeyStatus.storeFile} | sudo tee ${passkeyStatus.storeFile}`);
-                    setCmdCopied(true);
-                    setTimeout(() => setCmdCopied(false), 2000);
-                  }}
-                >
-                  {cmdCopied ? <Check size={12} /> : <Copy size={12} />}
-                </button>
-              </div>
-              <div className="passkey-panel__ssh-note">
-                Then restart the service: <code>sudo systemctl restart wg-man</code>
-              </div>
-            </div>
-          ) : passkeyStatus.registered ? (
-            <div className="passkey-panel__info">
-              <LockOpen size={13} /> Registration is open — additional passkeys can be added. Lock it once setup is complete.
-            </div>
-          ) : (
-            <div className="passkey-panel__info">
-              <AlertCircle size={13} /> No passkey registered yet. You will be prompted to create one when you first modify a config.
-            </div>
-          )}
-
-          {/* Domain configuration */}
-          <div className="passkey-panel__domain">
-            <div className="passkey-panel__creds-label" style={{ paddingBottom: 6 }}>WebAuthn Domain</div>
-            {passkeyStatus.rpConfig ? (
-              <>
-                <div className="passkey-panel__domain-locked">
-                  <span className="passkey-panel__domain-val mono">{passkeyStatus.rpConfig.origin}</span>
-                  <Lock size={11} style={{ flexShrink: 0, color: 'var(--clr-text-dim)' }} />
-                </div>
-                <div className="passkey-panel__ssh-note">
-                  To change, run via SSH:
-                </div>
-                <div className="passkey-panel__ssh-block">
-                  <Terminal size={12} />
-                  <code className="passkey-panel__ssh-cmd">
-                    {`sudo jq 'del(.rpConfig)' ${passkeyStatus.storeFile} | sudo tee ${passkeyStatus.storeFile} && sudo systemctl restart wg-man`}
-                  </code>
-                  <button
-                    className="passkey-panel__copy-btn"
-                    title="Copy command"
-                    onClick={() => {
-                      navigator.clipboard.writeText(`sudo jq 'del(.rpConfig)' ${passkeyStatus.storeFile} | sudo tee ${passkeyStatus.storeFile} && sudo systemctl restart wg-man`);
-                      setRpCmdCopied(true);
-                      setTimeout(() => setRpCmdCopied(false), 2000);
-                    }}
-                  >
-                    {rpCmdCopied ? <Check size={12} /> : <Copy size={12} />}
-                  </button>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="passkey-panel__ssh-note" style={{ marginBottom: 8 }}>
-                  Lock in your domain so passkeys are always bound to it. Pre-filled from your current browser URL.
-                </div>
-                <div className="passkey-panel__domain-fields">
-                  <div className="passkey-panel__domain-field">
-                    <label className="passkey-panel__domain-label">RP ID (hostname)</label>
-                    <input
-                      className="passkey-panel__domain-input"
-                      value={domainRpID}
-                      onChange={(e) => setDomainRpID(e.target.value)}
-                      placeholder="example.com"
-                      spellCheck={false}
-                    />
-                  </div>
-                  <div className="passkey-panel__domain-field">
-                    <label className="passkey-panel__domain-label">Origin (full URL)</label>
-                    <input
-                      className="passkey-panel__domain-input"
-                      value={domainOrigin}
-                      onChange={(e) => setDomainOrigin(e.target.value)}
-                      placeholder="https://example.com"
-                      spellCheck={false}
-                    />
-                  </div>
-                </div>
-                {domainError && (
-                  <div className="configs-page__confirm-error" style={{ marginTop: 4 }}>
-                    <AlertCircle size={12} /> {domainError}
-                  </div>
-                )}
-                <button
-                  className="btn btn-sm"
-                  style={{ marginTop: 8, alignSelf: 'flex-start', background: 'rgba(34,197,94,0.08)', color: 'var(--clr-green)', border: '1px solid rgba(34,197,94,0.25)' }}
-                  onClick={handleSaveDomain}
-                  disabled={isSavingDomain || !domainRpID.trim() || !domainOrigin.trim()}
-                >
-                  {isSavingDomain ? <span className="spinner spinner-sm" /> : <Lock size={13} />}
-                  Lock Domain
-                </button>
-              </>
-            )}
-          </div>
-
-          {passkeyStatus.credentials.length > 0 && (
-            <div className="passkey-panel__creds">
-              <div className="passkey-panel__creds-label">Registered keys</div>
-              {passkeyStatus.credentials.map((c) => (
-                <div key={c.id} className="passkey-panel__cred">
-                  <KeyRound size={11} />
-                  <span className="passkey-panel__cred-id">{c.id.slice(0, 20)}…</span>
-                  <span className="passkey-panel__cred-date">
-                    {new Date(c.registeredAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </GlassCard>
       )}
 
       {/* Config grid */}
@@ -490,8 +261,8 @@ export const Configs: React.FC = () => {
       {showPasskey && (
         <PasskeyPrompt
           mode={passkeyMode}
-          onSuccess={lockPending ? onPasskeySuccessWithLock : onPasskeySuccess}
-          onCancel={() => { setShowPasskey(false); setPendingAction(null); setLockPending(false); }}
+          onSuccess={onPasskeySuccess}
+          onCancel={() => { setShowPasskey(false); setPendingAction(null); }}
           onRegistered={onPasskeyRegistered}
         />
       )}
@@ -506,7 +277,7 @@ export const Configs: React.FC = () => {
         />
       )}
 
-      {/* Delete confirmation dialog */}
+      {/* Delete confirmation */}
       {confirmDelete && (
         <div className="configs-page__confirm-overlay" onClick={(e) => e.target === e.currentTarget && setConfirmDelete(null)}>
           <div className="configs-page__confirm animate-slide-up">

@@ -59,7 +59,7 @@ async function loadStore(): Promise<Store> {
     const parsed = JSON.parse(raw);
     _store = { registrationLocked: false, ...parsed };
   } catch {
-    _store = { credentials: [], registrationLocked: false };
+    _store = { credentials: [], registrationLocked: true };
   }
   return _store!;
 }

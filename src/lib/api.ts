@@ -116,6 +116,7 @@ export const api = {
     disable: ()               => apiFetch<{ ok: boolean }>('/cron', { method: 'DELETE' }),
   },
   passkey: {
+    session:        () => apiFetch<{ verified: boolean; registered: boolean; registrationLocked: boolean; storeFile: string }>('/passkey/session'),
     status:         () => apiFetch<PasskeyStatus>('/passkey/status'),
     registerStart:  () => apiFetch<any>('/passkey/register/start', { method: 'POST' }),
     registerFinish: (body: any) => apiFetch<{ ok: boolean }>('/passkey/register/finish', { method: 'POST', body: JSON.stringify(body) }),

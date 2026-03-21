@@ -162,8 +162,30 @@ export function requireAdmin(req: Request, res: Response, next: NextFunction): v
   next();
 }
 
-/** 5-minute window for a verified passkey session. */
+/** 5-minute window for a verified passkey session (mutation gate). */
 const PASSKEY_WINDOW_MS = 5 * 60 * 1000;
+
+/** 8-hour window for a passkey-verified app session (app-level gate). */
+export const APP_SESSION_TTL_MS = 8 * 60 * 60 * 1000;
+
+/**
+ * Require an active passkey app session (verified within 8 hours).
+ * Applied globally to all API routes — the app is unusable without a passkey.
+ */
+export function requirePasskeySession(req: Request, res: Response, next: NextFunction): void {
+  const v = req.session?.passkeyVerified;
+  const currentUser = req.user?.username;
+  if (
+    !v ||
+    Date.now() - v.ts > APP_SESSION_TTL_MS ||
+    !currentUser || v.username !== currentUser ||
+    v.generation !== getGeneration()
+  ) {
+    res.status(403).json({ error: 'Passkey session required', code: 'PASSKEY_SESSION_REQUIRED' });
+    return;
+  }
+  next();
+}
 
 /**
  * Require a recent passkey assertion (within 5 minutes).

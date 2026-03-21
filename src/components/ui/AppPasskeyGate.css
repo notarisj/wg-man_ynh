@@ -1,0 +1,123 @@
+.app-gate {
+  position: fixed;
+  inset: 0;
+  background: var(--clr-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 9999;
+}
+
+.app-gate--loading {
+  background: var(--clr-bg);
+}
+
+.app-gate__spinner {
+  animation: spin 1s linear infinite;
+  color: var(--clr-green);
+}
+
+.app-gate__card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  max-width: 400px;
+  width: 100%;
+  background: var(--clr-bg-alt);
+  border: 1px solid var(--clr-border-hi);
+  border-radius: var(--r-xl);
+  padding: 44px 36px 36px;
+  box-shadow: 0 32px 80px rgba(0, 0, 0, 0.6);
+  animation: slide-up var(--dur-normal) var(--ease) both;
+}
+
+.app-gate__icon {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: rgba(34, 197, 94, 0.08);
+  border: 1px solid rgba(34, 197, 94, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--clr-green);
+  margin-bottom: 4px;
+}
+
+.app-gate__icon--warn {
+  background: rgba(245, 158, 11, 0.08);
+  border-color: rgba(245, 158, 11, 0.2);
+  color: var(--clr-amber);
+}
+
+.app-gate__icon-err { color: #f87171; }
+
+.app-gate__logo {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--clr-text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.app-gate__title {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--clr-text);
+  text-align: center;
+  margin: 0;
+}
+
+.app-gate__desc {
+  font-size: 13px;
+  color: var(--clr-text-muted);
+  text-align: center;
+  line-height: 1.6;
+  max-width: 300px;
+  margin: 0;
+}
+
+.app-gate__error {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  color: #f87171;
+  font-size: 12px;
+  padding: 8px 12px;
+  border-radius: var(--r-sm);
+  width: 100%;
+}
+
+.app-gate__ssh-block {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--r-sm);
+  padding: 12px 14px;
+  color: var(--clr-amber);
+  width: 100%;
+}
+
+.app-gate__ssh-cmd {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--clr-amber);
+  word-break: break-all;
+  flex: 1;
+}
+
+.app-gate__hint {
+  font-size: 12px;
+  color: var(--clr-text-dim);
+  text-align: center;
+  margin: 0;
+}

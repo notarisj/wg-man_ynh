@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
-import { ssowatAuth, requireAdmin, csrfProtection } from '../middleware/auth';
+import { ssowatAuth, requireAdmin, csrfProtection, APP_SESSION_TTL_MS } from '../middleware/auth';
 import {
   getStatus,
   startRegistration,
@@ -21,9 +21,12 @@ router.use(csrfProtection);
 
 // Rate limits — tighter than the general API limiter since these are
 // security-sensitive endpoints. Skipped in dev.
+const IS_DEV = process.env.NODE_ENV !== 'production';
+
 const passkeyLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: process.env.NODE_ENV === 'development' ? 0 : 20,
+  max: 20,
+  skip: () => IS_DEV,
   standardHeaders: true, legacyHeaders: false,
   message: { error: 'Too many requests' },
 });
@@ -31,7 +34,8 @@ const passkeyLimiter = rateLimit({
 // Extra-strict limit on assertion/registration finish — actual crypto operations
 const assertLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: process.env.NODE_ENV === 'development' ? 0 : 5,
+  max: 5,
+  skip: () => IS_DEV,
   standardHeaders: true, legacyHeaders: false,
   message: { error: 'Too many requests' },
 });
@@ -79,6 +83,29 @@ router.post('/setup-domain', requireAdmin, async (req, res) => {
     return;
   }
   res.json({ ok: true });
+});
+
+/** GET /api/passkey/session — check if current session has a valid passkey app session */
+router.get('/session', async (req, res) => {
+  try {
+    const v = req.session?.passkeyVerified;
+    const currentUser = req.user?.username;
+    const verified = !!(
+      v &&
+      Date.now() - v.ts < APP_SESSION_TTL_MS &&
+      currentUser && v.username === currentUser &&
+      v.generation === getGeneration()
+    );
+    const status = await getStatus();
+    res.json({
+      verified,
+      registered: status.registered,
+      registrationLocked: status.registrationLocked,
+      storeFile: status.storeFile,
+    });
+  } catch {
+    res.status(500).json({ error: 'Failed to check session' });
+  }
 });
 
 /** GET /api/passkey/status */

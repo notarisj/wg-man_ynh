@@ -105,3 +105,160 @@
   align-self: flex-start;
   margin-top: 4px;
 }
+
+/* Passkey card — spans full width on wide screens */
+.settings-card--passkey {
+  grid-column: 1 / -1;
+}
+
+.settings-badge--green {
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 99px;
+  background: var(--clr-green-dim);
+  color: var(--clr-green);
+  border: 1px solid rgba(34,197,94,0.25);
+}
+
+.settings-badge--amber {
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 99px;
+  background: rgba(245,158,11,0.08);
+  color: var(--clr-amber);
+  border: 1px solid rgba(245,158,11,0.25);
+}
+
+.settings-badge--warn {
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 99px;
+  background: rgba(239,68,68,0.08);
+  color: #f87171;
+  border: 1px solid rgba(239,68,68,0.25);
+}
+
+.settings-passkey-error {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  color: #f87171;
+  font-size: 12px;
+  padding: 8px 12px;
+  border-radius: var(--r-sm);
+}
+
+.settings-passkey-btn {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  align-self: flex-start;
+  height: 32px;
+  padding: 0 14px;
+  border-radius: var(--r-sm);
+  border: 1px solid transparent;
+  font-size: 12px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background var(--dur-fast), color var(--dur-fast);
+}
+.settings-passkey-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.settings-passkey-btn--green {
+  background: rgba(34, 197, 94, 0.08);
+  color: var(--clr-green);
+  border-color: rgba(34, 197, 94, 0.25);
+}
+.settings-passkey-btn--green:hover:not(:disabled) { background: rgba(34, 197, 94, 0.15); }
+
+.settings-passkey-btn--amber {
+  background: rgba(245, 158, 11, 0.08);
+  color: var(--clr-amber);
+  border-color: rgba(245, 158, 11, 0.25);
+}
+.settings-passkey-btn--amber:hover:not(:disabled) { background: rgba(245, 158, 11, 0.15); }
+
+.settings-passkey-btn--danger {
+  background: rgba(239, 68, 68, 0.08);
+  color: #f87171;
+  border-color: rgba(239, 68, 68, 0.25);
+}
+.settings-passkey-btn--danger:hover:not(:disabled) { background: rgba(239, 68, 68, 0.15); }
+
+.settings-passkey-locked {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.settings-passkey-locked__desc {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  color: var(--clr-text-muted);
+}
+
+.settings-passkey-domain {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 12px;
+  border-top: 1px solid var(--clr-border);
+}
+
+.settings-passkey-domain__label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--clr-text-dim);
+  margin-bottom: 4px;
+}
+
+.settings-passkey-creds {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 12px;
+  border-top: 1px solid var(--clr-border);
+}
+
+.settings-passkey-creds__label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--clr-text-dim);
+}
+
+.settings-passkey-cred {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  color: var(--clr-text-muted);
+}
+
+.settings-passkey-cred__id {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  flex: 1;
+}
+
+.settings-passkey-cred__date {
+  font-size: 11px;
+  color: var(--clr-text-dim);
+  flex-shrink: 0;
+}
+
+.settings-passkey-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--clr-text-dim);
+}

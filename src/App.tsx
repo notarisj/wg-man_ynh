@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Layout } from './components/layout/Layout';
 import { AuthGuard } from './components/ui/AuthGuard';
+import { AppPasskeyGate } from './components/ui/AppPasskeyGate';
 import { Dashboard } from './pages/Dashboard';
 import { Configs } from './pages/Configs';
 import { Logs } from './pages/Logs';
@@ -15,17 +16,19 @@ export default function App() {
     // This allows the app to be installed at any sub-path (e.g. /wg-man/)
     <BrowserRouter basename={import.meta.env.BASE_URL}>
       <AuthGuard>
-        <Layout>
-          <Routes>
-            <Route path="/"        element={<Dashboard />} />
-            <Route path="/configs" element={<Configs />} />
-            <Route path="/logs"    element={<Logs />} />
-            <Route path="/settings" element={<Settings />} />
-            <Route path="/history"  element={<History />} />
-            {/* Fallback */}
-            <Route path="*"        element={<Dashboard />} />
-          </Routes>
-        </Layout>
+        <AppPasskeyGate>
+          <Layout>
+            <Routes>
+              <Route path="/"        element={<Dashboard />} />
+              <Route path="/configs" element={<Configs />} />
+              <Route path="/logs"    element={<Logs />} />
+              <Route path="/settings" element={<Settings />} />
+              <Route path="/history"  element={<History />} />
+              {/* Fallback */}
+              <Route path="*"        element={<Dashboard />} />
+            </Routes>
+          </Layout>
+        </AppPasskeyGate>
       </AuthGuard>
     </BrowserRouter>
   );

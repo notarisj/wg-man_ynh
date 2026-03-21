@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
-import { ssowatAuth, requireAdmin, requirePasskey, csrfProtection } from '../middleware/auth';
+import { ssowatAuth, requireAdmin, requirePasskey, requirePasskeySession, csrfProtection } from '../middleware/auth';
 import {
   getStatus,
   listConfigs,
@@ -24,13 +24,19 @@ const router = Router();
 // Apply SSOwat auth to all routes
 router.use(ssowatAuth);
 
+// Require active passkey app session — the entire app is gated behind passkey
+router.use(requirePasskeySession);
+
 // VULN-09: CSRF protection on state-mutating methods
 router.use(csrfProtection);
 
 // VULN-08: general API rate limit — 30 req/min per IP (skipped in dev)
+const IS_DEV = process.env.NODE_ENV !== 'production';
+
 const apiLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: process.env.NODE_ENV === 'development' ? 0 : 30,
+  max: 30,
+  skip: () => IS_DEV,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests' },
@@ -40,7 +46,8 @@ router.use(apiLimiter);
 // VULN-08: stricter limit for mutations — 5 req/min per IP (skipped in dev)
 const mutationLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: process.env.NODE_ENV === 'development' ? 0 : 5,
+  max: 5,
+  skip: () => IS_DEV,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests' },
