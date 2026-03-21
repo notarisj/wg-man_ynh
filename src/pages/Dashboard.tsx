@@ -3,10 +3,11 @@ import {
   ShieldCheck, ShieldOff, Shield,
   Zap, ZapOff,
   Clock, Activity, Wifi, WifiOff,
-  ArrowUpDown, Server, Eye,
+  ArrowUpDown, Server, Eye, Cpu, MemoryStick,
 } from 'lucide-react';
 import { useVpnStore } from '../store/vpnStore';
 import { GlassCard } from '../components/ui/GlassCard';
+import type { SystemMetrics } from '../lib/api';
 import './Dashboard.css';
 
 function formatBytes(bytes: number | null): string {
@@ -24,16 +25,83 @@ function formatAge(seconds: number | null): string {
   return `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m ago`;
 }
 
+function metricColor(pct: number): string {
+  if (pct >= 85) return 'var(--clr-red)';
+  if (pct >= 65) return 'var(--clr-amber)';
+  return 'var(--clr-teal)';
+}
+
+// ── Sparkline ─────────────────────────────────────────────────
+const SparkLine: React.FC<{ data: number[]; gradId: string; color: string }> = ({ data, gradId, color }) => {
+  if (data.length < 2) {
+    return <div className="sparkline-empty">Waiting for data…</div>;
+  }
+
+  const W = 300; const H = 52; const PAD = 2;
+  const pts = data.map((v, i): [number, number] => [
+    PAD + (i / (data.length - 1)) * (W - PAD * 2),
+    H - PAD - (Math.max(0, Math.min(100, v)) / 100) * (H - PAD * 2),
+  ]);
+  const polyline = pts.map(([x, y]) => `${x},${y}`).join(' ');
+  const fill = `${PAD},${H} ${polyline} ${W - PAD},${H}`;
+  const [lx, ly] = pts[pts.length - 1];
+
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="sparkline-svg">
+      <defs>
+        <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity="0.3" />
+          <stop offset="100%" stopColor={color} stopOpacity="0.02" />
+        </linearGradient>
+      </defs>
+      <polygon points={fill} fill={`url(#${gradId})`} />
+      <polyline points={polyline} fill="none" stroke={color} strokeWidth="1.5"
+        strokeLinejoin="round" strokeLinecap="round" />
+      <circle cx={lx} cy={ly} r={3} fill={color} />
+    </svg>
+  );
+};
+
+// ── Resource Graph Card ────────────────────────────────────────
+const ResourceGraph: React.FC<{
+  label: string;
+  icon: React.ReactNode;
+  value: number | null;
+  history: number[];
+  gradId: string;
+  detail?: string | null;
+}> = ({ label, icon, value, history, gradId, detail }) => {
+  const color = value !== null ? metricColor(value) : 'var(--clr-teal)';
+  return (
+    <GlassCard className="dashboard__resource">
+      <div className="dashboard__resource-header">
+        <div className="dashboard__resource-label" style={{ color }}>
+          {icon} {label}
+        </div>
+        <div className="dashboard__resource-right">
+          <span className="dashboard__resource-value" style={{ color }}>
+            {value !== null ? `${value}%` : '—'}
+          </span>
+          {detail && <span className="dashboard__resource-detail">{detail}</span>}
+        </div>
+      </div>
+      <SparkLine data={history} gradId={gradId} color={color} />
+    </GlassCard>
+  );
+};
+
+// ── Dashboard ──────────────────────────────────────────────────
 export const Dashboard: React.FC = () => {
   const {
     status, fetchStatus, fetchConfigs, fetchLogs,
     logs, connect, disconnect, isConnecting, isDisconnecting,
+    systemMetrics, systemHistory,
   } = useVpnStore();
 
   useEffect(() => {
     fetchStatus();
     fetchConfigs();
-    fetchLogs(10); // initial load; WS pushes keep it live after that
+    fetchLogs(10);
   }, []);
 
   const handleConnect = useCallback(() => connect(), [connect]);
@@ -41,6 +109,7 @@ export const Dashboard: React.FC = () => {
 
   const isLoading = isConnecting || isDisconnecting;
   const connected = status?.connected ?? false;
+  const sm: SystemMetrics | null = systemMetrics;
 
   return (
     <div className="dashboard animate-fade-in">
@@ -146,6 +215,25 @@ export const Dashboard: React.FC = () => {
             </div>
           </div>
         </GlassCard>
+      </div>
+
+      {/* ── Server Resources ─────────────────────────────── */}
+      <div className="dashboard__resources">
+        <ResourceGraph
+          label="CPU"
+          icon={<Cpu size={13} />}
+          value={sm?.cpuPercent ?? null}
+          history={systemHistory.map(s => s.cpuPercent)}
+          gradId="grad-cpu"
+        />
+        <ResourceGraph
+          label="RAM"
+          icon={<MemoryStick size={13} />}
+          value={sm?.ramPercent ?? null}
+          history={systemHistory.map(s => s.ramPercent)}
+          gradId="grad-ram"
+          detail={sm ? `${sm.ramUsedMb} / ${sm.ramTotalMb} MB` : null}
+        />
       </div>
 
       {/* ── Bottom Row ───────────────────────────────────── */}

@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { api, VpnWebSocket } from '../lib/api';
-import type { VpnStatus, WgConfig } from '../lib/api';
+import type { VpnStatus, WgConfig, SystemMetrics } from '../lib/api';
+
+const SYSTEM_HISTORY_MAX = 40;
 
 type User = { username: string; email?: string };
 
@@ -53,6 +55,8 @@ interface VpnStore {
   error: string | null;
   wsInstance: VpnWebSocket | null;
   liveMode: boolean;
+  systemMetrics: SystemMetrics | null;
+  systemHistory: SystemMetrics[];
 
   // Actions
   fetchMe: () => Promise<void>;
@@ -83,6 +87,8 @@ export const useVpnStore = create<VpnStore>((set, get) => ({
   error: null,
   wsInstance: null,
   liveMode: false,
+  systemMetrics: null,
+  systemHistory: [],
 
   fetchMe: async () => {
     const res = await api.me();
@@ -171,6 +177,9 @@ export const useVpnStore = create<VpnStore>((set, get) => ({
         if (msg.payload.length >= get().logs.length) {
           set({ logs: msg.payload });
         }
+      } else if (msg.type === 'system') {
+        const history = [...get().systemHistory, msg.payload].slice(-SYSTEM_HISTORY_MAX);
+        set({ systemMetrics: msg.payload, systemHistory: history });
       }
     });
     ws.connect();

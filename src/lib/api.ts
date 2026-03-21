@@ -36,6 +36,13 @@ export type WgConfig = {
   ipv6LeakRisk: boolean;
 };
 
+export type SystemMetrics = {
+  cpuPercent: number;
+  ramPercent: number;
+  ramUsedMb: number;
+  ramTotalMb: number;
+};
+
 export type CronStatus = {
   enabled:    boolean;
   schedule:   string | null;
@@ -96,8 +103,9 @@ export const api = {
 // ── WebSocket Manager ───────────────────────────────────────
 
 type WsMessage =
-  | { type: 'status'; payload: VpnStatus; ts: number }
-  | { type: 'logs';   payload: string[];  ts: number }
+  | { type: 'status'; payload: VpnStatus;     ts: number }
+  | { type: 'logs';   payload: string[];       ts: number }
+  | { type: 'system'; payload: SystemMetrics; ts: number }
   | { type: 'error';  payload: { message: string }; ts: number }
   | { type: 'pong' };
 

@@ -1,6 +1,7 @@
 import { WebSocketServer, WebSocket } from 'ws';
 import { IncomingMessage, Server } from 'http';
 import { getStatus, tailLog } from './services/wg';
+import { getSystemMetrics } from './services/system';
 import { authenticateRaw } from './middleware/auth';
 
 const PUSH_INTERVAL_MS = 5000;
@@ -29,15 +30,17 @@ export function createWebSocketServer(httpServer: Server): WebSocketServer {
 
     console.log(`[WS] Client connected: ${user.username} from ${req.socket.remoteAddress}`);
 
-    // Send initial status + logs immediately
+    // Send initial status + logs + system metrics immediately
     sendStatus(ws);
     sendLogs(ws);
+    sendSystem(ws);
 
     // Poll and push every PUSH_INTERVAL_MS
     const interval = setInterval(() => {
       if (ws.readyState === WebSocket.OPEN) {
         sendStatus(ws);
         sendLogs(ws);
+        sendSystem(ws);
       }
     }, PUSH_INTERVAL_MS);
 
@@ -85,6 +88,15 @@ async function sendLogs(ws: WebSocket): Promise<void> {
     const logs = await tailLog(10);
     if (ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify({ type: 'logs', payload: logs, ts: Date.now() }));
+    }
+  } catch { /* ignore */ }
+}
+
+async function sendSystem(ws: WebSocket): Promise<void> {
+  try {
+    const metrics = await getSystemMetrics();
+    if (metrics && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: 'system', payload: metrics, ts: Date.now() }));
     }
   } catch { /* ignore */ }
 }
