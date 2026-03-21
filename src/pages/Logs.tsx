@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ScrollText, RefreshCw, ChevronsDown, Pause, Play, ChevronDown, Check, Search, X } from 'lucide-react';
 import { useVpnStore } from '../store/vpnStore';
 import './Logs.css';
@@ -26,9 +26,8 @@ export const Logs: React.FC = () => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [search, setSearch] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const terminalBodyRef = useRef<HTMLDivElement>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const initialScrollDone = useRef(false);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -54,12 +53,10 @@ export const Logs: React.FC = () => {
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [liveRefresh, lineCount]);
 
-  // Auto-scroll to bottom — instant on first load, smooth on live updates
-  useEffect(() => {
-    if (autoScroll && bottomRef.current && logs.length > 0) {
-      const behavior = initialScrollDone.current ? 'smooth' : 'instant';
-      bottomRef.current.scrollIntoView({ behavior });
-      initialScrollDone.current = true;
+  // Scroll to bottom before paint so the user never sees the top
+  useLayoutEffect(() => {
+    if (autoScroll && terminalBodyRef.current && logs.length > 0) {
+      terminalBodyRef.current.scrollTop = terminalBodyRef.current.scrollHeight;
     }
   }, [logs, autoScroll]);
 
@@ -167,7 +164,7 @@ export const Logs: React.FC = () => {
             </span>
           )}
         </div>
-        <div className="logs-terminal__body">
+        <div className="logs-terminal__body" ref={terminalBodyRef}>
           {filteredLogs.length === 0 ? (
             <div className="logs-terminal__empty">
               {search ? `No lines match "${search}".` : 'No log entries found.'}
@@ -183,7 +180,6 @@ export const Logs: React.FC = () => {
               );
             })
           )}
-          <div ref={bottomRef} />
         </div>
       </div>
     </div>

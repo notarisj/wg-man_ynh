@@ -8,6 +8,35 @@ type User = { username: string; email?: string };
 let liveIntervalId: ReturnType<typeof setInterval> | null = null;
 const LIVE_INTERVAL_MS = 5000;
 
+// ── Dev mock logs ─────────────────────────────────────────────
+const DEV_MOCK_LOGS: string[] = import.meta.env.DEV ? (() => {
+  const configs = ['wg0', 'mullvad-se', 'office-vpn', 'home-tunnel'];
+  const messages = [
+    (cfg: string) => `[INFO] vpn-monitor started, watching config: ${cfg}.conf`,
+    (cfg: string) => `[ACTION] Attempting to activate ${cfg}`,
+    (cfg: string) => `[SUCCESS] ${cfg} is now active — handshake confirmed`,
+    (_: string) => `[INFO] Ping 1.1.1.1 — OK (32ms)`,
+    (_: string) => `[INFO] Ping 1.1.1.1 — OK (28ms)`,
+    (_: string) => `[INFO] Ping 1.1.1.1 — FAILED, retrying...`,
+    (cfg: string) => `[ERROR] wg show ${cfg} returned non-zero exit code`,
+    (cfg: string) => `[TRIGGER] Handshake age exceeded threshold for ${cfg}`,
+    (_: string) => `[INFO] Traffic ↑ 1.4 MB ↓ 8.2 MB`,
+    (_: string) => `[CRITICAL] No healthy config found after 3 attempts — giving up`,
+    (cfg: string) => `[ACTION] Switching from ${cfg} to fallback config`,
+    (_: string) => `[INFO] Scheduler tick — checking tunnel health`,
+    (_: string) => `[INFO] WireGuard interface wg0 up`,
+    (_: string) => `[ERROR] Failed to bring up interface: permission denied`,
+    (_: string) => `[SUCCESS] Auto-connect completed successfully`,
+  ];
+  const base = new Date('2026-03-21T02:00:00');
+  return Array.from({ length: 150 }, (_, i) => {
+    const ts = new Date(base.getTime() + i * 23000).toISOString().replace('T', ' ').slice(0, 19);
+    const cfg = configs[i % configs.length];
+    const msg = messages[i % messages.length](cfg);
+    return `${ts}  ${msg}`;
+  });
+})() : [];
+
 interface VpnStore {
   // State
   status: VpnStatus | null;
@@ -81,6 +110,10 @@ export const useVpnStore = create<VpnStore>((set, get) => ({
   },
 
   fetchLogs: async (lines = 100) => {
+    if (import.meta.env.DEV) {
+      set({ logs: DEV_MOCK_LOGS.slice(-lines), isLoadingLogs: false });
+      return;
+    }
     set({ isLoadingLogs: true });
     const res = await api.logs(lines);
     if (res.ok) {
