@@ -40,13 +40,13 @@ else
     pushd "$install_dir"
     VITE_APP_PATH="$path/" $ynh_npm ci --legacy-peer-deps 2>&1
     VITE_APP_PATH="$path/" $ynh_npm run build 2>&1
-    $ynh_npm prune --production 2>&1
+    $ynh_npm prune --omit=dev --legacy-peer-deps 2>&1
     popd
 
     pushd "$install_dir/server"
     $ynh_npm ci --legacy-peer-deps 2>&1
     $ynh_npm run build 2>&1
-    $ynh_npm prune --production 2>&1
+    $ynh_npm prune --omit=dev --legacy-peer-deps 2>&1
     popd
 
     # Regenerate .env since it was not in the backup
