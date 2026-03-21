@@ -16,7 +16,44 @@ node="$ynh_node"
 # RESTORE APP FILES
 #=================================================
 ynh_script_progression "Restoring application files..."
-ynh_restore "$install_dir"
+
+# Restore install_dir from backup when available.
+# If the backup entry is absent (e.g. pre-upgrade backup taken after a
+# previous failed upgrade left install_dir missing), rebuild from source
+# instead so the restore can still succeed.
+if ynh_restore "$install_dir" 2>/dev/null; then
+    ynh_script_progression "Restored $install_dir from backup."
+else
+    ynh_script_progression "$install_dir not found in backup — rebuilding from source..."
+
+    rsync -a \
+        --exclude='.git' \
+        --exclude='scripts' \
+        --exclude='conf' \
+        --exclude='manifest.toml' \
+        --exclude='node_modules' \
+        --exclude='server/node_modules' \
+        --exclude='dist' \
+        --exclude='server/dist' \
+        "$YNH_APP_BASEDIR/" "$install_dir/"
+
+    pushd "$install_dir"
+    VITE_APP_PATH="$path/" $ynh_npm ci 2>&1
+    VITE_APP_PATH="$path/" $ynh_npm run build 2>&1
+    $ynh_npm prune --production 2>&1
+    popd
+
+    pushd "$install_dir/server"
+    $ynh_npm ci 2>&1
+    $ynh_npm run build 2>&1
+    $ynh_npm prune --production 2>&1
+    popd
+
+    # Regenerate .env since it was not in the backup
+    ynh_add_config --template=".env" --destination="$install_dir/server/.env"
+    chmod 640 "$install_dir/server/.env"
+fi
+
 ynh_restore "$data_dir"
 
 #=================================================
