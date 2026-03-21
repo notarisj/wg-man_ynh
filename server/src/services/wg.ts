@@ -506,6 +506,105 @@ export async function runMonitor(): Promise<{ success: boolean; output: string }
   return { success, output: (stdout + stderr).trim() };
 }
 
+// ── Config CRUD ─────────────────────────────────────────────
+
+const SAFE_CONFIG_NAME_RE = /^[a-zA-Z0-9_-]+$/;
+
+function validateConfigName(name: string): void {
+  if (!SAFE_CONFIG_NAME_RE.test(name)) throw new Error('Invalid config name — only letters, digits, _ and - allowed');
+  if (name === STATIC_IFACE) throw new Error('Cannot use the static interface name as a config name');
+}
+
+function hasInterfaceSection(content: string): boolean {
+  return /^\[Interface\]/m.test(content);
+}
+
+/** Return the raw content of a named config file. */
+export async function readConfig(name: string): Promise<string> {
+  validateConfigName(name);
+  const filePath = path.join(CONFIG_DIR, `${name}.conf`);
+  return readFile(filePath, 'utf-8');
+}
+
+/** Create a new config file. Fails if name already exists. */
+export async function createConfig(
+  name: string,
+  content: string,
+): Promise<{ success: boolean; message: string }> {
+  validateConfigName(name);
+
+  // Enforce CONFIG_PATTERN prefix
+  const wildcardIdx = CONFIG_PATTERN.indexOf('*');
+  const prefix = wildcardIdx >= 0 ? CONFIG_PATTERN.slice(0, wildcardIdx) : CONFIG_PATTERN;
+  if (!name.startsWith(prefix)) {
+    return { success: false, message: `Config name must start with "${prefix}"` };
+  }
+
+  if (!hasInterfaceSection(content)) {
+    return { success: false, message: 'Config must contain a [Interface] section' };
+  }
+
+  const filePath = path.join(CONFIG_DIR, `${name}.conf`);
+  try {
+    await stat(filePath);
+    return { success: false, message: 'A config with that name already exists' };
+  } catch { /* expected — file does not exist */ }
+
+  await writeFile(filePath, content, 'utf-8');
+  await chmod(filePath, 0o600);
+  await appendLog('ACTION', `Config created: ${name}`);
+  return { success: true, message: `Config ${name} created` };
+}
+
+/** Overwrite an existing config file's content. */
+export async function updateConfig(
+  name: string,
+  content: string,
+): Promise<{ success: boolean; message: string }> {
+  validateConfigName(name);
+
+  if (!hasInterfaceSection(content)) {
+    return { success: false, message: 'Config must contain a [Interface] section' };
+  }
+
+  const filePath = path.join(CONFIG_DIR, `${name}.conf`);
+  try {
+    await stat(filePath);
+  } catch {
+    return { success: false, message: 'Config not found' };
+  }
+
+  await writeFile(filePath, content, 'utf-8');
+  await chmod(filePath, 0o600);
+  await appendLog('ACTION', `Config updated: ${name}`);
+  return { success: true, message: `Config ${name} updated` };
+}
+
+/** Delete a config file. Refuses to delete the currently active config. */
+export async function deleteConfig(name: string): Promise<{ success: boolean; message: string }> {
+  validateConfigName(name);
+
+  // Guard: cannot delete the active config
+  try {
+    const activeRaw = await readFile(STATE_FILE, 'utf-8');
+    if (activeRaw.trim() === name) {
+      return { success: false, message: 'Cannot delete the currently active config — disconnect first' };
+    }
+  } catch { /* no state file — nothing active */ }
+
+  const filePath = path.join(CONFIG_DIR, `${name}.conf`);
+  try {
+    await stat(filePath);
+  } catch {
+    return { success: false, message: 'Config not found' };
+  }
+
+  const { unlink } = await import('fs/promises');
+  await unlink(filePath);
+  await appendLog('ACTION', `Config deleted: ${name}`);
+  return { success: true, message: `Config ${name} deleted` };
+}
+
 export async function searchLog(query: string, maxResults = 500): Promise<string[]> {
   const { stdout } = await runCmd('grep', ['-i', '-F', '-m', String(maxResults), query, LOG_FILE]);
   if (!stdout.trim()) return [];

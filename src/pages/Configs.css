@@ -209,3 +209,273 @@
 .config-card__footer {
   margin-top: 2px;
 }
+
+/* Card action buttons (edit / delete) */
+.config-card__actions {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.config-card__action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--r-sm);
+  background: none;
+  border: 1px solid transparent;
+  color: var(--clr-text-dim);
+  cursor: pointer;
+  transition: background var(--dur-fast), color var(--dur-fast), border-color var(--dur-fast);
+}
+.config-card__action-btn:hover {
+  background: var(--clr-surface-md);
+  color: var(--clr-text);
+  border-color: var(--clr-border);
+}
+.config-card__action-btn--danger:hover {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--clr-red);
+  border-color: rgba(239, 68, 68, 0.25);
+}
+.config-card__action-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Topbar right-side action group */
+.configs-page__topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.configs-page__passkey-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 30px;
+  padding: 0 10px;
+  border-radius: var(--r-sm);
+  background: var(--clr-surface);
+  border: 1px solid var(--clr-border);
+  color: var(--clr-text-muted);
+  cursor: pointer;
+  font-size: 11px;
+  font-family: inherit;
+  transition: background var(--dur-fast), border-color var(--dur-fast), color var(--dur-fast);
+}
+.configs-page__passkey-toggle:hover {
+  background: var(--clr-surface-md);
+  border-color: var(--clr-border-hi);
+  color: var(--clr-text);
+}
+
+.passkey-badge--ok   { color: var(--clr-green); }
+.passkey-badge--warn { color: var(--clr-amber); }
+.passkey-badge--lock { color: var(--clr-amber); }
+
+/* Passkey management panel */
+.passkey-panel {
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.passkey-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.passkey-panel__title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--clr-text);
+}
+
+.passkey-panel__info {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  color: var(--clr-text-muted);
+}
+
+.passkey-panel__locked {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.passkey-panel__locked-desc {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  color: var(--clr-text-muted);
+}
+
+.passkey-panel__ssh-block {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--r-sm);
+  padding: 10px 14px;
+  color: var(--clr-green);
+  min-width: 0;
+}
+
+.passkey-panel__ssh-cmd {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--clr-green);
+  word-break: break-all;
+  flex: 1;
+}
+
+.passkey-panel__copy-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.25);
+  border-radius: var(--r-sm);
+  color: var(--clr-green);
+  cursor: pointer;
+  transition: background var(--dur-fast), color var(--dur-fast);
+}
+.passkey-panel__copy-btn:hover {
+  background: rgba(34, 197, 94, 0.2);
+}
+
+.passkey-panel__ssh-note {
+  font-size: 11px;
+  color: var(--clr-text-dim);
+}
+
+.passkey-panel__ssh-note code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--clr-text-muted);
+  background: var(--clr-surface-md);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+.passkey-panel__creds {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 8px;
+  border-top: 1px solid var(--clr-border);
+}
+
+.passkey-panel__creds-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--clr-text-dim);
+}
+
+.passkey-panel__cred {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  color: var(--clr-text-muted);
+}
+
+.passkey-panel__cred-id {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  flex: 1;
+}
+
+.passkey-panel__cred-date {
+  font-size: 11px;
+  color: var(--clr-text-dim);
+  flex-shrink: 0;
+}
+
+/* Delete confirmation dialog */
+.configs-page__confirm-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  z-index: 450;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  animation: fade-in var(--dur-fast) var(--ease) both;
+}
+
+.configs-page__confirm {
+  background: var(--clr-bg-alt);
+  border: 1px solid var(--clr-border-hi);
+  border-radius: var(--r-xl);
+  padding: 28px 28px 20px;
+  max-width: 380px;
+  width: 100%;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.configs-page__confirm-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--clr-text);
+}
+
+.configs-page__confirm-desc {
+  font-size: 13px;
+  color: var(--clr-text-muted);
+  line-height: 1.6;
+}
+
+.configs-page__confirm-desc code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  background: var(--clr-surface-md);
+  padding: 1px 5px;
+  border-radius: 4px;
+  color: var(--clr-text);
+}
+
+.configs-page__confirm-error {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  color: #f87171;
+  font-size: 12px;
+  padding: 8px 12px;
+  border-radius: var(--r-sm);
+}
+
+.configs-page__confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}

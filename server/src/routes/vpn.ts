@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
-import { ssowatAuth, requireAdmin, csrfProtection } from '../middleware/auth';
+import { ssowatAuth, requireAdmin, requirePasskey, csrfProtection } from '../middleware/auth';
 import {
   getStatus,
   listConfigs,
@@ -9,6 +9,10 @@ import {
   runMonitor,
   tailLog,
   searchLog,
+  readConfig,
+  createConfig,
+  updateConfig,
+  deleteConfig,
 } from '../services/wg';
 import { getCronStatus, setCron, disableCron } from '../services/cron';
 import { getHistory } from '../services/vpnHistory';
@@ -185,6 +189,50 @@ router.delete('/cron', mutationLimiter, requireAdmin, async (_req, res) => {
     console.error('[api] Failed to disable cron:', err);
     res.status(500).json({ error: 'Failed to disable cron' });
   }
+});
+
+// ── Config CRUD (passkey-gated) ───────────────────────────────
+
+/** GET /api/configs/:name/content — read raw config file content */
+router.get('/configs/:name/content', requireAdmin, async (req, res) => {
+  try {
+    const content = await readConfig(req.params.name);
+    res.json({ content });
+  } catch (err: any) {
+    res.status(404).json({ error: 'Config not found' });
+  }
+});
+
+/** POST /api/configs — create a new config file */
+router.post('/configs', mutationLimiter, requireAdmin, requirePasskey, async (req, res) => {
+  const { name, content } = req.body as { name?: unknown; content?: unknown };
+  if (typeof name !== 'string' || !name.trim()) {
+    res.status(400).json({ error: 'name is required' }); return;
+  }
+  if (typeof content !== 'string' || !content.trim()) {
+    res.status(400).json({ error: 'content is required' }); return;
+  }
+  const result = await createConfig(name.trim(), content);
+  if (!result.success) { res.status(400).json({ error: result.message }); return; }
+  res.json({ ok: true, message: result.message });
+});
+
+/** PUT /api/configs/:name — overwrite an existing config file */
+router.put('/configs/:name', mutationLimiter, requireAdmin, requirePasskey, async (req, res) => {
+  const { content } = req.body as { content?: unknown };
+  if (typeof content !== 'string' || !content.trim()) {
+    res.status(400).json({ error: 'content is required' }); return;
+  }
+  const result = await updateConfig(req.params.name, content);
+  if (!result.success) { res.status(400).json({ error: result.message }); return; }
+  res.json({ ok: true, message: result.message });
+});
+
+/** DELETE /api/configs/:name — delete a config file */
+router.delete('/configs/:name', mutationLimiter, requireAdmin, requirePasskey, async (req, res) => {
+  const result = await deleteConfig(req.params.name);
+  if (!result.success) { res.status(400).json({ error: result.message }); return; }
+  res.json({ ok: true, message: result.message });
 });
 
 export default router;

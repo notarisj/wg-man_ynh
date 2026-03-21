@@ -1,6 +1,18 @@
 import { Request, Response, NextFunction } from 'express';
 import { IncomingMessage } from 'http';
 import { timingSafeEqual } from 'crypto';
+import { getGeneration } from '../services/passkey';
+
+// ── Session type augmentation ────────────────────────────────
+declare module 'express-session' {
+  interface SessionData {
+    user?: { username: string; email?: string };
+    /** Challenge stored with an expiry to prevent indefinite replay. */
+    passkeyChallenge?: { value: string; expiresAt: number };
+    /** Verification token — bound to username and generation to survive resets. */
+    passkeyVerified?: { ts: number; username: string; generation: number };
+  }
+}
 
 declare global {
   namespace Express {
@@ -145,6 +157,28 @@ export function ssowatAuth(req: Request, res: Response, next: NextFunction): voi
 export function requireAdmin(req: Request, res: Response, next: NextFunction): void {
   if (!req.user) {
     res.status(403).json({ error: 'Admin access required' });
+    return;
+  }
+  next();
+}
+
+/** 5-minute window for a verified passkey session. */
+const PASSKEY_WINDOW_MS = 5 * 60 * 1000;
+
+/**
+ * Require a recent passkey assertion (within 5 minutes).
+ * Used to gate config create/edit/delete operations.
+ */
+export function requirePasskey(req: Request, res: Response, next: NextFunction): void {
+  const v = req.session?.passkeyVerified;
+  const currentUser = req.user?.username;
+  if (
+    !v ||
+    Date.now() - v.ts > PASSKEY_WINDOW_MS ||
+    !currentUser || v.username !== currentUser ||
+    v.generation !== getGeneration()
+  ) {
+    res.status(403).json({ error: 'Passkey verification required', code: 'PASSKEY_REQUIRED' });
     return;
   }
   next();

@@ -90,6 +90,13 @@ async function apiFetch<T>(
   }
 }
 
+export type PasskeyStatus = {
+  registered: boolean;
+  registrationLocked: boolean;
+  credentials: { id: string; registeredAt: number }[];
+  storeFile: string;
+};
+
 export const api = {
   me: () => apiFetch<{ user: { username: string; email?: string } }>('/me'),
   authConfig: () => apiFetch<{ dexEnabled: boolean }>('/auth/config'),
@@ -107,6 +114,19 @@ export const api = {
     set:     (schedule: string) => apiFetch<{ ok: boolean }>('/cron', { method: 'POST', body: JSON.stringify({ schedule }) }),
     disable: ()               => apiFetch<{ ok: boolean }>('/cron', { method: 'DELETE' }),
   },
+  passkey: {
+    status:         () => apiFetch<PasskeyStatus>('/passkey/status'),
+    registerStart:  () => apiFetch<any>('/passkey/register/start', { method: 'POST' }),
+    registerFinish: (body: any) => apiFetch<{ ok: boolean }>('/passkey/register/finish', { method: 'POST', body: JSON.stringify(body) }),
+    assertStart:       () => apiFetch<any>('/passkey/assert/start', { method: 'POST' }),
+    assertFinish:      (body: any) => apiFetch<{ ok: boolean }>('/passkey/assert/finish', { method: 'POST', body: JSON.stringify(body) }),
+    lockRegistration:  () => apiFetch<{ ok: boolean }>('/passkey/lock-registration', { method: 'POST' }),
+    reset:             () => apiFetch<{ ok: boolean }>('/passkey/reset', { method: 'DELETE' }),
+  },
+  configContent: (name: string) => apiFetch<{ content: string }>(`/configs/${encodeURIComponent(name)}/content`),
+  createConfig:  (name: string, content: string) => apiFetch<{ ok: boolean; message: string }>('/configs', { method: 'POST', body: JSON.stringify({ name, content }) }),
+  updateConfig:  (name: string, content: string) => apiFetch<{ ok: boolean; message: string }>(`/configs/${encodeURIComponent(name)}`, { method: 'PUT', body: JSON.stringify({ content }) }),
+  deleteConfig:  (name: string) => apiFetch<{ ok: boolean; message: string }>(`/configs/${encodeURIComponent(name)}`, { method: 'DELETE' }),
 };
 
 // ── WebSocket Manager ───────────────────────────────────────
