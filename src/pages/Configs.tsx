@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Layers, CheckCircle2, Circle, RotateCcw, ServerCrash, AlertCircle } from 'lucide-react';
+import { Layers, CheckCircle2, Circle, RotateCcw, ServerCrash, AlertCircle, Search, X } from 'lucide-react';
 import { useVpnStore } from '../store/vpnStore';
 import { GlassCard } from '../components/ui/GlassCard';
 import './Configs.css';
@@ -8,8 +8,16 @@ export const Configs: React.FC = () => {
   const { configs, fetchConfigs, switchConfig, isSwitching, isLoadingConfigs, error } = useVpnStore();
   const [switchedMsg, setSwitchedMsg] = useState<string | null>(null);
   const [switchError, setSwitchError] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
 
   useEffect(() => { fetchConfigs(); }, []);
+
+  const q = search.toLowerCase();
+  const filtered = search
+    ? configs.filter((c) =>
+        [c.name, c.comment, c.address, c.endpoint].some((v) => v?.toLowerCase().includes(q))
+      )
+    : configs;
 
   const handleSwitch = async (name: string) => {
     setSwitchError(null);
@@ -28,10 +36,23 @@ export const Configs: React.FC = () => {
     <div className="configs-page animate-fade-in">
       {/* Page header */}
       <div className="configs-page__topbar">
-        <div>
-          <p className="configs-page__count">
-            {configs.length} configuration{configs.length !== 1 ? 's' : ''} found
-          </p>
+        <p className="configs-page__count">
+          {search ? `${filtered.length} of ${configs.length}` : configs.length} configuration{configs.length !== 1 ? 's' : ''} found
+        </p>
+        <div className="page-search">
+          <Search size={14} className="page-search__icon" />
+          <input
+            type="text"
+            className="page-search__input"
+            placeholder="Search configs…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          {search && (
+            <button className="page-search__clear" onClick={() => setSearch('')} aria-label="Clear search">
+              <X size={12} />
+            </button>
+          )}
         </div>
         <button
           id="btn-refresh-configs"
@@ -70,9 +91,14 @@ export const Configs: React.FC = () => {
           <ServerCrash size={36} />
           <p>No WireGuard configs found matching the pattern.</p>
         </GlassCard>
+      ) : filtered.length === 0 ? (
+        <GlassCard className="configs-page__empty">
+          <Search size={36} />
+          <p>No configs match "{search}".</p>
+        </GlassCard>
       ) : (
         <div className="configs-page__grid">
-          {configs.map((cfg) => {
+          {filtered.map((cfg) => {
             const isActive = cfg.isActive;
             const isBusy = isSwitching === cfg.name;
             return (

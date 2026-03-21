@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ScrollText, RefreshCw, ChevronsDown, Pause, Play, ChevronDown, Check } from 'lucide-react';
+import { ScrollText, RefreshCw, ChevronsDown, Pause, Play, ChevronDown, Check, Search, X } from 'lucide-react';
 import { useVpnStore } from '../store/vpnStore';
 import './Logs.css';
 
@@ -24,6 +24,7 @@ export const Logs: React.FC = () => {
   const [liveRefresh, setLiveRefresh] = useState(true);
   const [lineCount, setLineCount] = useState(150);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [search, setSearch] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -61,13 +62,33 @@ export const Logs: React.FC = () => {
 
   // Show logs in chronological order (newest last for log view)
   const orderedLogs = [...logs].reverse();
+  const filteredLogs = search
+    ? orderedLogs.filter((line) => line.toLowerCase().includes(search.toLowerCase()))
+    : orderedLogs;
 
   return (
     <div className="logs-page animate-fade-in">
       {/* Toolbar */}
       <div className="logs-toolbar">
         <div className="logs-toolbar__left">
-          <span className="logs-toolbar__count">{logs.length} lines</span>
+          <span className="logs-toolbar__count">
+            {search ? `${filteredLogs.length} of ${logs.length}` : logs.length} lines
+          </span>
+          <div className="page-search">
+            <Search size={14} className="page-search__icon" />
+            <input
+              type="text"
+              className="page-search__input"
+              placeholder="Search logs…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+            {search && (
+              <button className="page-search__clear" onClick={() => setSearch('')} aria-label="Clear search">
+                <X size={12} />
+              </button>
+            )}
+          </div>
           <div className="logs-select" ref={dropdownRef}>
             <button
               className="logs-select__trigger"
@@ -144,10 +165,12 @@ export const Logs: React.FC = () => {
           )}
         </div>
         <div className="logs-terminal__body">
-          {orderedLogs.length === 0 ? (
-            <div className="logs-terminal__empty">No log entries found.</div>
+          {filteredLogs.length === 0 ? (
+            <div className="logs-terminal__empty">
+              {search ? `No lines match "${search}".` : 'No log entries found.'}
+            </div>
           ) : (
-            orderedLogs.map((line, i) => {
+            filteredLogs.map((line, i) => {
               const cls = classifyLine(line);
               return (
                 <div key={i} className={`log-line log-line--${cls}`}>
