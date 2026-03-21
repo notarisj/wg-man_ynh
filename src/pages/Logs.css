@@ -225,6 +225,29 @@
   padding: 12px 0;
 }
 
+.logs-load-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  font-size: 12px;
+  color: var(--clr-text-dim);
+  border-bottom: 1px solid var(--clr-border);
+  margin-bottom: 4px;
+}
+
+.logs-load-more--end {
+  color: var(--clr-text-dim);
+  font-style: italic;
+}
+
+.logs-load-more--hint {
+  color: var(--clr-text-dim);
+  opacity: 0.6;
+  font-size: 11px;
+}
+
 .logs-terminal__empty {
   padding: 24px 20px;
   color: var(--clr-text-dim);

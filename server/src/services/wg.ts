@@ -506,6 +506,12 @@ export async function runMonitor(): Promise<{ success: boolean; output: string }
   return { success, output: (stdout + stderr).trim() };
 }
 
+export async function searchLog(query: string, maxResults = 500): Promise<string[]> {
+  const { stdout } = await runCmd('grep', ['-i', '-F', '-m', String(maxResults), query, LOG_FILE]);
+  if (!stdout.trim()) return [];
+  return stdout.trim().split('\n').filter(Boolean); // chronological (file order = oldest first)
+}
+
 export async function tailLog(lines = 100): Promise<string[]> {
   const { stdout } = await runCmd('tail', ['-n', String(lines), LOG_FILE]);
   if (!stdout.trim()) return [];
@@ -514,4 +520,33 @@ export async function tailLog(lines = 100): Promise<string[]> {
     .split('\n')
     .filter(Boolean)
     .reverse(); // newest first
+}
+
+/**
+ * Remove log entries older than maxAgeDays from the log file.
+ * Lines whose timestamp cannot be parsed are kept (safe default).
+ */
+export async function pruneOldLogs(maxAgeDays = 30): Promise<void> {
+  const cutoff = Date.now() - maxAgeDays * 24 * 60 * 60 * 1000;
+
+  let raw: string;
+  try {
+    raw = await readFile(LOG_FILE, 'utf-8');
+  } catch {
+    return; // log file doesn't exist yet
+  }
+
+  const lines = raw.split('\n').filter(Boolean);
+  const kept = lines.filter((line) => {
+    // Format: "2026-03-21 18:03:33  [LEVEL] message"
+    const dateStr = line.slice(0, 19);
+    const ts = Date.parse(dateStr.replace(' ', 'T') + 'Z');
+    return isNaN(ts) || ts >= cutoff;
+  });
+
+  if (kept.length < lines.length) {
+    const pruned = lines.length - kept.length;
+    console.log(`[wg] Pruned ${pruned} log entr${pruned === 1 ? 'y' : 'ies'} older than ${maxAgeDays} days`);
+    await writeFile(LOG_FILE, kept.length ? kept.join('\n') + '\n' : '', 'utf-8').catch(() => {});
+  }
 }

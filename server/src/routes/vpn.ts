@@ -8,6 +8,7 @@ import {
   disconnectVPN,
   runMonitor,
   tailLog,
+  searchLog,
 } from '../services/wg';
 import { getCronStatus, setCron, disableCron } from '../services/cron';
 
@@ -78,6 +79,19 @@ router.get('/logs', async (req, res) => {
   } catch (err: any) {
     console.error('[api] Failed to read logs:', err);
     res.status(500).json({ error: 'Failed to read logs' });
+  }
+});
+
+/** GET /api/logs/search?q=term — grep the full log file */
+router.get('/logs/search', async (req, res) => {
+  const q = String(req.query.q || '').trim().slice(0, 200);
+  if (!q) return res.json([]);
+  try {
+    const results = await searchLog(q);
+    res.json(results);
+  } catch (err: any) {
+    console.error('[api] Log search failed:', err);
+    res.status(500).json({ error: 'Search failed' });
   }
 });
 

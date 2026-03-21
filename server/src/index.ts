@@ -8,6 +8,7 @@ import { createServer } from 'http';
 import authRouter from './routes/auth';
 import vpnRouter from './routes/vpn';
 import { createWebSocketServer } from './websocket';
+import { pruneOldLogs } from './services/wg';
 
 const PORT = parseInt(process.env.PORT || '3001', 10);
 const IS_PROD = process.env.NODE_ENV === 'production';
@@ -110,6 +111,13 @@ if (IS_PROD) {
     res.sendFile(path.join(STATIC_DIR, 'index.html'));
   });
 }
+
+// Prune log entries older than 30 days on startup and every 24 hours
+pruneOldLogs().catch((err) => console.error('[wg] Log pruning failed:', err));
+setInterval(
+  () => pruneOldLogs().catch((err) => console.error('[wg] Log pruning failed:', err)),
+  24 * 60 * 60 * 1000,
+);
 
 // Create HTTP server and attach WebSocket
 const httpServer = createServer(app);

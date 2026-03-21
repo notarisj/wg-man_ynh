@@ -89,6 +89,7 @@ export const api = {
   status: () => apiFetch<VpnStatus>('/status'),
   configs: () => apiFetch<WgConfig[]>('/configs'),
   logs: (lines = 100) => apiFetch<string[]>(`/logs?lines=${lines}`),
+  searchLogs: (q: string) => apiFetch<string[]>(`/logs/search?q=${encodeURIComponent(q)}`),
   connect: () => apiFetch<{ success: boolean; output: string }>('/connect', { method: 'POST' }),
   disconnect: () => apiFetch<{ success: boolean; message: string }>('/disconnect', { method: 'POST' }),
   switchConfig: (name: string) =>

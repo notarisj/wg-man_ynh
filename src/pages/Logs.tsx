@@ -1,5 +1,5 @@
-import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { ScrollText, RefreshCw, ChevronsDown, Pause, Play, ChevronDown, Check, Search, X } from 'lucide-react';
+import React, { useEffect, useLayoutEffect, useRef, useState, useCallback } from 'react';
+import { ScrollText, RefreshCw, ChevronsDown, Pause, Play, Search, X, ChevronUp } from 'lucide-react';
 import { useVpnStore } from '../store/vpnStore';
 import './Logs.css';
 
@@ -11,36 +11,49 @@ function classifyLine(line: string): string {
   return 'info';
 }
 
-const LINE_OPTIONS = [
-  { value: 50,  label: 'Last 50' },
-  { value: 150, label: 'Last 150' },
-  { value: 300, label: 'Last 300' },
-  { value: 500, label: 'Last 500' },
-];
+const LOAD_MORE_STEP = 150;
+const MAX_LINE_COUNT = 2000;
+const SCROLL_THRESHOLD = 80; // px from top to trigger load-more
 
 export const Logs: React.FC = () => {
-  const { logs, fetchLogs, isLoadingLogs } = useVpnStore();
+  const { logs, fetchLogs, isLoadingLogs, searchLogs, searchResults, isSearching } = useVpnStore();
   const [autoScroll, setAutoScroll] = useState(true);
   const [liveRefresh, setLiveRefresh] = useState(true);
   const [lineCount, setLineCount] = useState(150);
-  const [dropdownOpen, setDropdownOpen] = useState(false);
   const [search, setSearch] = useState('');
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [reachedBeginning, setReachedBeginning] = useState(false);
+
   const terminalBodyRef = useRef<HTMLDivElement>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const loadMoreSessionRef = useRef<{ prevCount: number; prevScrollHeight: number; requestedCount: number } | null>(null);
+  const lineCountRef = useRef(lineCount);
+  const logsLengthRef = useRef(logs.length);
+  const searchRef = useRef(search);
+  const reachedBeginningRef = useRef(reachedBeginning);
 
-  // Close dropdown on outside click
+  // Keep refs in sync so callbacks have stable references without stale closures
+  useEffect(() => { lineCountRef.current = lineCount; }, [lineCount]);
+  useEffect(() => { logsLengthRef.current = logs.length; }, [logs]);
+  useEffect(() => { searchRef.current = search; }, [search]);
+  useEffect(() => { reachedBeginningRef.current = reachedBeginning; }, [reachedBeginning]);
+
+  // Debounced server-side search
   useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setDropdownOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
+    if (!search.trim()) {
+      searchLogs('');
+      return;
+    }
+    const t = setTimeout(() => searchLogs(search), 350);
+    return () => clearTimeout(t);
+  }, [search]);
 
-  // Fetch immediately on mount + on lineCount change
+  // Detect whether we've reached the beginning of the log file
+  useEffect(() => {
+    setReachedBeginning(logs.length > 0 && logs.length < lineCount);
+  }, [logs, lineCount]);
+
+  // Fetch on mount + lineCount change
   useEffect(() => { fetchLogs(lineCount); }, [lineCount]);
 
   // Live refresh interval
@@ -53,18 +66,55 @@ export const Logs: React.FC = () => {
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [liveRefresh, lineCount]);
 
-  // Scroll to bottom before paint so the user never sees the top
+  // Scroll to bottom when search is cleared or when new search results arrive (once, no auto-scroll after)
   useLayoutEffect(() => {
-    if (autoScroll && terminalBodyRef.current && logs.length > 0) {
-      terminalBodyRef.current.scrollTop = terminalBodyRef.current.scrollHeight;
+    const el = terminalBodyRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [search, searchResults]);
+
+  // Scroll management: restore position after load-more, or auto-scroll to bottom
+  useLayoutEffect(() => {
+    const el = terminalBodyRef.current;
+    if (!el || logs.length === 0) return;
+
+    const session = loadMoreSessionRef.current;
+    if (session) {
+      // Only commit scroll restoration once the load-more fetch actually delivered new lines.
+      // If a live-refresh fires first (logs.length unchanged), we skip and keep waiting.
+      if (logs.length > session.prevCount) {
+        // New lines arrived — restore scroll position to avoid jump
+        el.scrollTop = el.scrollHeight - session.prevScrollHeight;
+        loadMoreSessionRef.current = null;
+        setLoadingMore(false);
+      } else if (logs.length < session.requestedCount) {
+        // Server returned fewer lines than requested → we're at the beginning
+        loadMoreSessionRef.current = null;
+        setLoadingMore(false);
+      }
+      // Otherwise a live-refresh fired but count didn't change yet — keep waiting
+      return;
+    }
+
+    if (autoScroll && !searchRef.current) {
+      el.scrollTop = el.scrollHeight;
     }
   }, [logs, autoScroll]);
 
-  // Show logs in chronological order (newest last for log view)
-  const orderedLogs = [...logs].reverse();
-  const filteredLogs = search
-    ? orderedLogs.filter((line) => line.toLowerCase().includes(search.toLowerCase()))
-    : orderedLogs;
+  // Trigger load-more when scrolled near the top
+  const handleScroll = useCallback(() => {
+    const el = terminalBodyRef.current;
+    if (!el || searchRef.current || reachedBeginningRef.current || loadMoreSessionRef.current || lineCountRef.current >= MAX_LINE_COUNT) return;
+    if (el.scrollTop < SCROLL_THRESHOLD) {
+      const requestedCount = Math.min(lineCountRef.current + LOAD_MORE_STEP, MAX_LINE_COUNT);
+      loadMoreSessionRef.current = { prevCount: logsLengthRef.current, prevScrollHeight: el.scrollHeight, requestedCount };
+      setLoadingMore(true);
+      setLineCount(requestedCount);
+    }
+  }, []);
+
+  const orderedLogs = [...logs].reverse(); // chronological (oldest first → scroll to bottom for newest)
+  // When searching: use server results (already newest-first from grep); otherwise show loaded logs
+  const displayLogs = search ? (searchResults ?? []) : orderedLogs;
 
   return (
     <div className="logs-page animate-fade-in">
@@ -72,7 +122,7 @@ export const Logs: React.FC = () => {
       <div className="logs-toolbar">
         <div className="logs-toolbar__left">
           <span className="logs-toolbar__count">
-            {search ? `${filteredLogs.length} of ${logs.length}` : logs.length} lines
+            {search ? `${displayLogs.length} results` : `${logs.length} lines`}
           </span>
           <div className="page-search">
             <Search size={14} className="page-search__icon" />
@@ -87,33 +137,6 @@ export const Logs: React.FC = () => {
               <button className="page-search__clear" onClick={() => setSearch('')} aria-label="Clear search">
                 <X size={12} />
               </button>
-            )}
-          </div>
-          <div className="logs-select" ref={dropdownRef}>
-            <button
-              className="logs-select__trigger"
-              onClick={() => setDropdownOpen((v) => !v)}
-              aria-haspopup="listbox"
-              aria-expanded={dropdownOpen}
-            >
-              {LINE_OPTIONS.find((o) => o.value === lineCount)?.label}
-              <ChevronDown size={13} className={`logs-select__chevron${dropdownOpen ? ' open' : ''}`} />
-            </button>
-            {dropdownOpen && (
-              <div className="logs-select__menu" role="listbox">
-                {LINE_OPTIONS.map((opt) => (
-                  <button
-                    key={opt.value}
-                    className={`logs-select__option${opt.value === lineCount ? ' selected' : ''}`}
-                    role="option"
-                    aria-selected={opt.value === lineCount}
-                    onClick={() => { setLineCount(opt.value); setDropdownOpen(false); }}
-                  >
-                    {opt.label}
-                    {opt.value === lineCount && <Check size={12} />}
-                  </button>
-                ))}
-              </div>
             )}
           </div>
         </div>
@@ -133,7 +156,7 @@ export const Logs: React.FC = () => {
             onClick={() => fetchLogs(lineCount)}
             disabled={isLoadingLogs}
           >
-            {isLoadingLogs ? <span className="spinner spinner-sm" /> : <RefreshCw size={13} />}
+            {isLoadingLogs && !loadingMore ? <span className="spinner spinner-sm" /> : <RefreshCw size={13} />}
             Refresh
           </button>
           <button
@@ -164,13 +187,34 @@ export const Logs: React.FC = () => {
             </span>
           )}
         </div>
-        <div className="logs-terminal__body" ref={terminalBodyRef}>
-          {filteredLogs.length === 0 ? (
+        <div className="logs-terminal__body" ref={terminalBodyRef} onScroll={handleScroll}>
+          {/* Load-more indicator at the top */}
+          {loadingMore && (
+            <div className="logs-load-more">
+              <span className="spinner spinner-sm" /> Loading older entries…
+            </div>
+          )}
+          {!search && reachedBeginning && !loadingMore && (
+            <div className="logs-load-more logs-load-more--end">
+              <ChevronUp size={12} /> Beginning of log
+            </div>
+          )}
+          {!search && !loadingMore && !reachedBeginning && logs.length > 0 && lineCount < MAX_LINE_COUNT && (
+            <div className="logs-load-more logs-load-more--hint">
+              Scroll up to load older entries
+            </div>
+          )}
+
+          {search && (isSearching || searchResults === null) ? (
             <div className="logs-terminal__empty">
-              {search ? `No lines match "${search}".` : 'No log entries found.'}
+              <span className="spinner spinner-sm" /> Searching…
+            </div>
+          ) : displayLogs.length === 0 ? (
+            <div className="logs-terminal__empty">
+              {search ? `No results for "${search}".` : 'No log entries found.'}
             </div>
           ) : (
-            filteredLogs.map((line, i) => {
+            displayLogs.map((line, i) => {
               const cls = classifyLine(line);
               return (
                 <div key={i} className={`log-line log-line--${cls}`}>
