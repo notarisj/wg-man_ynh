@@ -24,6 +24,10 @@ const router = Router();
 // Apply SSOwat auth to all routes
 router.use(ssowatAuth);
 
+// /me must be reachable before the passkey gate — AuthGuard uses it to
+// confirm SSOwat identity. Everything else is gated by requirePasskeySession.
+router.get('/me', (req, res) => { res.json({ user: req.user }); });
+
 // Require active passkey app session — the entire app is gated behind passkey
 router.use(requirePasskeySession);
 
@@ -54,11 +58,6 @@ const mutationLimiter = rateLimit({
 });
 
 // ── Read-only routes ─────────────────────────────────────────
-
-/** GET /api/me — echo back the authenticated user */
-router.get('/me', (req, res) => {
-  res.json({ user: req.user });
-});
 
 /** GET /api/status — VPN connection status */
 router.get('/status', async (_req, res) => {
