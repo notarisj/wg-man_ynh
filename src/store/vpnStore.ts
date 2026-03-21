@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { api, VpnWebSocket } from '../lib/api';
-import type { VpnStatus, WgConfig, SystemMetrics } from '../lib/api';
+import type { VpnStatus, WgConfig, SystemMetrics, VpnHistoryEvent } from '../lib/api';
 
 const SYSTEM_HISTORY_MAX = 40;
 
@@ -39,6 +39,26 @@ const DEV_MOCK_LOGS: string[] = import.meta.env.DEV ? (() => {
   });
 })() : [];
 
+// ── Dev mock history ───────────────────────────────────────────
+const DEV_MOCK_HISTORY: VpnHistoryEvent[] = import.meta.env.DEV ? (() => {
+  const now = Date.now();
+  const H = (h: number) => now - h * 3_600_000;
+  const ev = (ts: number, type: VpnHistoryEvent['type'], config: string | null, endpoint: string | null): VpnHistoryEvent =>
+    ({ ts, type, config, endpoint });
+  return [
+    ev(H(47),   'connected',    'mullvad-nl', '193.138.218.74:51820'),
+    ev(H(42),   'switched',     'mullvad-se', '185.213.155.68:51820'),
+    ev(H(36),   'disconnected', null,         null),
+    ev(H(35),   'connected',    'mullvad-se', '185.213.155.68:51820'),
+    ev(H(28),   'disconnected', null,         null),
+    ev(H(27.5), 'connected',    'wg-home',    null),
+    ev(H(20),   'switched',     'mullvad-nl', '193.138.218.74:51820'),
+    ev(H(15),   'disconnected', null,         null),
+    ev(H(14),   'connected',    'mullvad-se', '185.213.155.68:51820'),
+    ev(H(0.5),  'switched',     'mullvad-nl', '193.138.218.74:51820'),
+  ].sort((a, b) => b.ts - a.ts); // newest first
+})() : [];
+
 interface VpnStore {
   // State
   status: VpnStatus | null;
@@ -59,6 +79,8 @@ interface VpnStore {
   systemHistory: SystemMetrics[];
   searchResults: string[] | null;
   isSearching: boolean;
+  vpnHistory: VpnHistoryEvent[];
+  isLoadingHistory: boolean;
 
   // Actions
   fetchMe: () => Promise<void>;
@@ -66,6 +88,7 @@ interface VpnStore {
   fetchConfigs: () => Promise<void>;
   fetchLogs: (lines?: number) => Promise<void>;
   searchLogs: (q: string) => Promise<void>;
+  fetchHistory: () => Promise<void>;
   connect: () => Promise<void>;
   disconnect: () => Promise<void>;
   switchConfig: (name: string) => Promise<boolean>;
@@ -94,6 +117,8 @@ export const useVpnStore = create<VpnStore>((set, get) => ({
   systemHistory: [],
   searchResults: null,
   isSearching: false,
+  vpnHistory: [],
+  isLoadingHistory: false,
 
   fetchMe: async () => {
     if (import.meta.env.DEV) {
@@ -169,6 +194,20 @@ export const useVpnStore = create<VpnStore>((set, get) => ({
       set({ logs: res.data, isLoadingLogs: false });
     } else {
       set({ isLoadingLogs: false, error: res.error });
+    }
+  },
+
+  fetchHistory: async () => {
+    if (import.meta.env.DEV) {
+      set({ vpnHistory: DEV_MOCK_HISTORY, isLoadingHistory: false });
+      return;
+    }
+    set({ isLoadingHistory: true });
+    const res = await api.history();
+    if (res.ok) {
+      set({ vpnHistory: res.data, isLoadingHistory: false });
+    } else {
+      set({ isLoadingHistory: false });
     }
   },
 

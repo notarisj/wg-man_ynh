@@ -4,6 +4,73 @@
   gap: 20px;
 }
 
+/* Uptime bar */
+.dashboard__uptime { padding: 16px 20px; }
+
+.dashboard__uptime-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.dashboard__uptime-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--clr-text-muted);
+}
+.dashboard__uptime-stats {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.dashboard__uptime-pct {
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.dashboard__uptime-streak {
+  font-size: 12px;
+  color: var(--clr-text-dim);
+}
+.dashboard__uptime-link {
+  font-size: 12px;
+  color: var(--clr-text-dim);
+  text-decoration: none;
+  transition: color var(--dur-fast);
+}
+.dashboard__uptime-link:hover { color: var(--clr-green); }
+
+.dashboard__uptime-bar {
+  display: flex;
+  gap: 2px;
+  height: 20px;
+  border-radius: var(--r-sm);
+  overflow: hidden;
+}
+.dashboard__uptime-seg {
+  flex: 1;
+  border-radius: 2px;
+}
+.dashboard__uptime-seg--connected    { background: var(--clr-green); }
+.dashboard__uptime-seg--disconnected { background: #ef4444; }
+.dashboard__uptime-seg--unknown      { background: var(--clr-surface-hi); }
+
+.dashboard__uptime-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: var(--clr-text-dim);
+  margin-top: 4px;
+}
+
 /* Resources */
 .dashboard__resources {
   display: grid;

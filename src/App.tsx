@@ -5,6 +5,7 @@ import { Dashboard } from './pages/Dashboard';
 import { Configs } from './pages/Configs';
 import { Logs } from './pages/Logs';
 import { Settings } from './pages/Settings';
+import { History } from './pages/History';
 import './index.css';
 
 // Remove App.css - we use the design system from index.css
@@ -19,7 +20,8 @@ export default function App() {
             <Route path="/"        element={<Dashboard />} />
             <Route path="/configs" element={<Configs />} />
             <Route path="/logs"    element={<Logs />} />
-            <Route path="/settings"element={<Settings />} />
+            <Route path="/settings" element={<Settings />} />
+            <Route path="/history"  element={<History />} />
             {/* Fallback */}
             <Route path="*"        element={<Dashboard />} />
           </Routes>

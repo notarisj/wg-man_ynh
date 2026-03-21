@@ -43,6 +43,13 @@ export type SystemMetrics = {
   ramTotalMb: number;
 };
 
+export type VpnHistoryEvent = {
+  ts: number;
+  type: 'connected' | 'disconnected' | 'switched';
+  config: string | null;
+  endpoint: string | null;
+};
+
 export type CronStatus = {
   enabled:    boolean;
   schedule:   string | null;
@@ -90,6 +97,7 @@ export const api = {
   configs: () => apiFetch<WgConfig[]>('/configs'),
   logs: (lines = 100) => apiFetch<string[]>(`/logs?lines=${lines}`),
   searchLogs: (q: string) => apiFetch<string[]>(`/logs/search?q=${encodeURIComponent(q)}`),
+  history: (limit = 500) => apiFetch<VpnHistoryEvent[]>(`/history?limit=${limit}`),
   connect: () => apiFetch<{ success: boolean; output: string }>('/connect', { method: 'POST' }),
   disconnect: () => apiFetch<{ success: boolean; message: string }>('/disconnect', { method: 'POST' }),
   switchConfig: (name: string) =>

@@ -9,6 +9,7 @@ import authRouter from './routes/auth';
 import vpnRouter from './routes/vpn';
 import { createWebSocketServer } from './websocket';
 import { pruneOldLogs } from './services/wg';
+import { startHistoryTracker } from './services/vpnHistory';
 
 const PORT = parseInt(process.env.PORT || '3001', 10);
 const IS_PROD = process.env.NODE_ENV === 'production';
@@ -111,6 +112,9 @@ if (IS_PROD) {
     res.sendFile(path.join(STATIC_DIR, 'index.html'));
   });
 }
+
+// Start VPN history tracker (polls every 10s, records state changes)
+startHistoryTracker().catch((err) => console.error('[wg] History tracker failed to start:', err));
 
 // Prune log entries older than 30 days on startup and every 24 hours
 pruneOldLogs().catch((err) => console.error('[wg] Log pruning failed:', err));

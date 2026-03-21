@@ -1,12 +1,14 @@
 import React, { useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import {
   ShieldCheck, ShieldOff, Shield,
   Zap, ZapOff,
   Clock, Activity, Wifi, WifiOff,
-  ArrowUpDown, Server, Eye, Cpu, MemoryStick,
+  ArrowUpDown, Server, Eye, Cpu, MemoryStick, History,
 } from 'lucide-react';
 import { useVpnStore } from '../store/vpnStore';
 import { GlassCard } from '../components/ui/GlassCard';
+import { buildTimeline, calcUptime } from './History';
 import type { SystemMetrics } from '../lib/api';
 import './Dashboard.css';
 
@@ -95,13 +97,14 @@ export const Dashboard: React.FC = () => {
   const {
     status, fetchStatus, fetchConfigs, fetchLogs,
     logs, connect, disconnect, isConnecting, isDisconnecting,
-    systemMetrics, systemHistory,
+    systemMetrics, systemHistory, vpnHistory, fetchHistory,
   } = useVpnStore();
 
   useEffect(() => {
     fetchStatus();
     fetchConfigs();
     fetchLogs(10);
+    fetchHistory();
   }, []);
 
   const handleConnect = useCallback(() => connect(), [connect]);
@@ -235,6 +238,46 @@ export const Dashboard: React.FC = () => {
           detail={sm ? `${sm.ramUsedMb} / ${sm.ramTotalMb} MB` : null}
         />
       </div>
+
+      {/* ── Connection Uptime ────────────────────────────── */}
+      {(() => {
+        const timeline = buildTimeline(vpnHistory);
+        const uptime = calcUptime(timeline);
+        const latest = vpnHistory[0];
+        const currentSince = latest ? Date.now() - latest.ts : null;
+        const streakMs = currentSince ?? 0;
+        const streakH = Math.floor(streakMs / 3_600_000);
+        const streakM = Math.floor((streakMs % 3_600_000) / 60_000);
+        const streakStr = streakH ? `${streakH}h ${streakM}m` : streakM ? `${streakM}m` : '< 1m';
+        return (
+          <GlassCard className="dashboard__uptime">
+            <div className="dashboard__uptime-header">
+              <span className="dashboard__uptime-title"><History size={14} /> Connection Uptime (24h)</span>
+              <div className="dashboard__uptime-stats">
+                {uptime !== null && (
+                  <span className="dashboard__uptime-pct" style={{ color: uptime >= 80 ? 'var(--clr-green)' : 'var(--clr-amber)' }}>
+                    {uptime}% up
+                  </span>
+                )}
+                {latest && (
+                  <span className="dashboard__uptime-streak">
+                    {latest.type !== 'disconnected' ? 'Connected' : 'Disconnected'} for {streakStr}
+                  </span>
+                )}
+                <Link to="/history" className="dashboard__uptime-link">Full history →</Link>
+              </div>
+            </div>
+            <div className="dashboard__uptime-bar">
+              {timeline.map((state, i) => (
+                <div key={i} className={`dashboard__uptime-seg dashboard__uptime-seg--${state}`} />
+              ))}
+            </div>
+            <div className="dashboard__uptime-labels">
+              <span>24h ago</span><span>12h ago</span><span>Now</span>
+            </div>
+          </GlassCard>
+        );
+      })()}
 
       {/* ── Bottom Row ───────────────────────────────────── */}
       <div className="dashboard__bottom">

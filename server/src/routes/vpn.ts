@@ -11,6 +11,7 @@ import {
   searchLog,
 } from '../services/wg';
 import { getCronStatus, setCron, disableCron } from '../services/cron';
+import { getHistory } from '../services/vpnHistory';
 
 const router = Router();
 
@@ -92,6 +93,17 @@ router.get('/logs/search', async (req, res) => {
   } catch (err: any) {
     console.error('[api] Log search failed:', err);
     res.status(500).json({ error: 'Search failed' });
+  }
+});
+
+/** GET /api/history?limit=500 — VPN connection history */
+router.get('/history', async (req, res) => {
+  const limit = Math.min(parseInt(String(req.query.limit || '500'), 10) || 500, 2000);
+  try {
+    res.json(await getHistory(limit));
+  } catch (err: any) {
+    console.error('[api] Failed to read history:', err);
+    res.status(500).json({ error: 'Failed to read history' });
   }
 });
 

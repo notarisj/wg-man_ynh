@@ -1,0 +1,278 @@
+.history-page { display: flex; flex-direction: column; gap: 16px; }
+
+/* Header */
+.history-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.history-header__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--clr-text);
+}
+
+/* Stats */
+.history-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+@media (max-width: 768px) { .history-stats { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 480px) { .history-stats { grid-template-columns: 1fr; } }
+
+.history-stat {
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.history-stat__label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--clr-text-muted);
+}
+.history-stat__value {
+  font-size: 24px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+  color: var(--clr-text);
+}
+.history-stat__value--config {
+  font-size: 15px;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--clr-text);
+}
+.history-stat__sub {
+  font-size: 11px;
+  color: var(--clr-text-dim);
+}
+
+/* Timeline card */
+.history-timeline-card { padding: 18px 20px; }
+
+.history-timeline-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+/* Period selector */
+.history-period-tabs {
+  display: flex;
+  gap: 3px;
+  background: var(--clr-surface);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--r-md);
+  padding: 3px;
+}
+.history-period-tab {
+  padding: 4px 10px;
+  border-radius: calc(var(--r-md) - 2px);
+  border: none;
+  background: none;
+  font-size: 12px;
+  font-weight: 500;
+  font-family: inherit;
+  color: var(--clr-text-muted);
+  cursor: pointer;
+  transition: background var(--dur-fast), color var(--dur-fast);
+  white-space: nowrap;
+}
+.history-period-tab:hover { color: var(--clr-text); background: var(--clr-surface-hi); }
+.history-period-tab.active {
+  background: rgba(34,197,94,0.15);
+  color: var(--clr-green);
+}
+.history-timeline-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--clr-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.history-timeline-legend {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--clr-text-dim);
+}
+.legend-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  margin-right: 4px;
+}
+.legend-dot--connected    { background: var(--clr-green); }
+.legend-dot--disconnected { background: var(--clr-red, #ef4444); }
+.legend-dot--unknown      { background: var(--clr-surface-hi); }
+
+/* Uptime bar */
+.uptime-bar {
+  display: flex;
+  gap: 2px;
+  height: 28px;
+  border-radius: var(--r-sm);
+  overflow: hidden;
+}
+.uptime-bar__seg {
+  flex: 1;
+  border-radius: 2px;
+  transition: opacity 0.1s;
+}
+.uptime-bar__seg:hover { opacity: 0.75; }
+.uptime-bar__seg--connected    { background: var(--clr-green); }
+.uptime-bar__seg--disconnected { background: #ef4444; }
+.uptime-bar__seg--unknown      { background: var(--clr-surface-hi); }
+
+.history-timeline-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--clr-text-dim);
+  margin-top: 6px;
+}
+
+/* Events */
+.history-events-card { padding: 0; overflow: hidden; }
+
+.history-events-header {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--clr-border);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.history-filter-tabs {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.history-filter-tab {
+  padding: 5px 12px;
+  border-radius: var(--r-md);
+  border: 1px solid transparent;
+  background: none;
+  font-size: 12px;
+  font-weight: 500;
+  font-family: inherit;
+  color: var(--clr-text-muted);
+  cursor: pointer;
+  transition: background var(--dur-fast), color var(--dur-fast), border-color var(--dur-fast);
+}
+.history-filter-tab:hover {
+  background: var(--clr-surface-hi);
+  color: var(--clr-text);
+}
+.history-filter-tab.active {
+  background: rgba(34,197,94,0.1);
+  border-color: rgba(34,197,94,0.3);
+  color: var(--clr-green);
+}
+
+.history-events-period-note {
+  font-size: 11px;
+  color: var(--clr-text-dim);
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.history-events-empty {
+  padding: 32px 20px;
+  text-align: center;
+  color: var(--clr-text-dim);
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.history-events-list { display: flex; flex-direction: column; }
+
+.history-event {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--clr-border);
+  transition: background var(--dur-fast);
+}
+.history-event:last-child { border-bottom: none; }
+.history-event:hover { background: rgba(255,255,255,0.02); }
+
+.history-event__icon {
+  margin-top: 2px;
+  flex-shrink: 0;
+  width: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.history-event__body { flex: 1; min-width: 0; }
+
+.history-event__top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.history-event__config {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--clr-text-muted);
+}
+.history-event__endpoint {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--clr-text-dim);
+  margin-top: 2px;
+}
+
+.history-event__meta {
+  flex-shrink: 0;
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.history-event__ts {
+  font-size: 11px;
+  color: var(--clr-text-muted);
+  white-space: nowrap;
+}
+.history-event__duration {
+  font-size: 11px;
+  color: var(--clr-text-dim);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Badges */
+.event-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+.badge--connected    { background: rgba(34,197,94,0.12);  color: var(--clr-green); }
+.badge--disconnected { background: rgba(239,68,68,0.12);  color: #ef4444; }
+.badge--switched     { background: rgba(245,158,11,0.12); color: var(--clr-amber); }

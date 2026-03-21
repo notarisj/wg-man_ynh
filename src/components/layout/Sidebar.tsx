@@ -10,6 +10,7 @@ import {
   ShieldOff,
   PanelLeftClose,
   PanelLeftOpen,
+  History,
 } from 'lucide-react';
 import { useVpnStore } from '../../store/vpnStore';
 import './Sidebar.css';
@@ -24,6 +25,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/',        icon: <LayoutDashboard size={20} />, label: 'Dashboard' },
   { to: '/configs', icon: <Layers size={20} />,          label: 'Configs' },
   { to: '/logs',    icon: <ScrollText size={20} />,      label: 'Logs' },
+  { to: '/history', icon: <History size={20} />,         label: 'History' },
   { to: '/settings',icon: <Settings2 size={20} />,       label: 'Settings' },
 ];
 
