@@ -9,6 +9,7 @@ const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
   '/':        { title: 'Dashboard',   subtitle: 'Real-time VPN overview' },
   '/configs': { title: 'Configs',     subtitle: 'Manage WireGuard configurations' },
   '/logs':    { title: 'Logs',        subtitle: 'Monitor activity & events' },
+  '/history': { title: 'History',    subtitle: 'Connection history & uptime' },
   '/settings':{ title: 'Settings',   subtitle: 'Application configuration' },
 };
 

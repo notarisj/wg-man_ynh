@@ -262,6 +262,47 @@
   font-family: 'JetBrains Mono', monospace;
 }
 
+/* Pagination */
+.history-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--clr-border);
+}
+
+.history-pagination__btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--clr-border);
+  background: var(--clr-surface);
+  color: var(--clr-text-muted);
+  cursor: pointer;
+  transition: background var(--dur-fast), color var(--dur-fast), border-color var(--dur-fast);
+}
+.history-pagination__btn:hover:not(:disabled) {
+  background: var(--clr-surface-md);
+  color: var(--clr-text);
+  border-color: var(--clr-border-hi);
+}
+.history-pagination__btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.history-pagination__info {
+  font-size: 12px;
+  color: var(--clr-text-muted);
+  font-variant-numeric: tabular-nums;
+  min-width: 48px;
+  text-align: center;
+}
+
 /* Badges */
 .event-badge {
   display: inline-flex;

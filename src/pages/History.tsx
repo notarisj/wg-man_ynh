@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { History as HistoryIcon, Wifi, WifiOff, ArrowLeftRight, RefreshCw } from 'lucide-react';
+import { History as HistoryIcon, Wifi, WifiOff, ArrowLeftRight, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useVpnStore } from '../store/vpnStore';
 import { GlassCard } from '../components/ui/GlassCard';
 import type { VpnHistoryEvent } from '../lib/api';
@@ -129,10 +129,16 @@ type Filter = 'all' | VpnHistoryEvent['type'];
 
 // ── Page ───────────────────────────────────────────────────────
 
+const PAGE_SIZE = 25;
+
 export const History: React.FC = () => {
   const { vpnHistory, fetchHistory, isLoadingHistory } = useVpnStore();
   const [filter, setFilter] = useState<Filter>('all');
   const [period, setPeriod] = useState<Period>('24h');
+  const [page, setPage]     = useState(1);
+
+  // Reset to page 1 when filter or period changes
+  useEffect(() => { setPage(1); }, [filter, period]);
 
   useEffect(() => { fetchHistory(); }, []);
 
@@ -157,6 +163,9 @@ export const History: React.FC = () => {
   const displayed = allWithDuration.filter(e =>
     (period === 'all' || e.ts >= cutoff) && (filter === 'all' || e.type === filter)
   );
+  const totalPages = Math.max(1, Math.ceil(displayed.length / PAGE_SIZE));
+  const safePage   = Math.min(page, totalPages);
+  const paginated  = displayed.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   const uptimeLabel = PERIOD_OPTIONS.find(p => p.value === period)!.label + ' Uptime';
 
@@ -264,28 +273,51 @@ export const History: React.FC = () => {
         ) : displayed.length === 0 ? (
           <div className="history-events-empty">No events in this period.</div>
         ) : (
-          <div className="history-events-list">
-            {displayed.map((e, i) => (
-              <div key={i} className="history-event">
-                <div className="history-event__icon">
-                  {e.type === 'connected'    && <Wifi size={15} style={{ color: 'var(--clr-green)' }} />}
-                  {e.type === 'disconnected' && <WifiOff size={15} style={{ color: 'var(--clr-red)' }} />}
-                  {e.type === 'switched'     && <ArrowLeftRight size={15} style={{ color: 'var(--clr-amber)' }} />}
-                </div>
-                <div className="history-event__body">
-                  <div className="history-event__top">
-                    <EventBadge type={e.type} />
-                    {e.config && <span className="history-event__config">{e.config}</span>}
+          <>
+            <div className="history-events-list">
+              {paginated.map((e, i) => (
+                <div key={i} className="history-event">
+                  <div className="history-event__icon">
+                    {e.type === 'connected'    && <Wifi size={15} style={{ color: 'var(--clr-green)' }} />}
+                    {e.type === 'disconnected' && <WifiOff size={15} style={{ color: 'var(--clr-red)' }} />}
+                    {e.type === 'switched'     && <ArrowLeftRight size={15} style={{ color: 'var(--clr-amber)' }} />}
                   </div>
-                  {e.endpoint && <div className="history-event__endpoint">{e.endpoint}</div>}
+                  <div className="history-event__body">
+                    <div className="history-event__top">
+                      <EventBadge type={e.type} />
+                      {e.config && <span className="history-event__config">{e.config}</span>}
+                    </div>
+                    {e.endpoint && <div className="history-event__endpoint">{e.endpoint}</div>}
+                  </div>
+                  <div className="history-event__meta">
+                    <div className="history-event__ts">{formatTs(e.ts)}</div>
+                    <div className="history-event__duration">{formatDuration(e.durationMs)}</div>
+                  </div>
                 </div>
-                <div className="history-event__meta">
-                  <div className="history-event__ts">{formatTs(e.ts)}</div>
-                  <div className="history-event__duration">{formatDuration(e.durationMs)}</div>
-                </div>
+              ))}
+            </div>
+            {totalPages > 1 && (
+              <div className="history-pagination">
+                <button
+                  className="history-pagination__btn"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={safePage === 1}
+                >
+                  <ChevronLeft size={14} />
+                </button>
+                <span className="history-pagination__info">
+                  {safePage} / {totalPages}
+                </span>
+                <button
+                  className="history-pagination__btn"
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={safePage === totalPages}
+                >
+                  <ChevronRight size={14} />
+                </button>
               </div>
-            ))}
-          </div>
+            )}
+          </>
         )}
       </GlassCard>
     </div>
