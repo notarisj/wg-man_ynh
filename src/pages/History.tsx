@@ -129,7 +129,7 @@ type Filter = 'all' | VpnHistoryEvent['type'];
 
 // ── Page ───────────────────────────────────────────────────────
 
-const PAGE_SIZE = 25;
+const PAGE_SIZE = 10;
 
 export const History: React.FC = () => {
   const { vpnHistory, fetchHistory, isLoadingHistory } = useVpnStore();
