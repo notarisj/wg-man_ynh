@@ -1,4 +1,4 @@
-import { readFile, writeFile, mkdir } from 'fs/promises';
+import { readFile, writeFile, rename, mkdir } from 'fs/promises';
 import path from 'path';
 import {
   generateRegistrationOptions,
@@ -67,7 +67,9 @@ async function loadStore(): Promise<Store> {
 
 async function saveStore(store: Store): Promise<void> {
   await mkdir(DATA_DIR, { recursive: true });
-  await writeFile(STORE_FILE, JSON.stringify(store, null, 2), 'utf-8');
+  const tmp = `${STORE_FILE}.tmp`;
+  await writeFile(tmp, JSON.stringify(store, null, 2), { encoding: 'utf-8', mode: 0o600 });
+  await rename(tmp, STORE_FILE);
   _store = store;
 }
 
