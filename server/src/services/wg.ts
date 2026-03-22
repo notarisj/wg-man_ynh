@@ -11,7 +11,7 @@ const MONITOR_SCRIPT = process.env.MONITOR_SCRIPT      || '/usr/local/bin/vpn-mo
 const LOG_FILE       = process.env.LOG_FILE            || '/var/log/vpn-monitor.log';
 const STATE_FILE     = process.env.STATE_FILE          || '/var/lib/vpn-monitor.current';
 const CHECK_IP       = process.env.CHECK_IP            || '1.1.1.1';
-const MAX_HANDSHAKE_AGE = parseInt(process.env.MAX_HANDSHAKE_AGE || '120', 10);
+const MAX_HANDSHAKE_AGE = parseInt(process.env.MAX_HANDSHAKE_AGE || '150', 10);
 
 // ── Validation helpers (run once at import time) ────────────
 
