@@ -17,33 +17,82 @@
   font-size: 12px;
   padding: 8px 12px;
   border-radius: var(--r-sm);
-  margin-bottom: 4px;
 }
 
-.script-editor__textarea {
-  width: 100%;
-  box-sizing: border-box;
-  background: rgba(0, 0, 0, 0.4);
-  border: 1px solid var(--clr-border);
-  border-radius: var(--r-sm);
-  color: var(--clr-green);
-  font-family: 'JetBrains Mono', monospace;
+.script-editor__syntax-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  color: #f87171;
   font-size: 12px;
-  line-height: 1.65;
-  padding: 14px 16px;
-  resize: vertical;
-  outline: none;
-  min-height: 420px;
+  padding: 10px 12px;
+  border-radius: var(--r-sm);
+  flex-shrink: 0;
+}
+
+.script-editor__syntax-pre {
+  margin: 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  white-space: pre-wrap;
+  word-break: break-all;
+  line-height: 1.5;
+  color: #fca5a5;
+}
+
+/* CodeMirror container */
+.script-editor__cm-wrap {
+  border-radius: var(--r-sm);
+  overflow: hidden;
+  border: 1px solid var(--clr-border);
   transition: border-color var(--dur-fast);
 }
 
-.script-editor__textarea:focus {
-  border-color: rgba(34, 197, 94, 0.4);
+.script-editor__cm-wrap:focus-within {
+  border-color: rgba(34, 197, 94, 0.35);
+}
+
+/* Force dark background — CodeMirror inline styles need !important */
+.script-editor__cm-wrap .cm-editor,
+.script-editor__cm-wrap .cm-editor.cm-focused {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  background-color: #0b0e13 !important;
+}
+
+.script-editor__cm-wrap .cm-gutters {
+  background-color: #080b0f !important;
+  border-right-color: #151820 !important;
+  color: #3d4451 !important;
+}
+
+.script-editor__cm-wrap .cm-content,
+.script-editor__cm-wrap .cm-line {
+  background: transparent !important;
+}
+
+.script-editor__cm-wrap .cm-activeLineGutter {
+  background: transparent !important;
+}
+
+.script-editor__cm-wrap .cm-scroller {
+  overflow: auto;
 }
 
 .script-editor__actions {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding-top: 4px;
+  padding-top: 2px;
+}
+
+.script-editor__hint {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--clr-text-dim);
+  margin-left: 4px;
 }

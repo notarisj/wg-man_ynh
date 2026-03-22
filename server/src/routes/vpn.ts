@@ -15,6 +15,7 @@ import {
   deleteConfig,
   readScript,
   writeScript,
+  validateScript,
   MONITOR_SCRIPT_PATH,
 } from '../services/wg';
 import { getCronStatus, setCron, disableCron } from '../services/cron';
@@ -209,6 +210,20 @@ router.get('/script', async (_req, res) => {
     res.json({ content, path: MONITOR_SCRIPT_PATH });
   } catch (err: any) {
     res.status(500).json({ error: 'Failed to read script' });
+  }
+});
+
+/** POST /api/script/validate — check bash syntax without saving */
+router.post('/script/validate', async (req, res) => {
+  const { content } = req.body as { content?: unknown };
+  if (typeof content !== 'string' || !content.trim()) {
+    res.status(400).json({ error: 'content is required' }); return;
+  }
+  try {
+    const result = await validateScript(content);
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message ?? 'Validation failed' });
   }
 });
 

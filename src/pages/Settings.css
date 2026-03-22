@@ -111,9 +111,9 @@
 .settings-modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
   z-index: 500;
   display: flex;
   align-items: center;
@@ -124,7 +124,9 @@
 
 .settings-modal {
   position: relative;
-  background: var(--clr-bg-alt);
+  background: rgba(10, 13, 20, 0.95);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   border: 1px solid var(--clr-border-hi);
   border-radius: var(--r-xl);
   width: 100%;
@@ -132,7 +134,7 @@
   max-height: 90vh;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6);
   animation: slide-up var(--dur-normal) var(--ease) both;
 }
 

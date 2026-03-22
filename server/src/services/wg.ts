@@ -1,5 +1,5 @@
 import { execFile } from 'child_process';
-import { readdir, readFile, writeFile, appendFile, chmod, stat, mkdir, rename } from 'fs/promises';
+import { readdir, readFile, writeFile, appendFile, chmod, stat, mkdir, rename, unlink } from 'fs/promises';
 import path from 'path';
 
 // ── Environment config ──────────────────────────────────────
@@ -647,6 +647,29 @@ export async function writeScript(content: string): Promise<void> {
   const tmp = `${MONITOR_SCRIPT}.tmp`;
   await writeFile(tmp, content, { encoding: 'utf-8', mode: 0o755 });
   await rename(tmp, MONITOR_SCRIPT);
+}
+
+/**
+ * Validate bash script syntax using `bash -n` without executing it.
+ * Writes to a temp file, checks, then removes it.
+ */
+export async function validateScript(content: string): Promise<{ ok: boolean; error?: string }> {
+  const tmp = `${MONITOR_SCRIPT}.validate.tmp`;
+  try {
+    await writeFile(tmp, content, { encoding: 'utf-8', mode: 0o600 });
+    return await new Promise((resolve) => {
+      execFile('bash', ['-n', tmp], { timeout: 5000 }, (_err, _stdout, stderr) => {
+        if (_err) {
+          const clean = stderr.trim().replace(new RegExp(tmp.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), 'script');
+          resolve({ ok: false, error: clean || 'Syntax error' });
+        } else {
+          resolve({ ok: true });
+        }
+      });
+    });
+  } finally {
+    await unlink(tmp).catch(() => {});
+  }
 }
 
 export async function pruneOldLogs(maxAgeDays = 30): Promise<void> {

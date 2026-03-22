@@ -1,4 +1,5 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
+import ReactDOM from 'react-dom';
 import {
   UserCircle, ExternalLink, Shield,
   Clock, Server, Tag, GitBranch,
@@ -20,6 +21,7 @@ export const Settings: React.FC = () => {
   // ── Modal visibility ──────────────────────────────────────
   const [showPasskeyModal, setShowPasskeyModal] = useState(false);
   const [showScriptModal, setShowScriptModal]   = useState(false);
+  const overlayMouseDown = useRef(false);
   const [scriptPath, setScriptPath]             = useState('');
 
   // ── Passkey management ────────────────────────────────────
@@ -45,7 +47,7 @@ export const Settings: React.FC = () => {
     refreshPasskey();
   }, []);
 
-  const onPasskeySuccess = useCallback(() => {
+const onPasskeySuccess = useCallback(() => {
     const action = showPasskeyFor;
     setShowPasskeyFor(null);
     setPkError(null);
@@ -256,10 +258,11 @@ export const Settings: React.FC = () => {
       </GlassCard>
 
       {/* ── Passkey management modal ─────────────────────── */}
-      {showPasskeyModal && (
+      {showPasskeyModal && ReactDOM.createPortal(
         <div
           className="settings-modal-overlay"
-          onClick={(e) => { if (e.target === e.currentTarget) setShowPasskeyModal(false); }}
+          onMouseDown={(e) => { overlayMouseDown.current = e.target === e.currentTarget; }}
+          onClick={(e) => { if (e.target === e.currentTarget && overlayMouseDown.current) setShowPasskeyModal(false); }}
         >
           <div className="settings-modal">
             <div className="settings-modal__header">
@@ -440,14 +443,16 @@ export const Settings: React.FC = () => {
               )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
 
       {/* ── Script editor modal ──────────────────────────── */}
-      {showScriptModal && (
+      {showScriptModal && ReactDOM.createPortal(
         <div
           className="settings-modal-overlay"
-          onClick={(e) => { if (e.target === e.currentTarget) setShowScriptModal(false); }}
+          onMouseDown={(e) => { overlayMouseDown.current = e.target === e.currentTarget; }}
+          onClick={(e) => { if (e.target === e.currentTarget && overlayMouseDown.current) setShowScriptModal(false); }}
         >
           <div className="settings-modal settings-modal--wide">
             <div className="settings-modal__header">
@@ -460,7 +465,8 @@ export const Settings: React.FC = () => {
               <ScriptEditor onPathLoad={setScriptPath} />
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
 
       {/* Passkey prompt for lock/reset */}

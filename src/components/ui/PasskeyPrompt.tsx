@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import ReactDOM from 'react-dom';
 import { KeyRound, ShieldCheck, X, Fingerprint, AlertCircle, Loader2 } from 'lucide-react';
 import {
   startRegistration as browserStartRegistration,
@@ -22,6 +23,7 @@ export const PasskeyPrompt: React.FC<PasskeyPromptProps> = ({
 }) => {
   const [status, setStatus] = useState<'idle' | 'busy' | 'success' | 'error'>('idle');
   const [message, setMessage] = useState('');
+  const overlayMouseDown = useRef(false);
 
   const handleAction = useCallback(async () => {
     setStatus('busy');
@@ -79,10 +81,14 @@ export const PasskeyPrompt: React.FC<PasskeyPromptProps> = ({
     if (mode === 'authenticate') handleAction();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const isRegister = mode === 'register';
+const isRegister = mode === 'register';
 
-  return (
-    <div className="passkey-overlay" onClick={(e) => e.target === e.currentTarget && onCancel()}>
+  return ReactDOM.createPortal(
+    <div
+      className="passkey-overlay"
+      onMouseDown={(e) => { overlayMouseDown.current = e.target === e.currentTarget; }}
+      onClick={(e) => { if (e.target === e.currentTarget && overlayMouseDown.current) onCancel(); }}
+    >
       <div className="passkey-modal animate-slide-up">
         <button className="passkey-modal__close" onClick={onCancel} aria-label="Cancel">
           <X size={16} />
@@ -133,6 +139,7 @@ export const PasskeyPrompt: React.FC<PasskeyPromptProps> = ({
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 };

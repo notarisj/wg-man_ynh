@@ -127,8 +127,9 @@ export const api = {
     setupDomain:       (rpID: string, origin: string) => apiFetch<{ ok: boolean }>('/passkey/setup-domain', { method: 'POST', body: JSON.stringify({ rpID, origin }) }),
   },
   script: {
-    get:  ()               => apiFetch<{ content: string; path: string }>('/script'),
-    save: (content: string) => apiFetch<{ ok: boolean }>('/script', { method: 'PUT', body: JSON.stringify({ content }) }),
+    get:      ()               => apiFetch<{ content: string; path: string }>('/script'),
+    validate: (content: string) => apiFetch<{ ok: boolean; error?: string }>('/script/validate', { method: 'POST', body: JSON.stringify({ content }) }),
+    save:     (content: string) => apiFetch<{ ok: boolean }>('/script', { method: 'PUT', body: JSON.stringify({ content }) }),
   },
   configContent: (name: string) => apiFetch<{ content: string }>(`/configs/${encodeURIComponent(name)}/content`),
   createConfig:  (name: string, content: string) => apiFetch<{ ok: boolean; message: string }>('/configs', { method: 'POST', body: JSON.stringify({ name, content }) }),
