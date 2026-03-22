@@ -106,9 +106,79 @@
   margin-top: 4px;
 }
 
-/* Passkey card — spans full width on wide screens */
-.settings-card--passkey {
-  grid-column: 1 / -1;
+/* ── Settings modals ─────────────────────────────────────── */
+
+.settings-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  animation: fade-in var(--dur-fast) var(--ease) both;
+}
+
+.settings-modal {
+  position: relative;
+  background: var(--clr-bg-alt);
+  border: 1px solid var(--clr-border-hi);
+  border-radius: var(--r-xl);
+  width: 100%;
+  max-width: 520px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
+  animation: slide-up var(--dur-normal) var(--ease) both;
+}
+
+.settings-modal--wide {
+  max-width: 860px;
+}
+
+.settings-modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 22px 14px;
+  border-bottom: 1px solid var(--clr-border);
+  flex-shrink: 0;
+}
+
+.settings-modal__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--clr-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.settings-modal__close {
+  background: none;
+  border: none;
+  color: var(--clr-text-dim);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: var(--r-sm);
+  display: flex;
+  align-items: center;
+  transition: color var(--dur-fast);
+}
+.settings-modal__close:hover { color: var(--clr-text); }
+
+.settings-modal__body {
+  padding: 20px 22px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .settings-badge--green {

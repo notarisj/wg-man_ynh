@@ -1,14 +1,15 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
-  UserCircle, Info, ExternalLink, Shield,
+  UserCircle, ExternalLink, Shield,
   Clock, Server, Tag, GitBranch,
   KeyRound, Lock, Terminal, Copy, Check, AlertCircle, Trash2,
+  FileCode, ChevronRight, X,
 } from 'lucide-react';
 import { useVpnStore } from '../store/vpnStore';
 import { GlassCard } from '../components/ui/GlassCard';
 import { CronScheduler } from '../components/ui/CronScheduler';
-import { ScriptEditor } from '../components/ui/ScriptEditor';
 import { PasskeyPrompt } from '../components/ui/PasskeyPrompt';
+import { ScriptEditor } from '../components/ui/ScriptEditor';
 import { api } from '../lib/api';
 import type { PasskeyStatus } from '../lib/api';
 import './Settings.css';
@@ -16,7 +17,12 @@ import './Settings.css';
 export const Settings: React.FC = () => {
   const { user, fetchMe, status } = useVpnStore();
 
-  // ── Passkey management ───────────────────────────────────────
+  // ── Modal visibility ──────────────────────────────────────
+  const [showPasskeyModal, setShowPasskeyModal] = useState(false);
+  const [showScriptModal, setShowScriptModal]   = useState(false);
+  const [scriptPath, setScriptPath]             = useState('');
+
+  // ── Passkey management ────────────────────────────────────
   const [passkeyStatus, setPasskeyStatus]   = useState<PasskeyStatus | null>(null);
   const [showPasskeyFor, setShowPasskeyFor] = useState<'lock' | 'reset' | null>(null);
   const [isLocking, setIsLocking]           = useState(false);
@@ -25,7 +31,6 @@ export const Settings: React.FC = () => {
   const [cmdCopied, setCmdCopied]           = useState(false);
   const [rpCmdCopied, setRpCmdCopied]       = useState(false);
 
-  // Domain setup
   const [domainRpID, setDomainRpID]         = useState(() => typeof window !== 'undefined' ? window.location.hostname : '');
   const [domainOrigin, setDomainOrigin]     = useState(() => typeof window !== 'undefined' ? window.location.origin : '');
   const [domainError, setDomainError]       = useState<string | null>(null);
@@ -70,188 +75,38 @@ export const Settings: React.FC = () => {
     refreshPasskey();
   }, [domainRpID, domainOrigin, refreshPasskey]);
 
-  // ── Render ───────────────────────────────────────────────────
+  // ── Passkey status helpers ────────────────────────────────
+  const pkBadge = passkeyStatus
+    ? passkeyStatus.registrationLocked ? 'settings-badge--amber'
+    : passkeyStatus.registered         ? 'settings-badge--green'
+    :                                    'settings-badge--warn'
+    : '';
+  const pkBadgeText = passkeyStatus
+    ? passkeyStatus.registrationLocked ? 'Locked'
+    : passkeyStatus.registered         ? 'Active'
+    :                                    'No Passkey'
+    : '';
+
+  // ── Render ───────────────────────────────────────────────
   return (
     <div className="settings-page animate-fade-in">
 
-      {/* Passkey Security */}
-      <GlassCard className="settings-card settings-card--passkey">
+      {/* Passkey Security — compact tile */}
+      <GlassCard className="settings-card">
         <div className="settings-card__title">
-          <KeyRound size={16} />
-          Passkey Security
+          <KeyRound size={16} /> Passkey Security
         </div>
-
         {passkeyStatus ? (
           <>
-            {/* Status row */}
             <div className="settings-row">
               <span className="settings-label">Status</span>
-              <span className={`settings-value--badge ${
-                passkeyStatus.registrationLocked ? 'settings-badge--amber' :
-                passkeyStatus.registered ? 'settings-badge--green' : 'settings-badge--warn'
-              }`}>
-                {passkeyStatus.registrationLocked ? 'Registration Locked' :
-                 passkeyStatus.registered ? 'Active' : 'No Passkey'}
-              </span>
+              <span className={`settings-value--badge ${pkBadge}`}>{pkBadgeText}</span>
             </div>
-
-            {/* Credentials */}
             {passkeyStatus.credentials.length > 0 && (
               <div className="settings-row">
                 <span className="settings-label">Registered Keys</span>
                 <span className="settings-value">{passkeyStatus.credentials.length}</span>
               </div>
-            )}
-
-            {pkError && (
-              <div className="settings-passkey-error">
-                <AlertCircle size={13} /> {pkError}
-              </div>
-            )}
-
-            {/* Registration lock controls */}
-            {passkeyStatus.registered && !passkeyStatus.registrationLocked && (
-              <button
-                className="settings-passkey-btn settings-passkey-btn--amber"
-                onClick={() => { setPkError(null); setShowPasskeyFor('lock'); }}
-                disabled={isLocking}
-              >
-                {isLocking ? <span className="spinner spinner-sm" /> : <Lock size={13} />}
-                Lock Registration
-              </button>
-            )}
-
-            {passkeyStatus.registrationLocked && (
-              <div className="settings-passkey-locked">
-                <div className="settings-passkey-locked__desc">
-                  <Lock size={13} /> New passkey registration is <strong>disabled</strong>. To re-enable via SSH:
-                </div>
-                <div className="passkey-panel__ssh-block">
-                  <Terminal size={12} />
-                  <code className="passkey-panel__ssh-cmd">
-                    {`sudo jq '.registrationLocked = false' ${passkeyStatus.storeFile} > /tmp/pk.json && sudo mv /tmp/pk.json ${passkeyStatus.storeFile} && sudo systemctl restart wg-man`}
-                  </code>
-                  <button
-                    className="passkey-panel__copy-btn"
-                    title="Copy command"
-                    onClick={() => {
-                      navigator.clipboard.writeText(`sudo jq '.registrationLocked = false' ${passkeyStatus.storeFile} > /tmp/pk.json && sudo mv /tmp/pk.json ${passkeyStatus.storeFile} && sudo systemctl restart wg-man`);
-                      setCmdCopied(true);
-                      setTimeout(() => setCmdCopied(false), 2000);
-                    }}
-                  >
-                    {cmdCopied ? <Check size={12} /> : <Copy size={12} />}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Domain config */}
-            <div className="settings-passkey-domain">
-              <div className="settings-passkey-domain__label">WebAuthn Domain</div>
-              {passkeyStatus.rpConfig ? (
-                <>
-                  <div className="settings-row" style={{ borderBottom: 'none', padding: '4px 0' }}>
-                    <span className="settings-label">RP ID</span>
-                    <span className="settings-value mono">{passkeyStatus.rpConfig.rpID}</span>
-                  </div>
-                  <div className="settings-row" style={{ padding: '4px 0' }}>
-                    <span className="settings-label">Origin</span>
-                    <span className="settings-value mono">{passkeyStatus.rpConfig.origin}</span>
-                  </div>
-                  <div className="passkey-panel__ssh-note">
-                    To change, remove via SSH then restart:
-                  </div>
-                  <div className="passkey-panel__ssh-block">
-                    <Terminal size={12} />
-                    <code className="passkey-panel__ssh-cmd">
-                      {`sudo jq 'del(.rpConfig)' ${passkeyStatus.storeFile} > /tmp/pk.json && sudo mv /tmp/pk.json ${passkeyStatus.storeFile} && sudo systemctl restart wg-man`}
-                    </code>
-                    <button
-                      className="passkey-panel__copy-btn"
-                      title="Copy command"
-                      onClick={() => {
-                        navigator.clipboard.writeText(`sudo jq 'del(.rpConfig)' ${passkeyStatus.storeFile} > /tmp/pk.json && sudo mv /tmp/pk.json ${passkeyStatus.storeFile} && sudo systemctl restart wg-man`);
-                        setRpCmdCopied(true);
-                        setTimeout(() => setRpCmdCopied(false), 2000);
-                      }}
-                    >
-                      {rpCmdCopied ? <Check size={12} /> : <Copy size={12} />}
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="passkey-panel__ssh-note" style={{ marginBottom: 8 }}>
-                    Lock in your domain so passkeys are always bound to it. Pre-filled from your current browser URL.
-                  </div>
-                  <div className="passkey-panel__domain-fields">
-                    <div className="passkey-panel__domain-field">
-                      <label className="passkey-panel__domain-label">RP ID (hostname)</label>
-                      <input
-                        className="passkey-panel__domain-input"
-                        value={domainRpID}
-                        onChange={(e) => setDomainRpID(e.target.value)}
-                        placeholder="example.com"
-                        spellCheck={false}
-                      />
-                    </div>
-                    <div className="passkey-panel__domain-field">
-                      <label className="passkey-panel__domain-label">Origin (full URL)</label>
-                      <input
-                        className="passkey-panel__domain-input"
-                        value={domainOrigin}
-                        onChange={(e) => setDomainOrigin(e.target.value)}
-                        placeholder="https://example.com"
-                        spellCheck={false}
-                      />
-                    </div>
-                  </div>
-                  {domainError && (
-                    <div className="settings-passkey-error" style={{ marginTop: 4 }}>
-                      <AlertCircle size={12} /> {domainError}
-                    </div>
-                  )}
-                  <button
-                    className="settings-passkey-btn settings-passkey-btn--green"
-                    onClick={handleSaveDomain}
-                    disabled={isSavingDomain || !domainRpID.trim() || !domainOrigin.trim()}
-                    style={{ marginTop: 6 }}
-                  >
-                    {isSavingDomain ? <span className="spinner spinner-sm" /> : <Lock size={13} />}
-                    Lock Domain
-                  </button>
-                </>
-              )}
-            </div>
-
-            {/* Credential list */}
-            {passkeyStatus.credentials.length > 0 && (
-              <div className="settings-passkey-creds">
-                <div className="settings-passkey-creds__label">Registered Keys</div>
-                {passkeyStatus.credentials.map((c) => (
-                  <div key={c.id} className="settings-passkey-cred">
-                    <KeyRound size={11} />
-                    <span className="settings-passkey-cred__id">{c.id.slice(0, 24)}…</span>
-                    <span className="settings-passkey-cred__date">
-                      {new Date(c.registeredAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Reset — dangerous */}
-            {passkeyStatus.registered && (
-              <button
-                className="settings-passkey-btn settings-passkey-btn--danger"
-                onClick={() => { setPkError(null); setShowPasskeyFor('reset'); }}
-                disabled={isResetting}
-                title="Delete all passkeys — you will be locked out until a new one is registered"
-              >
-                {isResetting ? <span className="spinner spinner-sm" /> : <Trash2 size={13} />}
-                Reset All Passkeys
-              </button>
             )}
           </>
         ) : (
@@ -259,6 +114,12 @@ export const Settings: React.FC = () => {
             <span className="spinner spinner-sm" /> Loading…
           </div>
         )}
+        <button
+          className="btn btn-ghost btn-sm settings-card__link"
+          onClick={() => setShowPasskeyModal(true)}
+        >
+          Manage <ChevronRight size={13} />
+        </button>
       </GlassCard>
 
       {/* User Info */}
@@ -315,14 +176,14 @@ export const Settings: React.FC = () => {
         </div>
       </GlassCard>
 
-      {/* Monitor Script */}
+      {/* Monitor Script — compact tile */}
       <GlassCard className="settings-card">
         <div className="settings-card__title">
           <Clock size={16} /> Monitor Script
         </div>
         <div className="settings-row">
           <span className="settings-label">Script Path</span>
-          <span className="settings-value mono">/home/notaris/scripts/vpn-monitor.sh</span>
+          <span className="settings-value mono">{scriptPath || '/usr/local/bin/vpn-monitor.sh'}</span>
         </div>
         <div className="settings-row">
           <span className="settings-label">Ping Check</span>
@@ -330,21 +191,19 @@ export const Settings: React.FC = () => {
         </div>
         <div className="settings-row">
           <span className="settings-label">Max Handshake Age</span>
-          <span className="settings-value mono">120s</span>
+          <span className="settings-value mono">150s</span>
         </div>
         <div className="settings-row">
           <span className="settings-label">WS Push Interval</span>
           <span className="settings-value mono">5s</span>
         </div>
-        <div className="settings-info">
-          <Info size={13} />
-          The vpn-monitor.sh script runs via cron for automatic failover. The web app
-          also lets you trigger it on-demand from the Dashboard.
-        </div>
+        <button
+          className="btn btn-ghost btn-sm settings-card__link"
+          onClick={() => setShowScriptModal(true)}
+        >
+          Edit Script <ChevronRight size={13} />
+        </button>
       </GlassCard>
-
-      {/* Monitor script editor */}
-      <ScriptEditor />
 
       {/* Cron scheduler */}
       <CronScheduler />
@@ -396,7 +255,215 @@ export const Settings: React.FC = () => {
         </div>
       </GlassCard>
 
-      {/* Passkey prompt modal for lock/reset actions */}
+      {/* ── Passkey management modal ─────────────────────── */}
+      {showPasskeyModal && (
+        <div
+          className="settings-modal-overlay"
+          onClick={(e) => { if (e.target === e.currentTarget) setShowPasskeyModal(false); }}
+        >
+          <div className="settings-modal">
+            <div className="settings-modal__header">
+              <span className="settings-modal__title"><KeyRound size={15} /> Passkey Security</span>
+              <button className="settings-modal__close" onClick={() => setShowPasskeyModal(false)}>
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="settings-modal__body">
+              {passkeyStatus ? (
+                <>
+                  {/* Status */}
+                  <div className="settings-row">
+                    <span className="settings-label">Status</span>
+                    <span className={`settings-value--badge ${pkBadge}`}>{pkBadgeText}</span>
+                  </div>
+                  {passkeyStatus.credentials.length > 0 && (
+                    <div className="settings-row">
+                      <span className="settings-label">Registered Keys</span>
+                      <span className="settings-value">{passkeyStatus.credentials.length}</span>
+                    </div>
+                  )}
+
+                  {pkError && (
+                    <div className="settings-passkey-error">
+                      <AlertCircle size={13} /> {pkError}
+                    </div>
+                  )}
+
+                  {/* Lock registration */}
+                  {passkeyStatus.registered && !passkeyStatus.registrationLocked && (
+                    <button
+                      className="settings-passkey-btn settings-passkey-btn--amber"
+                      onClick={() => { setPkError(null); setShowPasskeyFor('lock'); }}
+                      disabled={isLocking}
+                    >
+                      {isLocking ? <span className="spinner spinner-sm" /> : <Lock size={13} />}
+                      Lock Registration
+                    </button>
+                  )}
+
+                  {passkeyStatus.registrationLocked && (
+                    <div className="settings-passkey-locked">
+                      <div className="settings-passkey-locked__desc">
+                        <Lock size={13} /> New passkey registration is <strong>disabled</strong>. To re-enable via SSH:
+                      </div>
+                      <div className="passkey-panel__ssh-block">
+                        <Terminal size={12} />
+                        <code className="passkey-panel__ssh-cmd">
+                          {`sudo jq '.registrationLocked = false' ${passkeyStatus.storeFile} > /tmp/pk.json && sudo mv /tmp/pk.json ${passkeyStatus.storeFile} && sudo systemctl restart wg-man`}
+                        </code>
+                        <button
+                          className="passkey-panel__copy-btn"
+                          title="Copy command"
+                          onClick={() => {
+                            navigator.clipboard.writeText(`sudo jq '.registrationLocked = false' ${passkeyStatus.storeFile} > /tmp/pk.json && sudo mv /tmp/pk.json ${passkeyStatus.storeFile} && sudo systemctl restart wg-man`);
+                            setCmdCopied(true);
+                            setTimeout(() => setCmdCopied(false), 2000);
+                          }}
+                        >
+                          {cmdCopied ? <Check size={12} /> : <Copy size={12} />}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Domain config */}
+                  <div className="settings-passkey-domain">
+                    <div className="settings-passkey-domain__label">WebAuthn Domain</div>
+                    {passkeyStatus.rpConfig ? (
+                      <>
+                        <div className="settings-row" style={{ borderBottom: 'none', padding: '4px 0' }}>
+                          <span className="settings-label">RP ID</span>
+                          <span className="settings-value mono">{passkeyStatus.rpConfig.rpID}</span>
+                        </div>
+                        <div className="settings-row" style={{ padding: '4px 0' }}>
+                          <span className="settings-label">Origin</span>
+                          <span className="settings-value mono">{passkeyStatus.rpConfig.origin}</span>
+                        </div>
+                        <div className="passkey-panel__ssh-note">To change, remove via SSH then restart:</div>
+                        <div className="passkey-panel__ssh-block">
+                          <Terminal size={12} />
+                          <code className="passkey-panel__ssh-cmd">
+                            {`sudo jq 'del(.rpConfig)' ${passkeyStatus.storeFile} > /tmp/pk.json && sudo mv /tmp/pk.json ${passkeyStatus.storeFile} && sudo systemctl restart wg-man`}
+                          </code>
+                          <button
+                            className="passkey-panel__copy-btn"
+                            title="Copy command"
+                            onClick={() => {
+                              navigator.clipboard.writeText(`sudo jq 'del(.rpConfig)' ${passkeyStatus.storeFile} > /tmp/pk.json && sudo mv /tmp/pk.json ${passkeyStatus.storeFile} && sudo systemctl restart wg-man`);
+                              setRpCmdCopied(true);
+                              setTimeout(() => setRpCmdCopied(false), 2000);
+                            }}
+                          >
+                            {rpCmdCopied ? <Check size={12} /> : <Copy size={12} />}
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="passkey-panel__ssh-note" style={{ marginBottom: 8 }}>
+                          Lock in your domain so passkeys are always bound to it. Pre-filled from your current browser URL.
+                        </div>
+                        <div className="passkey-panel__domain-fields">
+                          <div className="passkey-panel__domain-field">
+                            <label className="passkey-panel__domain-label">RP ID (hostname)</label>
+                            <input
+                              className="passkey-panel__domain-input"
+                              value={domainRpID}
+                              onChange={(e) => setDomainRpID(e.target.value)}
+                              placeholder="example.com"
+                              spellCheck={false}
+                            />
+                          </div>
+                          <div className="passkey-panel__domain-field">
+                            <label className="passkey-panel__domain-label">Origin (full URL)</label>
+                            <input
+                              className="passkey-panel__domain-input"
+                              value={domainOrigin}
+                              onChange={(e) => setDomainOrigin(e.target.value)}
+                              placeholder="https://example.com"
+                              spellCheck={false}
+                            />
+                          </div>
+                        </div>
+                        {domainError && (
+                          <div className="settings-passkey-error" style={{ marginTop: 4 }}>
+                            <AlertCircle size={12} /> {domainError}
+                          </div>
+                        )}
+                        <button
+                          className="settings-passkey-btn settings-passkey-btn--green"
+                          onClick={handleSaveDomain}
+                          disabled={isSavingDomain || !domainRpID.trim() || !domainOrigin.trim()}
+                          style={{ marginTop: 6 }}
+                        >
+                          {isSavingDomain ? <span className="spinner spinner-sm" /> : <Lock size={13} />}
+                          Lock Domain
+                        </button>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Credential list */}
+                  {passkeyStatus.credentials.length > 0 && (
+                    <div className="settings-passkey-creds">
+                      <div className="settings-passkey-creds__label">Registered Keys</div>
+                      {passkeyStatus.credentials.map((c) => (
+                        <div key={c.id} className="settings-passkey-cred">
+                          <KeyRound size={11} />
+                          <span className="settings-passkey-cred__id">{c.id.slice(0, 24)}…</span>
+                          <span className="settings-passkey-cred__date">
+                            {new Date(c.registeredAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Reset */}
+                  {passkeyStatus.registered && (
+                    <button
+                      className="settings-passkey-btn settings-passkey-btn--danger"
+                      onClick={() => { setPkError(null); setShowPasskeyFor('reset'); }}
+                      disabled={isResetting}
+                      title="Delete all passkeys — you will be locked out until a new one is registered"
+                    >
+                      {isResetting ? <span className="spinner spinner-sm" /> : <Trash2 size={13} />}
+                      Reset All Passkeys
+                    </button>
+                  )}
+                </>
+              ) : (
+                <div className="settings-passkey-loading">
+                  <span className="spinner spinner-sm" /> Loading…
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Script editor modal ──────────────────────────── */}
+      {showScriptModal && (
+        <div
+          className="settings-modal-overlay"
+          onClick={(e) => { if (e.target === e.currentTarget) setShowScriptModal(false); }}
+        >
+          <div className="settings-modal settings-modal--wide">
+            <div className="settings-modal__header">
+              <span className="settings-modal__title"><FileCode size={15} /> Monitor Script</span>
+              <button className="settings-modal__close" onClick={() => setShowScriptModal(false)}>
+                <X size={16} />
+              </button>
+            </div>
+            <div className="settings-modal__body">
+              <ScriptEditor onPathLoad={setScriptPath} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Passkey prompt for lock/reset */}
       {showPasskeyFor && (
         <PasskeyPrompt
           mode="authenticate"
