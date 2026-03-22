@@ -1,5 +1,5 @@
 import { execFile } from 'child_process';
-import { readdir, readFile, writeFile, appendFile, chmod, stat, mkdir } from 'fs/promises';
+import { readdir, readFile, writeFile, appendFile, chmod, stat, mkdir, rename } from 'fs/promises';
 import path from 'path';
 
 // ── Environment config ──────────────────────────────────────
@@ -625,6 +625,30 @@ export async function tailLog(lines = 100): Promise<string[]> {
  * Remove log entries older than maxAgeDays from the log file.
  * Lines whose timestamp cannot be parsed are kept (safe default).
  */
+// ── Monitor script read/write ────────────────────────────────
+
+export const MONITOR_SCRIPT_PATH = MONITOR_SCRIPT;
+
+export async function readScript(): Promise<string> {
+  try {
+    return await readFile(MONITOR_SCRIPT, 'utf-8');
+  } catch (err: any) {
+    if (err.code === 'ENOENT') return '';
+    throw err;
+  }
+}
+
+/**
+ * Write new content to the monitor script atomically via a temp file.
+ * Preserves root ownership (process runs as root) and sets mode 755
+ * to remain compatible with the SEC-04 validation.
+ */
+export async function writeScript(content: string): Promise<void> {
+  const tmp = `${MONITOR_SCRIPT}.tmp`;
+  await writeFile(tmp, content, { encoding: 'utf-8', mode: 0o755 });
+  await rename(tmp, MONITOR_SCRIPT);
+}
+
 export async function pruneOldLogs(maxAgeDays = 30): Promise<void> {
   const cutoff = Date.now() - maxAgeDays * 24 * 60 * 60 * 1000;
 

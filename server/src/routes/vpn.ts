@@ -13,6 +13,9 @@ import {
   createConfig,
   updateConfig,
   deleteConfig,
+  readScript,
+  writeScript,
+  MONITOR_SCRIPT_PATH,
 } from '../services/wg';
 import { getCronStatus, setCron, disableCron } from '../services/cron';
 import { getHistory } from '../services/vpnHistory';
@@ -194,6 +197,32 @@ router.delete('/cron', mutationLimiter, requireAdmin, async (_req, res) => {
   } catch (err: any) {
     console.error('[api] Failed to disable cron:', err);
     res.status(500).json({ error: 'Failed to disable cron' });
+  }
+});
+
+// ── Monitor script ────────────────────────────────────────────
+
+/** GET /api/script — read monitor script content */
+router.get('/script', async (_req, res) => {
+  try {
+    const content = await readScript();
+    res.json({ content, path: MONITOR_SCRIPT_PATH });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to read script' });
+  }
+});
+
+/** PUT /api/script — overwrite monitor script (passkey-gated) */
+router.put('/script', mutationLimiter, requireAdmin, requirePasskey, async (req, res) => {
+  const { content } = req.body as { content?: unknown };
+  if (typeof content !== 'string' || !content.trim()) {
+    res.status(400).json({ error: 'content is required' }); return;
+  }
+  try {
+    await writeScript(content);
+    res.json({ ok: true });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message ?? 'Failed to save script' });
   }
 });
 

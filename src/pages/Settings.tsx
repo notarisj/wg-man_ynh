@@ -7,6 +7,7 @@ import {
 import { useVpnStore } from '../store/vpnStore';
 import { GlassCard } from '../components/ui/GlassCard';
 import { CronScheduler } from '../components/ui/CronScheduler';
+import { ScriptEditor } from '../components/ui/ScriptEditor';
 import { PasskeyPrompt } from '../components/ui/PasskeyPrompt';
 import { api } from '../lib/api';
 import type { PasskeyStatus } from '../lib/api';
@@ -341,6 +342,9 @@ export const Settings: React.FC = () => {
           also lets you trigger it on-demand from the Dashboard.
         </div>
       </GlassCard>
+
+      {/* Monitor script editor */}
+      <ScriptEditor />
 
       {/* Cron scheduler */}
       <CronScheduler />

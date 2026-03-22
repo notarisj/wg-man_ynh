@@ -1,0 +1,52 @@
+.settings-card--script {
+  grid-column: 1 / -1;
+}
+
+.script-editor__path {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  background: var(--clr-surface);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--r-sm);
+  font-size: 12px;
+}
+
+.script-editor__path-label {
+  color: var(--clr-text-dim);
+  flex-shrink: 0;
+}
+
+.script-editor__path-value {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--clr-teal);
+}
+
+.script-editor__textarea {
+  width: 100%;
+  box-sizing: border-box;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--r-sm);
+  color: var(--clr-green);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  padding: 14px 16px;
+  resize: vertical;
+  outline: none;
+  transition: border-color var(--dur-fast);
+}
+
+.script-editor__textarea:focus {
+  border-color: var(--clr-green);
+}
+
+.script-editor__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
