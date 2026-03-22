@@ -94,7 +94,7 @@ export type PasskeyStatus = {
   registered: boolean;
   registrationLocked: boolean;
   rpConfig: { rpID: string; origin: string } | null;
-  credentials: { id: string; registeredAt: number }[];
+  credentials: { id: string; registeredAt: number; name?: string }[];
   storeFile: string;
 };
 
@@ -119,7 +119,7 @@ export const api = {
     session:        () => apiFetch<{ verified: boolean; registered: boolean; registrationLocked: boolean; storeFile: string }>('/passkey/session'),
     status:         () => apiFetch<PasskeyStatus>('/passkey/status'),
     registerStart:  () => apiFetch<any>('/passkey/register/start', { method: 'POST' }),
-    registerFinish: (body: any) => apiFetch<{ ok: boolean }>('/passkey/register/finish', { method: 'POST', body: JSON.stringify(body) }),
+    registerFinish: (body: any, name?: string) => apiFetch<{ ok: boolean }>('/passkey/register/finish', { method: 'POST', body: JSON.stringify({ ...body, ...(name ? { name } : {}) }) }),
     assertStart:       () => apiFetch<any>('/passkey/assert/start', { method: 'POST' }),
     assertFinish:      (body: any) => apiFetch<{ ok: boolean }>('/passkey/assert/finish', { method: 'POST', body: JSON.stringify(body) }),
     lockRegistration:  () => apiFetch<{ ok: boolean }>('/passkey/lock-registration', { method: 'POST' }),

@@ -101,6 +101,23 @@
   width: 100%;
 }
 
+.passkey-modal__name-input {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--clr-border-hi);
+  border-radius: var(--r-sm);
+  color: var(--clr-text);
+  font-family: inherit;
+  font-size: 13px;
+  padding: 8px 12px;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color var(--dur-fast);
+}
+.passkey-modal__name-input::placeholder { color: var(--clr-text-dim); }
+.passkey-modal__name-input:focus { border-color: rgba(34, 197, 94, 0.4); }
+.passkey-modal__name-input:disabled { opacity: 0.5; }
+
 .passkey-modal__actions {
   display: flex;
   gap: 8px;

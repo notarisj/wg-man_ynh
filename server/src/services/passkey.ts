@@ -24,6 +24,7 @@ export type StoredCredential = {
   counter: number;
   transports?: string[];
   registeredAt: number; // unix ms
+  name?: string;        // user-assigned label
 };
 
 type Store = {
@@ -86,7 +87,7 @@ export async function getStatus(): Promise<{
   registered: boolean;
   registrationLocked: boolean;
   rpConfig: { rpID: string; origin: string } | null;
-  credentials: Pick<StoredCredential, 'id' | 'registeredAt'>[];
+  credentials: Pick<StoredCredential, 'id' | 'registeredAt' | 'name'>[];
   storeFile: string;
 }> {
   const store = await loadStore();
@@ -94,7 +95,7 @@ export async function getStatus(): Promise<{
     registered: store.credentials.length > 0,
     registrationLocked: store.registrationLocked,
     rpConfig: store.rpConfig ?? null,
-    credentials: store.credentials.map(({ id, registeredAt }) => ({ id, registeredAt })),
+    credentials: store.credentials.map(({ id, registeredAt, name }) => ({ id, registeredAt, name })),
     storeFile: STORE_FILE,
   };
 }
@@ -158,6 +159,7 @@ export async function finishRegistration(
   response: RegistrationResponseJSON,
   expectedChallenge: string,
   ctx: { rpID: string; origin: string },
+  name?: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   try {
     // Double-check lock hasn't been applied between start and finish
@@ -183,6 +185,7 @@ export async function finishRegistration(
       counter: credential.counter,
       transports: credential.transports ?? [],
       registeredAt: Date.now(),
+      ...(name ? { name } : {}),
     });
 
     await saveStore(store);

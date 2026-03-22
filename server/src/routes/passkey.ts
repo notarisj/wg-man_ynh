@@ -143,7 +143,8 @@ router.post('/register/finish', assertLimiter, requireAdmin, async (req, res) =>
   }
   delete req.session.passkeyChallenge;
 
-  const result = await finishRegistration(req.body, entry.value, { rpID: entry.rpID, origin: entry.origin });
+  const { name, ...attestation } = req.body;
+  const result = await finishRegistration(attestation, entry.value, { rpID: entry.rpID, origin: entry.origin }, typeof name === 'string' ? name.trim().slice(0, 64) || undefined : undefined);
   if (!result.ok) { res.status(400).json({ error: result.error }); return; }
   res.json({ ok: true });
 });

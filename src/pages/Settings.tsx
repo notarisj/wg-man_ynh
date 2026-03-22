@@ -414,7 +414,9 @@ const onPasskeySuccess = useCallback(() => {
                       {passkeyStatus.credentials.map((c) => (
                         <div key={c.id} className="settings-passkey-cred">
                           <KeyRound size={11} />
-                          <span className="settings-passkey-cred__id">{c.id.slice(0, 24)}…</span>
+                          <span className="settings-passkey-cred__id">
+                            {c.name || `${c.id.slice(0, 20)}…`}
+                          </span>
                           <span className="settings-passkey-cred__date">
                             {new Date(c.registeredAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
                           </span>

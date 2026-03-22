@@ -23,6 +23,7 @@ export const PasskeyPrompt: React.FC<PasskeyPromptProps> = ({
 }) => {
   const [status, setStatus] = useState<'idle' | 'busy' | 'success' | 'error'>('idle');
   const [message, setMessage] = useState('');
+  const [keyName, setKeyName] = useState('');
   const overlayMouseDown = useRef(false);
 
   const handleAction = useCallback(async () => {
@@ -44,7 +45,7 @@ export const PasskeyPrompt: React.FC<PasskeyPromptProps> = ({
 
         const attestation = await browserStartRegistration({ optionsJSON: startRes.data });
 
-        const finishRes = await api.passkey.registerFinish(attestation);
+        const finishRes = await api.passkey.registerFinish(attestation, keyName.trim() || undefined);
         if (!finishRes.ok) { setStatus('error'); setMessage(finishRes.error); return; }
 
         setStatus('success');
@@ -108,6 +109,19 @@ const isRegister = mode === 'register';
             ? 'Create a passkey to protect config changes. You\'ll use it each time you create, edit, or delete a config.'
             : 'Config changes require passkey verification. Authenticate with your device to continue.'}
         </p>
+
+        {isRegister && status !== 'success' && (
+          <input
+            className="passkey-modal__name-input"
+            type="text"
+            placeholder="Key name (e.g. MacBook Touch ID)"
+            value={keyName}
+            onChange={(e) => setKeyName(e.target.value)}
+            maxLength={64}
+            disabled={status === 'busy'}
+            autoFocus
+          />
+        )}
 
         {status === 'error' && (
           <div className="passkey-modal__error">
