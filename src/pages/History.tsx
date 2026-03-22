@@ -222,9 +222,14 @@ export const History: React.FC = () => {
   const periodConnected = periodEvents.filter(e => e.type !== 'disconnected').length;
 
   const allWithDuration = withDuration(vpnHistory);
-  const displayed = allWithDuration.filter(e =>
-    (period === 'all' || e.ts >= cutoff) && (filter === 'all' || e.type === filter)
-  );
+  const periodAll = allWithDuration.filter(e => period === 'all' || e.ts >= cutoff);
+  const typeCounts = {
+    all:          periodAll.length,
+    connected:    periodAll.filter(e => e.type === 'connected').length,
+    switched:     periodAll.filter(e => e.type === 'switched').length,
+    disconnected: periodAll.filter(e => e.type === 'disconnected').length,
+  };
+  const displayed = periodAll.filter(e => filter === 'all' || e.type === filter);
   const totalPages = Math.max(1, Math.ceil(displayed.length / PAGE_SIZE));
   const safePage   = Math.min(page, totalPages);
   const paginated  = displayed.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
@@ -319,9 +324,7 @@ export const History: React.FC = () => {
                 className={`history-filter-tab${filter === f ? ' active' : ''}`}
                 onClick={() => setFilter(f)}
               >
-                {f === 'all'
-                  ? `All (${displayed.length === allWithDuration.filter(e => period === 'all' || e.ts >= cutoff).length ? displayed.length : displayed.length})`
-                  : f.charAt(0).toUpperCase() + f.slice(1)}
+                {`${f === 'all' ? 'All' : f.charAt(0).toUpperCase() + f.slice(1)} (${typeCounts[f]})`}
               </button>
             ))}
           </div>
