@@ -38,7 +38,7 @@
 .cron-body {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 10px;
   transition: opacity var(--dur-normal);
 }
 
@@ -68,7 +68,7 @@
 }
 
 .cron-preset {
-  padding: 5px 12px;
+  padding: 4px 10px;
   border-radius: var(--r-sm);
   border: 1px solid var(--clr-border-hi);
   background: var(--clr-surface);
@@ -144,7 +144,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 8px 0;
+  padding: 6px 0;
   border-top: 1px solid var(--clr-border);
 }
 

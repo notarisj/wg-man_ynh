@@ -184,19 +184,9 @@ export const CronScheduler: React.FC = () => {
             </div>
 
             {info && (
-              <div className="settings-info" style={{ flexDirection: 'column', gap: 6 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span className="settings-label">Script</span>
-                  <span className="settings-value mono">{info.scriptPath}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span className="settings-label">Log output</span>
-                  <span className="settings-value mono">{info.logFile}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span className="settings-label">Cron file</span>
-                  <span className="settings-value mono">{info.cronFile}</span>
-                </div>
+              <div className="cron-expr">
+                <span className="cron-expr__label">Cron file</span>
+                <code className="cron-expr__value">{info.cronFile}</code>
               </div>
             )}
           </div>
