@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   Layers, CheckCircle2, Circle, RotateCcw, ServerCrash, AlertCircle,
-  Search, X, Plus, Pencil, Trash2,
+  Search, X, Plus, Pencil, Trash2, LayoutGrid, List,
 } from 'lucide-react';
 import { useVpnStore } from '../store/vpnStore';
 import { GlassCard } from '../components/ui/GlassCard';
@@ -16,6 +16,9 @@ type PendingAction = { type: 'create' } | { type: 'edit'; name: string } | { typ
 export const Configs: React.FC = () => {
   const { configs, fetchConfigs, switchConfig, isSwitching, isLoadingConfigs, error } = useVpnStore();
 
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>(
+    () => (localStorage.getItem('configs-view-mode') as 'grid' | 'list') ?? 'grid',
+  );
   const [switchedMsg, setSwitchedMsg]     = useState<string | null>(null);
   const [switchError, setSwitchError]     = useState<string | null>(null);
   const [search, setSearch]               = useState('');
@@ -134,6 +137,22 @@ export const Configs: React.FC = () => {
           )}
         </div>
         <div className="configs-page__topbar-actions">
+          <div className="configs-view-toggle">
+            <button
+              className={`configs-view-toggle__btn${viewMode === 'grid' ? ' active' : ''}`}
+              title="Grid view"
+              onClick={() => { setViewMode('grid'); localStorage.setItem('configs-view-mode', 'grid'); }}
+            >
+              <LayoutGrid size={14} />
+            </button>
+            <button
+              className={`configs-view-toggle__btn${viewMode === 'list' ? ' active' : ''}`}
+              title="List view"
+              onClick={() => { setViewMode('list'); localStorage.setItem('configs-view-mode', 'list'); }}
+            >
+              <List size={14} />
+            </button>
+          </div>
           <button
             className="btn btn-ghost btn-sm"
             onClick={() => fetchConfigs()}
@@ -180,16 +199,13 @@ export const Configs: React.FC = () => {
           <Search size={36} />
           <p>No configs match "{search}".</p>
         </GlassCard>
-      ) : (
+      ) : viewMode === 'grid' ? (
         <div className="configs-page__grid">
           {filtered.map((cfg) => {
             const isActive = cfg.isActive;
             const isBusy = isSwitching === cfg.name;
             return (
-              <GlassCard
-                key={cfg.name}
-                className={`config-card${isActive ? ' config-card--active' : ''}`}
-              >
+              <GlassCard key={cfg.name} className={`config-card${isActive ? ' config-card--active' : ''}`}>
                 {isActive && <div className="config-card__active-glow" />}
                 <div className="config-card__header">
                   <div className="config-card__title-row">
@@ -204,11 +220,7 @@ export const Configs: React.FC = () => {
                     </div>
                     {isActive && <span className="config-card__badge">Active</span>}
                     <div className="config-card__actions">
-                      <button
-                        className="config-card__action-btn"
-                        title="Edit config"
-                        onClick={() => requirePasskey({ type: 'edit', name: cfg.name })}
-                      >
+                      <button className="config-card__action-btn" title="Edit config" onClick={() => requirePasskey({ type: 'edit', name: cfg.name })}>
                         <Pencil size={13} />
                       </button>
                       <button
@@ -222,7 +234,6 @@ export const Configs: React.FC = () => {
                     </div>
                   </div>
                 </div>
-
                 <div className="config-card__meta">
                   <div className="config-card__meta-row">
                     <span className="config-card__meta-label">Address</span>
@@ -233,23 +244,63 @@ export const Configs: React.FC = () => {
                     <span className="config-card__meta-val mono">{cfg.endpoint ?? '—'}</span>
                   </div>
                 </div>
-
                 <div className="config-card__footer">
                   {isActive ? (
-                    <button className="btn btn-ghost btn-sm" disabled>
-                      <CheckCircle2 size={14} /> Currently Active
-                    </button>
+                    <button className="btn btn-ghost btn-sm" disabled><CheckCircle2 size={14} /> Currently Active</button>
                   ) : (
-                    <button
-                      id={`btn-switch-${cfg.name}`}
-                      className="btn btn-primary btn-sm"
-                      onClick={() => handleSwitch(cfg.name)}
-                      disabled={!!isSwitching}
-                    >
+                    <button id={`btn-switch-${cfg.name}`} className="btn btn-primary btn-sm" onClick={() => handleSwitch(cfg.name)} disabled={!!isSwitching}>
                       {isBusy ? <span className="spinner spinner-sm" /> : <Layers size={14} />}
                       {isBusy ? 'Switching…' : 'Switch to This'}
                     </button>
                   )}
+                </div>
+              </GlassCard>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="configs-page__list">
+          {filtered.map((cfg) => {
+            const isActive = cfg.isActive;
+            const isBusy = isSwitching === cfg.name;
+            return (
+              <GlassCard key={cfg.name} className={`config-row${isActive ? ' config-row--active' : ''}`}>
+                {isActive && <div className="config-card__active-glow" />}
+                <div className="config-row__icon">
+                  {isActive
+                    ? <CheckCircle2 size={16} className="config-card__icon--active" />
+                    : <Circle size={16} className="config-card__icon--inactive" />}
+                </div>
+                <div className="config-row__identity">
+                  <span className="config-card__name">{cfg.name}</span>
+                  {cfg.comment && <span className="config-card__comment">{cfg.comment}</span>}
+                </div>
+                <div className="config-row__meta">
+                  <span className="config-card__meta-val mono">{cfg.address ?? '—'}</span>
+                  <span className="config-row__sep" />
+                  <span className="config-card__meta-val mono">{cfg.endpoint ?? '—'}</span>
+                </div>
+                <div className="config-row__right">
+                  {isActive && <span className="config-card__badge">Active</span>}
+                  {isActive ? (
+                    <button className="btn btn-ghost btn-sm" disabled><CheckCircle2 size={14} /> Active</button>
+                  ) : (
+                    <button className="btn btn-primary btn-sm" onClick={() => handleSwitch(cfg.name)} disabled={!!isSwitching}>
+                      {isBusy ? <span className="spinner spinner-sm" /> : <Layers size={14} />}
+                      {isBusy ? 'Switching…' : 'Switch'}
+                    </button>
+                  )}
+                  <button className="config-card__action-btn" title="Edit config" onClick={() => requirePasskey({ type: 'edit', name: cfg.name })}>
+                    <Pencil size={13} />
+                  </button>
+                  <button
+                    className="config-card__action-btn config-card__action-btn--danger"
+                    title={isActive ? 'Cannot delete active config' : 'Delete config'}
+                    disabled={isActive}
+                    onClick={() => requirePasskey({ type: 'delete', name: cfg.name })}
+                  >
+                    <Trash2 size={13} />
+                  </button>
                 </div>
               </GlassCard>
             );
