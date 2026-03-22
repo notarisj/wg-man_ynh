@@ -40,12 +40,14 @@ export const Logs: React.FC = () => {
   const logsLengthRef = useRef(logs.length);
   const searchRef = useRef(search);
   const reachedBeginningRef = useRef(reachedBeginning);
+  const autoScrollRef = useRef(autoScroll);
 
   // Keep refs in sync so callbacks have stable references without stale closures
   useEffect(() => { lineCountRef.current = lineCount; }, [lineCount]);
   useEffect(() => { logsLengthRef.current = logs.length; }, [logs]);
   useEffect(() => { searchRef.current = search; }, [search]);
   useEffect(() => { reachedBeginningRef.current = reachedBeginning; }, [reachedBeginning]);
+  useEffect(() => { autoScrollRef.current = autoScroll; }, [autoScroll]);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -120,10 +122,19 @@ export const Logs: React.FC = () => {
     }
   }, [logs, autoScroll]);
 
-  // Trigger load-more when scrolled near the top
+  // Trigger load-more when scrolled near the top; toggle auto-scroll based on position
   const handleScroll = useCallback(() => {
     const el = terminalBodyRef.current;
-    if (!el || searchRef.current || reachedBeginningRef.current || loadMoreSessionRef.current || lineCountRef.current >= MAX_LINE_COUNT) return;
+    if (!el) return;
+
+    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 32;
+    if (atBottom && !autoScrollRef.current) {
+      setAutoScroll(true);
+    } else if (!atBottom && autoScrollRef.current && !loadMoreSessionRef.current) {
+      setAutoScroll(false);
+    }
+
+    if (searchRef.current || reachedBeginningRef.current || loadMoreSessionRef.current || lineCountRef.current >= MAX_LINE_COUNT) return;
     if (el.scrollTop < SCROLL_THRESHOLD) {
       const requestedCount = Math.min(lineCountRef.current + LOAD_MORE_STEP, MAX_LINE_COUNT);
       loadMoreSessionRef.current = { prevCount: logsLengthRef.current, prevScrollHeight: el.scrollHeight, requestedCount };
