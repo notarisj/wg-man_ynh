@@ -82,12 +82,12 @@
   top: calc(100% + 6px);
   right: 0;
   min-width: 148px;
-  background: var(--clr-surface);
-  border: 1px solid var(--clr-border);
+  background: #1a1f2e;
+  border: 1px solid var(--clr-border-hi);
   border-radius: var(--r-md);
   padding: 4px;
   z-index: 200;
-  box-shadow: 0 8px 24px rgba(0,0,0,.45);
+  box-shadow: 0 8px 24px rgba(0,0,0,.6);
 }
 
 .header__user-menu-item {

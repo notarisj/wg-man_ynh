@@ -1,5 +1,4 @@
-import React, { useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useEffect, useCallback, useState } from 'react';
 import {
   ShieldCheck, ShieldOff, Shield,
   Zap, ZapOff,
@@ -8,7 +7,9 @@ import {
 } from 'lucide-react';
 import { useVpnStore } from '../store/vpnStore';
 import { GlassCard } from '../components/ui/GlassCard';
-import { buildTimeline, calcUptime } from './History';
+import { buildTimeline, calcUptime, UptimeBar, PERIOD_OPTIONS, getWindowMs, getSegments, periodStartLabel, periodMidLabel } from './History';
+import type { Period } from './History';
+import './History.css';
 import type { SystemMetrics } from '../lib/api';
 import './Dashboard.css';
 
@@ -110,6 +111,8 @@ export const Dashboard: React.FC = () => {
 
   const handleConnect = useCallback(() => connect(), [connect]);
   const handleDisconnect = useCallback(() => disconnect(), [disconnect]);
+
+  const [period, setPeriod] = useState<Period>('24h');
 
   const isLoading = isConnecting || isDisconnecting;
   const connected = status?.connected ?? false;
@@ -242,39 +245,43 @@ export const Dashboard: React.FC = () => {
 
       {/* ── Connection Uptime ────────────────────────────── */}
       {(() => {
-        const timeline = buildTimeline(vpnHistory);
-        const uptime = calcUptime(timeline);
-        const latest = vpnHistory[0];
-        const currentSince = latest ? Date.now() - latest.ts : null;
-        const streakMs = currentSince ?? 0;
-        const streakH = Math.floor(streakMs / 3_600_000);
-        const streakM = Math.floor((streakMs % 3_600_000) / 60_000);
-        const streakStr = streakH ? `${streakH}h ${streakM}m` : streakM ? `${streakM}m` : '< 1m';
+        const windowMs = getWindowMs(period, vpnHistory);
+        const segments = getSegments(period);
+        const timeline = buildTimeline(vpnHistory, windowMs, segments);
+        const uptime   = calcUptime(timeline);
         return (
           <GlassCard className="dashboard__uptime">
-            <div className="dashboard__uptime-header">
-              <span className="dashboard__uptime-title"><History size={14} /> Connection Uptime (24h)</span>
-              <div className="dashboard__uptime-stats">
+            <div className="history-timeline-header">
+              <span className="history-timeline-title">
+                <History size={14} /> Connection Uptime
                 {uptime !== null && (
-                  <span className="dashboard__uptime-pct" style={{ color: uptime >= 80 ? 'var(--clr-green)' : 'var(--clr-amber)' }}>
-                    {uptime}% up
+                  <span style={{ marginLeft: 10, fontWeight: 700, color: uptime >= 80 ? 'var(--clr-green)' : 'var(--clr-amber)', fontSize: 13 }}>
+                    {uptime}%
                   </span>
                 )}
-                {latest && (
-                  <span className="dashboard__uptime-streak">
-                    {latest.type !== 'disconnected' ? 'Connected' : 'Disconnected'} for {streakStr}
-                  </span>
-                )}
-                <Link to="/history" className="dashboard__uptime-link">Full history →</Link>
+              </span>
+              <div className="history-period-tabs">
+                {PERIOD_OPTIONS.map(opt => (
+                  <button
+                    key={opt.value}
+                    className={`history-period-tab${period === opt.value ? ' active' : ''}`}
+                    onClick={() => setPeriod(opt.value)}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+              <div className="history-timeline-legend">
+                <span className="legend-dot legend-dot--connected" /> Connected
+                <span className="legend-dot legend-dot--disconnected" /> Disconnected
+                <span className="legend-dot legend-dot--unknown" /> No data
               </div>
             </div>
-            <div className="dashboard__uptime-bar">
-              {timeline.map((state, i) => (
-                <div key={i} className={`dashboard__uptime-seg dashboard__uptime-seg--${state}`} />
-              ))}
-            </div>
-            <div className="dashboard__uptime-labels">
-              <span>24h ago</span><span>12h ago</span><span>Now</span>
+            <UptimeBar timeline={timeline} events={vpnHistory} windowMs={windowMs} segments={segments} />
+            <div className="history-timeline-labels">
+              <span>{periodStartLabel(period, vpnHistory)}</span>
+              <span>{periodMidLabel(period, vpnHistory)}</span>
+              <span>Now</span>
             </div>
           </GlassCard>
         );

@@ -7,16 +7,16 @@ import './History.css';
 
 // ── Period config ──────────────────────────────────────────────
 
-type Period = '24h' | '7d' | '30d' | 'all';
+export type Period = '24h' | '7d' | '30d' | 'all';
 
-const PERIOD_OPTIONS: { value: Period; label: string; windowMs: number | null; segments: number }[] = [
+export const PERIOD_OPTIONS: { value: Period; label: string; windowMs: number | null; segments: number }[] = [
   { value: '24h', label: '24 Hours', windowMs: 24 * 3_600_000,      segments: 96 },
   { value: '7d',  label: '7 Days',   windowMs: 7 * 24 * 3_600_000,  segments: 84 },
   { value: '30d', label: '30 Days',  windowMs: 30 * 24 * 3_600_000, segments: 90 },
   { value: 'all', label: 'All Time', windowMs: null,                 segments: 96 },
 ];
 
-function getWindowMs(period: Period, events: VpnHistoryEvent[]): number {
+export function getWindowMs(period: Period, events: VpnHistoryEvent[]): number {
   const opt = PERIOD_OPTIONS.find(p => p.value === period)!;
   if (opt.windowMs !== null) return opt.windowMs;
   // 'all': span from earliest event to now
@@ -25,11 +25,11 @@ function getWindowMs(period: Period, events: VpnHistoryEvent[]): number {
   return Math.max(Date.now() - earliest, 3_600_000);
 }
 
-function getSegments(period: Period): number {
+export function getSegments(period: Period): number {
   return PERIOD_OPTIONS.find(p => p.value === period)!.segments;
 }
 
-function periodStartLabel(period: Period, events: VpnHistoryEvent[]): string {
+export function periodStartLabel(period: Period, events: VpnHistoryEvent[]): string {
   if (period === '24h')  return '24h ago';
   if (period === '7d')   return '7 days ago';
   if (period === '30d')  return '30 days ago';
@@ -41,7 +41,7 @@ function periodStartLabel(period: Period, events: VpnHistoryEvent[]): string {
   return `${hours}h ago`;
 }
 
-function periodMidLabel(period: Period, events: VpnHistoryEvent[]): string {
+export function periodMidLabel(period: Period, events: VpnHistoryEvent[]): string {
   if (period === '24h')  return '12h ago';
   if (period === '7d')   return '3.5 days ago';
   if (period === '30d')  return '15 days ago';
@@ -111,7 +111,7 @@ function formatSegTime(ts: number): string {
   return new Date(ts).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
 }
 
-const UptimeBar: React.FC<{
+export const UptimeBar: React.FC<{
   timeline: Array<'connected' | 'disconnected' | 'unknown'>;
   events: VpnHistoryEvent[];
   windowMs: number;

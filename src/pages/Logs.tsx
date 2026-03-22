@@ -23,13 +23,14 @@ const MAX_LINE_COUNT = 2000;
 const SCROLL_THRESHOLD = 80; // px from top to trigger load-more
 
 export const Logs: React.FC = () => {
-  const { logs, fetchLogs, isLoadingLogs, searchLogs, searchResults, isSearching } = useVpnStore();
+  const { logs, fetchLogs, searchLogs, searchResults, isSearching } = useVpnStore();
   const [autoScroll, setAutoScroll] = useState(true);
   const [liveRefresh, setLiveRefresh] = useState(true);
   const [lineCount, setLineCount] = useState(150);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [loadingMore, setLoadingMore] = useState(false);
+  const [manualRefreshing, setManualRefreshing] = useState(false);
   const [reachedBeginning, setReachedBeginning] = useState(false);
 
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -211,10 +212,14 @@ export const Logs: React.FC = () => {
           <button
             id="btn-refresh-logs"
             className="btn btn-ghost btn-sm"
-            onClick={() => fetchLogs(lineCount)}
-            disabled={isLoadingLogs}
+            onClick={async () => {
+              setManualRefreshing(true);
+              await fetchLogs(lineCount);
+              setManualRefreshing(false);
+            }}
+            disabled={manualRefreshing}
           >
-            {isLoadingLogs && !loadingMore ? <span className="spinner spinner-sm" /> : <RefreshCw size={13} />}
+            {manualRefreshing ? <span className="spinner spinner-sm" /> : <RefreshCw size={13} />}
             Refresh
           </button>
           <button

@@ -186,6 +186,7 @@ button { cursor: pointer; border: none; font: inherit; }
   background: var(--clr-surface-md);
   border-color: var(--clr-border-hi);
 }
+.btn-ghost:active { filter: brightness(0.75); }
 
 .btn-danger {
   background: rgba(239, 68, 68, 0.07);
