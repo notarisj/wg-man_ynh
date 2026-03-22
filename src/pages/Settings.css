@@ -1,8 +1,6 @@
 .settings-page {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
-  gap: 18px;
-  align-items: start;
+  columns: 340px auto;
+  column-gap: 18px;
 }
 
 .settings-card {
@@ -10,6 +8,8 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
+  break-inside: avoid;
+  margin-bottom: 18px;
 }
 
 .settings-card__title {
