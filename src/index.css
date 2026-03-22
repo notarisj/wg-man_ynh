@@ -283,6 +283,11 @@ button { cursor: pointer; border: none; font: inherit; }
 
 
 
+#root.modal-open .main-content {
+  filter: blur(3px);
+  transition: filter var(--dur-normal) var(--ease);
+}
+
 .page {
   flex: 1;
   padding: 28px 32px;

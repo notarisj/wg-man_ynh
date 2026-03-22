@@ -6,6 +6,7 @@ import {
   startAuthentication as browserStartAuthentication,
 } from '@simplewebauthn/browser';
 import { api } from '../../lib/api';
+import { openModal, closeModal } from '../../lib/modalManager';
 import './PasskeyPrompt.css';
 
 export type PasskeyPromptMode = 'register' | 'authenticate';
@@ -25,6 +26,8 @@ export const PasskeyPrompt: React.FC<PasskeyPromptProps> = ({
   const [message, setMessage] = useState('');
   const [keyName, setKeyName] = useState('');
   const overlayMouseDown = useRef(false);
+
+  useEffect(() => { openModal(); return closeModal; }, []);
 
   const handleAction = useCallback(async () => {
     setStatus('busy');

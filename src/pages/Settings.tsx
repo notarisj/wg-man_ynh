@@ -12,6 +12,7 @@ import { CronScheduler } from '../components/ui/CronScheduler';
 import { PasskeyPrompt } from '../components/ui/PasskeyPrompt';
 import { ScriptEditor } from '../components/ui/ScriptEditor';
 import { api } from '../lib/api';
+import { openModal, closeModal } from '../lib/modalManager';
 import type { PasskeyStatus } from '../lib/api';
 import './Settings.css';
 
@@ -23,6 +24,11 @@ export const Settings: React.FC = () => {
   const [showScriptModal, setShowScriptModal]   = useState(false);
   const overlayMouseDown = useRef(false);
   const [scriptPath, setScriptPath]             = useState('');
+
+  // ── Blur main-content when any modal is open ──────────────
+  useEffect(() => {
+    if (showPasskeyModal || showScriptModal) { openModal(); return closeModal; }
+  }, [showPasskeyModal, showScriptModal]);
 
   // ── Passkey management ────────────────────────────────────
   const [passkeyStatus, setPasskeyStatus]   = useState<PasskeyStatus | null>(null);
