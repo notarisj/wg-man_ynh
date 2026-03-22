@@ -19,6 +19,7 @@ export const AppPasskeyGate: React.FC<AppPasskeyGateProps> = ({ children }) => {
   const [registrationLocked, setRegistrationLocked] = useState(true);
   const [authStatus, setAuthStatus]             = useState<'idle' | 'busy' | 'error'>('idle');
   const [authError, setAuthError]               = useState('');
+  const [keyName, setKeyName]                   = useState('');
   // After auth fails, offer to register a new passkey on this device
   const [offerRegister, setOfferRegister]       = useState(false);
 
@@ -72,7 +73,7 @@ export const AppPasskeyGate: React.FC<AppPasskeyGateProps> = ({ children }) => {
       const startRes = await api.passkey.registerStart();
       if (!startRes.ok) { setAuthStatus('error'); setAuthError(startRes.error); return; }
       const attestation = await browserStartRegistration({ optionsJSON: startRes.data });
-      const finishRes = await api.passkey.registerFinish(attestation);
+      const finishRes = await api.passkey.registerFinish(attestation, keyName.trim() || undefined);
       if (!finishRes.ok) { setAuthStatus('error'); setAuthError(finishRes.error); return; }
       setAuthStatus('idle');
       setGateState('verified');
@@ -143,6 +144,18 @@ export const AppPasskeyGate: React.FC<AppPasskeyGateProps> = ({ children }) => {
             ? 'This app is protected by a passkey. Create one to gain access.'
             : 'Authenticate with your passkey to access WG Manager.'}
         </p>
+
+        {isRegister && authStatus !== 'busy' && (
+          <input
+            className="app-gate__name-input"
+            type="text"
+            placeholder="Key name (e.g. MacBook Touch ID)"
+            value={keyName}
+            onChange={(e) => setKeyName(e.target.value)}
+            maxLength={64}
+            autoFocus
+          />
+        )}
 
         {authError && (
           <div className="app-gate__error">
