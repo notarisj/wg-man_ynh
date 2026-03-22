@@ -81,7 +81,7 @@ export const AppPasskeyGate: React.FC<AppPasskeyGateProps> = ({ children }) => {
       setAuthStatus('error');
       setAuthError(err?.name === 'NotAllowedError' ? 'Registration was cancelled or timed out.' : (err?.message ?? 'An unexpected error occurred.'));
     }
-  }, []);
+  }, [keyName]);
 
   if (gateState === 'loading') {
     return (
