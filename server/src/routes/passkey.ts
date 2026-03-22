@@ -25,7 +25,7 @@ const IS_DEV = process.env.NODE_ENV !== 'production';
 
 const passkeyLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 20,
+  max: 40,
   skip: () => IS_DEV,
   standardHeaders: true, legacyHeaders: false,
   message: { error: 'Too many requests' },
@@ -34,7 +34,7 @@ const passkeyLimiter = rateLimit({
 // Extra-strict limit on assertion/registration finish — actual crypto operations
 const assertLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 5,
+  max: 10,
   skip: () => IS_DEV,
   standardHeaders: true, legacyHeaders: false,
   message: { error: 'Too many requests' },
