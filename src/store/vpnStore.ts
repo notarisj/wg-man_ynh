@@ -239,8 +239,12 @@ export const useVpnStore = create<VpnStore>((set, get) => ({
       return;
     }
     const res = await api.connect();
-    set({ isConnecting: false });
-    if (!res.ok) set({ error: res.error });
+    if (!res.ok) {
+      set({ isConnecting: false, error: res.error });
+      return;
+    }
+    // Stay in loading — WS status push will clear isConnecting when connected === true
+    setTimeout(() => { if (get().isConnecting) set({ isConnecting: false }); }, 10_000);
   },
 
   disconnect: async () => {
@@ -251,8 +255,12 @@ export const useVpnStore = create<VpnStore>((set, get) => ({
       return;
     }
     const res = await api.disconnect();
-    set({ isDisconnecting: false });
-    if (!res.ok) set({ error: res.error });
+    if (!res.ok) {
+      set({ isDisconnecting: false, error: res.error });
+      return;
+    }
+    // Stay in loading — WS status push will clear isDisconnecting when connected === false
+    setTimeout(() => { if (get().isDisconnecting) set({ isDisconnecting: false }); }, 10_000);
   },
 
   switchConfig: async (name: string) => {
@@ -264,15 +272,14 @@ export const useVpnStore = create<VpnStore>((set, get) => ({
       return true;
     }
     const res = await api.switchConfig(name);
-    set({ isSwitching: null });
     if (!res.ok) {
-      set({ error: res.error });
+      set({ isSwitching: null, error: res.error });
       return false;
-    } else {
-      get().fetchConfigs();
-      // WS push will deliver updated status + logs within PUSH_INTERVAL_MS
-      return true;
     }
+    get().fetchConfigs();
+    // Stay in loading — WS status push will clear isSwitching when new config is active
+    setTimeout(() => { if (get().isSwitching) set({ isSwitching: null }); }, 10_000);
+    return true;
   },
 
   startWebSocket: () => {
@@ -282,7 +289,24 @@ export const useVpnStore = create<VpnStore>((set, get) => ({
     const ws = new VpnWebSocket();
     const unsub = ws.subscribe((msg) => {
       if (msg.type === 'status') {
-        set({ status: msg.payload, lastUpdated: msg.ts, error: null });
+        const { isConnecting, isDisconnecting, isSwitching } = get();
+        const s = msg.payload;
+
+        const updates: Partial<VpnStore> = { status: s, lastUpdated: msg.ts, error: null };
+
+        if (isDisconnecting && !s.connected) {
+          updates.isDisconnecting = false;
+        }
+        if (isConnecting && s.connected) {
+          updates.isConnecting = false;
+        }
+        if (isSwitching && s.connected && s.currentConfig === isSwitching) {
+          updates.isSwitching = null;
+          // Delay slightly so server has time to flush the history event
+          setTimeout(() => get().fetchHistory(), 800);
+        }
+
+        set(updates);
       } else if (msg.type === 'logs') {
         // Don't overwrite a larger HTTP fetch with the WS's smaller push
         if (msg.payload.length >= get().logs.length) {
