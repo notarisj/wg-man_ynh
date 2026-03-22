@@ -119,6 +119,10 @@
 .legend-dot--unknown      { background: var(--clr-surface-hi); }
 
 /* Uptime bar */
+.uptime-bar-wrap {
+  position: relative;
+}
+
 .uptime-bar {
   display: flex;
   gap: 2px;
@@ -135,6 +139,85 @@
 .uptime-bar__seg--connected    { background: var(--clr-green); }
 .uptime-bar__seg--disconnected { background: #ef4444; }
 .uptime-bar__seg--unknown      { background: var(--clr-surface-hi); }
+
+/* Segment popover */
+.uptime-seg-popover {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  transform: translateX(-50%);
+  background: rgba(10, 13, 20, 0.97);
+  border: 1px solid var(--clr-border-hi);
+  border-radius: var(--r-md);
+  padding: 10px 12px;
+  min-width: 200px;
+  max-width: 260px;
+  z-index: 100;
+  pointer-events: none;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  animation: fade-in var(--dur-fast) var(--ease) both;
+}
+
+.uptime-seg-popover__time {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--clr-text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 6px;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.uptime-seg-popover__empty {
+  font-size: 12px;
+  color: var(--clr-text-dim);
+}
+
+.uptime-seg-popover__events {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.uptime-seg-popover__event {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.uptime-seg-popover__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.uptime-seg-popover__dot--connected    { background: var(--clr-green); }
+.uptime-seg-popover__dot--disconnected { background: #ef4444; }
+.uptime-seg-popover__dot--switched     { background: var(--clr-amber); }
+
+.uptime-seg-popover__label {
+  color: var(--clr-text-muted);
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+.uptime-seg-popover__config {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--clr-text-dim);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.uptime-seg-popover__ts {
+  font-size: 11px;
+  color: var(--clr-text-dim);
+  font-family: 'JetBrains Mono', monospace;
+  margin-left: auto;
+  flex-shrink: 0;
+}
 
 .history-timeline-labels {
   display: flex;

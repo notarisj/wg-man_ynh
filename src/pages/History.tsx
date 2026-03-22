@@ -107,13 +107,75 @@ function withDuration(events: VpnHistoryEvent[]) {
 
 // ── Sub-components ─────────────────────────────────────────────
 
-const UptimeBar: React.FC<{ timeline: Array<'connected' | 'disconnected' | 'unknown'> }> = ({ timeline }) => (
-  <div className="uptime-bar">
-    {timeline.map((state, i) => (
-      <div key={i} className={`uptime-bar__seg uptime-bar__seg--${state}`} />
-    ))}
-  </div>
-);
+function formatSegTime(ts: number): string {
+  return new Date(ts).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+}
+
+const UptimeBar: React.FC<{
+  timeline: Array<'connected' | 'disconnected' | 'unknown'>;
+  events: VpnHistoryEvent[];
+  windowMs: number;
+  segments: number;
+}> = ({ timeline, events, windowMs, segments }) => {
+  const [hovered, setHovered] = useState<number | null>(null);
+  const segMs = windowMs / segments;
+  const now = Date.now();
+
+  const getSegData = (i: number) => {
+    const segEnd   = now - (segments - i - 1) * segMs;
+    const segStart = segEnd - segMs;
+    const segEvents = events.filter(e => e.ts >= segStart && e.ts < segEnd);
+    return { segStart, segEnd, segEvents };
+  };
+
+  return (
+    <div className="uptime-bar-wrap">
+      <div className="uptime-bar">
+        {timeline.map((state, i) => (
+          <div
+            key={i}
+            className={`uptime-bar__seg uptime-bar__seg--${state}`}
+            onMouseEnter={() => setHovered(i)}
+            onMouseLeave={() => setHovered(null)}
+          />
+        ))}
+      </div>
+
+      {hovered !== null && (() => {
+        const { segStart, segEnd, segEvents } = getSegData(hovered);
+        const leftPct = ((hovered + 0.5) / segments) * 100;
+        return (
+          <div
+            className="uptime-seg-popover"
+            style={{ left: `clamp(100px, ${leftPct}%, calc(100% - 100px))` }}
+          >
+            <div className="uptime-seg-popover__time">
+              {formatSegTime(segStart)} – {formatSegTime(segEnd)}
+            </div>
+            {segEvents.length === 0 ? (
+              <div className="uptime-seg-popover__empty">No events in this period</div>
+            ) : (
+              <div className="uptime-seg-popover__events">
+                {segEvents.map((e, j) => (
+                  <div key={j} className="uptime-seg-popover__event">
+                    <span className={`uptime-seg-popover__dot uptime-seg-popover__dot--${e.type}`} />
+                    <span className="uptime-seg-popover__label">
+                      {e.type.charAt(0).toUpperCase() + e.type.slice(1)}
+                    </span>
+                    {e.config && (
+                      <span className="uptime-seg-popover__config">{e.config}</span>
+                    )}
+                    <span className="uptime-seg-popover__ts">{formatSegTime(e.ts)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })()}
+    </div>
+  );
+};
 
 const EventBadge: React.FC<{ type: VpnHistoryEvent['type'] }> = ({ type }) => {
   const map = {
@@ -239,7 +301,7 @@ export const History: React.FC = () => {
             <span className="legend-dot legend-dot--unknown" /> No data
           </div>
         </div>
-        <UptimeBar timeline={timeline} />
+        <UptimeBar timeline={timeline} events={vpnHistory} windowMs={windowMs} segments={segments} />
         <div className="history-timeline-labels">
           <span>{periodStartLabel(period, vpnHistory)}</span>
           <span>{periodMidLabel(period, vpnHistory)}</span>
