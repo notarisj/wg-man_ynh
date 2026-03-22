@@ -654,7 +654,7 @@ export async function writeScript(content: string): Promise<void> {
  * Writes to a temp file, checks, then removes it.
  */
 export async function validateScript(content: string): Promise<{ ok: boolean; error?: string }> {
-  const tmp = `${MONITOR_SCRIPT}.validate.tmp`;
+  const tmp = `/tmp/vpn-monitor.validate.tmp`;
   try {
     await writeFile(tmp, content, { encoding: 'utf-8', mode: 0o600 });
     return await new Promise((resolve) => {
