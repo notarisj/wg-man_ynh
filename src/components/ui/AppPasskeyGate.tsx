@@ -37,9 +37,15 @@ export const AppPasskeyGate: React.FC<AppPasskeyGateProps> = ({ children }) => {
 
   useEffect(() => { checkSession(); }, [checkSession]);
 
-  // Auto-trigger authentication on mount when ready
+  // Auto-trigger authentication on mount when ready — skip if user just logged out
   useEffect(() => {
-    if (gateState === 'needs-auth') doAuth();
+    if (gateState === 'needs-auth') {
+      if (sessionStorage.getItem('just-logged-out')) {
+        sessionStorage.removeItem('just-logged-out');
+        return;
+      }
+      doAuth();
+    }
   }, [gateState]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const doAuth = useCallback(async () => {

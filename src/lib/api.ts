@@ -124,6 +124,7 @@ export const api = {
     assertFinish:      (body: any) => apiFetch<{ ok: boolean }>('/passkey/assert/finish', { method: 'POST', body: JSON.stringify(body) }),
     lockRegistration:  () => apiFetch<{ ok: boolean }>('/passkey/lock-registration', { method: 'POST' }),
     reset:             () => apiFetch<{ ok: boolean }>('/passkey/reset', { method: 'DELETE' }),
+    lockSession:       () => apiFetch<{ ok: boolean }>('/passkey/session', { method: 'DELETE' }),
     setupDomain:       (rpID: string, origin: string) => apiFetch<{ ok: boolean }>('/passkey/setup-domain', { method: 'POST', body: JSON.stringify({ rpID, origin }) }),
   },
   script: {

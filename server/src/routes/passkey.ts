@@ -108,6 +108,16 @@ router.get('/session', async (req, res) => {
   }
 });
 
+/** DELETE /api/passkey/session — clear passkey session (lock on logout) */
+router.delete('/session', async (req, res) => {
+  try {
+    if (req.session) delete req.session.passkeyVerified;
+    res.json({ ok: true });
+  } catch {
+    res.status(500).json({ error: 'Failed to clear session' });
+  }
+});
+
 /** GET /api/passkey/status */
 router.get('/status', async (_req, res) => {
   try {

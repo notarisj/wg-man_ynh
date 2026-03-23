@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { RefreshCw, UserCircle, Menu, LogOut } from 'lucide-react';
 import { useVpnStore } from '../../store/vpnStore';
-import { getLogoutUrl } from '../../lib/api';
+import { getLogoutUrl, api } from '../../lib/api';
 import './Header.css';
 
 const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
@@ -36,7 +36,9 @@ export const Header: React.FC<HeaderProps> = ({ onMobileMenuToggle }) => {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await api.passkey.lockSession().catch(() => {});
+    sessionStorage.setItem('just-logged-out', '1');
     window.location.href = getLogoutUrl();
   };
 
