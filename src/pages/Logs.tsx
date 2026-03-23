@@ -11,6 +11,17 @@ function classifyLine(line: string): string {
   return 'info';
 }
 
+type LogLevel = 'all' | 'info' | 'warn' | 'error' | 'critical' | 'success';
+
+const LEVEL_OPTIONS: { value: LogLevel; label: string }[] = [
+  { value: 'all',      label: 'All levels' },
+  { value: 'success',  label: 'Success' },
+  { value: 'error',    label: 'Error' },
+  { value: 'critical', label: 'Critical' },
+  { value: 'warn',     label: 'Warning' },
+  { value: 'info',     label: 'Info' },
+];
+
 const LINE_OPTIONS = [
   { value: 50,  label: 'Last 50' },
   { value: 150, label: 'Last 150' },
@@ -28,12 +39,15 @@ export const Logs: React.FC = () => {
   const [liveRefresh, setLiveRefresh] = useState(true);
   const [lineCount, setLineCount] = useState(150);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [levelDropdownOpen, setLevelDropdownOpen] = useState(false);
+  const [levelFilter, setLevelFilter] = useState<LogLevel>('all');
   const [search, setSearch] = useState('');
   const [loadingMore, setLoadingMore] = useState(false);
   const [manualRefreshing, setManualRefreshing] = useState(false);
   const [reachedBeginning, setReachedBeginning] = useState(false);
 
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const levelDropdownRef = useRef<HTMLDivElement>(null);
   const terminalBodyRef = useRef<HTMLDivElement>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const loadMoreSessionRef = useRef<{ prevCount: number; prevScrollHeight: number; requestedCount: number } | null>(null);
@@ -50,12 +64,11 @@ export const Logs: React.FC = () => {
   useEffect(() => { reachedBeginningRef.current = reachedBeginning; }, [reachedBeginning]);
   useEffect(() => { autoScrollRef.current = autoScroll; }, [autoScroll]);
 
-  // Close dropdown on outside click
+  // Close dropdowns on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setDropdownOpen(false);
-      }
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) setDropdownOpen(false);
+      if (levelDropdownRef.current && !levelDropdownRef.current.contains(e.target as Node)) setLevelDropdownOpen(false);
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
@@ -146,7 +159,8 @@ export const Logs: React.FC = () => {
 
   const orderedLogs = [...logs].reverse(); // chronological (oldest first → scroll to bottom for newest)
   // When searching: use server results (already newest-first from grep); otherwise show loaded logs
-  const displayLogs = search ? (searchResults ?? []) : orderedLogs;
+  const baseLogs = search ? (searchResults ?? []) : orderedLogs;
+  const displayLogs = levelFilter === 'all' ? baseLogs : baseLogs.filter(l => classifyLine(l) === levelFilter);
 
   return (
     <div className="logs-page animate-fade-in">
@@ -154,7 +168,11 @@ export const Logs: React.FC = () => {
       <div className="logs-toolbar">
         <div className="logs-toolbar__left">
           <span className="logs-toolbar__count">
-            {search ? `${displayLogs.length} results` : `${logs.length} lines`}
+            {search
+              ? `${displayLogs.length} results`
+              : levelFilter !== 'all'
+              ? `${displayLogs.length} / ${logs.length} lines`
+              : `${logs.length} lines`}
           </span>
           <div className="page-search">
             <Search size={14} className="page-search__icon" />
@@ -193,6 +211,34 @@ export const Logs: React.FC = () => {
                   >
                     {opt.label}
                     {opt.value === lineCount && <Check size={12} />}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="logs-select" ref={levelDropdownRef}>
+            <button
+              className={`logs-select__trigger${levelFilter !== 'all' ? ' logs-select__trigger--active' : ''}`}
+              onClick={() => setLevelDropdownOpen((v) => !v)}
+              aria-haspopup="listbox"
+              aria-expanded={levelDropdownOpen}
+            >
+              {LEVEL_OPTIONS.find((o) => o.value === levelFilter)?.label ?? 'All levels'}
+              <ChevronDown size={13} className={`logs-select__chevron${levelDropdownOpen ? ' open' : ''}`} />
+            </button>
+            {levelDropdownOpen && (
+              <div className="logs-select__menu" role="listbox">
+                {LEVEL_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    className={`logs-select__option${opt.value === levelFilter ? ' selected' : ''} logs-select__option--${opt.value}`}
+                    role="option"
+                    aria-selected={opt.value === levelFilter}
+                    onClick={() => { setLevelFilter(opt.value); setLevelDropdownOpen(false); }}
+                  >
+                    {opt.value !== 'all' && <span className={`log-level-dot log-level-dot--${opt.value}`} />}
+                    {opt.label}
+                    {opt.value === levelFilter && <Check size={12} />}
                   </button>
                 ))}
               </div>
