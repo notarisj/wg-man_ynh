@@ -215,11 +215,11 @@ export const Logs: React.FC = () => {
             onClick={async () => {
               setManualRefreshing(true);
               await fetchLogs(lineCount);
-              setManualRefreshing(false);
+              setTimeout(() => setManualRefreshing(false), 600);
             }}
             disabled={manualRefreshing}
           >
-            {manualRefreshing ? <span className="spinner spinner-sm" /> : <RefreshCw size={13} />}
+            <RefreshCw size={13} className={manualRefreshing ? 'spinning' : ''} />
             Refresh
           </button>
           <button

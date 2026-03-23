@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
-  Layers, CheckCircle2, Circle, RotateCcw, ServerCrash, AlertCircle,
+  Layers, CheckCircle2, Circle, RefreshCw, ServerCrash, AlertCircle,
   Search, X, Plus, Pencil, Trash2, LayoutGrid, List,
 } from 'lucide-react';
 import { useVpnStore } from '../store/vpnStore';
@@ -19,6 +19,7 @@ export const Configs: React.FC = () => {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>(
     () => (localStorage.getItem('configs-view-mode') as 'grid' | 'list') ?? 'grid',
   );
+  const [refreshing, setRefreshing]       = useState(false);
   const [switchedMsg, setSwitchedMsg]     = useState<string | null>(null);
   const [switchError, setSwitchError]     = useState<string | null>(null);
   const [search, setSearch]               = useState('');
@@ -155,10 +156,14 @@ export const Configs: React.FC = () => {
           </div>
           <button
             className="btn btn-ghost btn-sm"
-            onClick={() => fetchConfigs()}
-            disabled={isLoadingConfigs}
+            onClick={async () => {
+              setRefreshing(true);
+              await fetchConfigs();
+              setTimeout(() => setRefreshing(false), 600);
+            }}
+            disabled={refreshing}
           >
-            {isLoadingConfigs ? <span className="spinner spinner-sm" /> : <RotateCcw size={15} />}
+            <RefreshCw size={15} className={refreshing ? 'spinning' : ''} />
             Refresh
           </button>
           <button

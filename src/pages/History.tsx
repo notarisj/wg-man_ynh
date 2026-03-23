@@ -195,9 +195,10 @@ const PAGE_SIZE = 10;
 
 export const History: React.FC = () => {
   const { vpnHistory, fetchHistory, isLoadingHistory } = useVpnStore();
-  const [filter, setFilter] = useState<Filter>('all');
-  const [period, setPeriod] = useState<Period>('24h');
-  const [page, setPage]     = useState(1);
+  const [filter, setFilter]     = useState<Filter>('all');
+  const [period, setPeriod]     = useState<Period>('24h');
+  const [page, setPage]         = useState(1);
+  const [refreshing, setRefreshing] = useState(false);
 
   // Reset to page 1 when filter or period changes
   useEffect(() => { setPage(1); }, [filter, period]);
@@ -247,10 +248,14 @@ export const History: React.FC = () => {
         </div>
         <button
           className="btn btn-ghost btn-sm"
-          onClick={() => fetchHistory()}
-          disabled={isLoadingHistory}
+          onClick={async () => {
+            setRefreshing(true);
+            await fetchHistory();
+            setTimeout(() => setRefreshing(false), 600);
+          }}
+          disabled={refreshing}
         >
-          {isLoadingHistory ? <span className="spinner spinner-sm" /> : <RefreshCw size={13} />}
+          <RefreshCw size={13} className={refreshing ? 'spinning' : ''} />
           Refresh
         </button>
       </div>
