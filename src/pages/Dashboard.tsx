@@ -3,7 +3,7 @@ import {
   ShieldCheck, ShieldOff, Shield,
   Zap, ZapOff,
   Clock, Activity, Wifi, WifiOff,
-  ArrowUpDown, Server, Eye, Cpu, MemoryStick, History,
+  ArrowUpDown, Server, Eye, History, Cpu, MemoryStick,
 } from 'lucide-react';
 import { useVpnStore } from '../store/vpnStore';
 import { GlassCard } from '../components/ui/GlassCard';
@@ -34,65 +34,55 @@ function metricColor(pct: number): string {
   return 'var(--clr-green)';
 }
 
-// ── Sparkline ─────────────────────────────────────────────────
-const SparkLine: React.FC<{ data: number[]; gradId: string; color: string }> = ({ data, gradId, color }) => {
-  if (data.length < 2) {
-    return <div className="sparkline-empty">Waiting for data…</div>;
-  }
-
-  const W = 300; const H = 44; const PAD = 4;
-  const pts = data.map((v, i): [number, number] => [
-    PAD + (i / (data.length - 1)) * (W - PAD * 2),
-    PAD + (1 - Math.max(0, Math.min(100, v)) / 100) * (H - PAD * 2),
-  ]);
-  const polyline = pts.map(([x, y]) => `${x},${y}`).join(' ');
-  const fill = `${PAD},${H - PAD} ${polyline} ${W - PAD},${H - PAD}`;
-  const [lx, ly] = pts[pts.length - 1];
-
+// ── Spark Bars ─────────────────────────────────────────────────
+const SparkBars: React.FC<{ data: number[]; color: string }> = ({ data, color }) => {
+  const bars = data.slice(-24);
+  if (bars.length === 0) return <div className="sparkbars-empty" />;
+  const H = 48; const barW = 5; const gap = 2;
+  const w = bars.length * (barW + gap) - gap;
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="sparkline-svg">
-      <defs>
-        <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity="0.2" />
-          <stop offset="100%" stopColor={color} stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <polygon points={fill} fill={`url(#${gradId})`} />
-      <polyline points={polyline} fill="none" stroke={color} strokeWidth="1.5"
-        strokeLinejoin="round" strokeLinecap="round" />
-      <circle cx={lx} cy={ly} r={2.5} fill={color} />
+    <svg width={w} height={H} className="sparkbars-svg">
+      {bars.map((v, i) => {
+        const h = Math.max(2, (Math.min(100, v) / 100) * H);
+        const opacity = 0.3 + 0.7 * ((i + 1) / bars.length);
+        return (
+          <rect key={i} x={i * (barW + gap)} y={H - h} width={barW} height={h} rx={1.5}
+            fill={color} opacity={opacity} />
+        );
+      })}
     </svg>
   );
 };
+
+function formatMb(mb: number): string {
+  return mb >= 1024 ? `${(mb / 1024).toFixed(1)} GB` : `${mb} MB`;
+}
 
 // ── Resource Graph Card ────────────────────────────────────────
 const ResourceGraph: React.FC<{
   label: string;
   icon: React.ReactNode;
-  value: number | null;
-  history: number[];
-  gradId: string;
-  detail?: string | null;
-}> = ({ label, icon, value, history, gradId, detail }) => {
-  const color = value !== null ? metricColor(value) : 'var(--clr-text-dim)';
-  return (
-    <GlassCard className="dashboard__resource">
-      <div className="dashboard__resource-header">
-        <div className="dashboard__resource-left">
-          {icon}
-          <span className="dashboard__resource-label">{label}</span>
-        </div>
-        <div className="dashboard__resource-right">
-          <span className="dashboard__resource-value" style={{ color }}>
-            {value !== null ? `${value}%` : '—'}
-          </span>
-          {detail && <span className="dashboard__resource-detail">{detail}</span>}
-        </div>
+  subLabel?: string | null;
+  displayValue: string;
+  avgLabel: string;
+  pkLabel: string;
+  pctHistory: number[];
+  color: string;
+}> = ({ label, icon, subLabel, displayValue, avgLabel, pkLabel, pctHistory, color }) => (
+  <GlassCard className="dashboard__resource">
+    <div className="dashboard__resource-top">
+      <span className="dashboard__resource-label">{icon}{label}</span>
+      {subLabel && <span className="dashboard__resource-sublabel">{subLabel}</span>}
+    </div>
+    <div className="dashboard__resource-body">
+      <div className="dashboard__resource-left">
+        <span className="dashboard__resource-bigval" style={{ color }}>{displayValue}</span>
+        <span className="dashboard__resource-avgpk">avg {avgLabel} · pk {pkLabel}</span>
       </div>
-      <SparkLine data={history} gradId={gradId} color={color} />
-    </GlassCard>
-  );
-};
+      <SparkBars data={pctHistory} color={color} />
+    </div>
+  </GlassCard>
+);
 
 // ── Dashboard ──────────────────────────────────────────────────
 export const Dashboard: React.FC = () => {
@@ -113,6 +103,27 @@ export const Dashboard: React.FC = () => {
   const handleDisconnect = useCallback(() => disconnect(), [disconnect]);
 
   const [period, setPeriod] = useState<Period>('24h');
+
+  // Dev-only: simulate system metrics so the graphs are visible without a backend
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    let cpu = 5; let cpuDir = 1;
+    const RAM_TOTAL = 7669;
+    let ramUsed = 800;
+    const tick = () => {
+      cpu += (Math.random() - 0.45) * 4 * cpuDir;
+      if (cpu > 65) cpuDir = -1;
+      if (cpu < 1)  cpuDir =  1;
+      cpu = Math.max(0.1, Math.min(100, cpu));
+      ramUsed += (Math.random() - 0.48) * 30;
+      ramUsed = Math.max(400, Math.min(RAM_TOTAL * 0.95, ramUsed));
+      const m = { cpuPercent: parseFloat(cpu.toFixed(1)), ramPercent: Math.round(ramUsed / RAM_TOTAL * 100), ramUsedMb: Math.round(ramUsed), ramTotalMb: RAM_TOTAL };
+      useVpnStore.setState(s => ({ systemMetrics: m, systemHistory: [...s.systemHistory, m].slice(-40) }));
+    };
+    tick(); // immediate first sample
+    const id = setInterval(tick, 2000);
+    return () => clearInterval(id);
+  }, []);
 
   const isLoading = isConnecting || isDisconnecting;
   const connected = status?.connected ?? false;
@@ -225,23 +236,42 @@ export const Dashboard: React.FC = () => {
       </div>
 
       {/* ── Server Resources ─────────────────────────────── */}
-      <div className="dashboard__resources">
-        <ResourceGraph
-          label="CPU"
-          icon={<Cpu size={13} />}
-          value={sm?.cpuPercent ?? null}
-          history={systemHistory.map(s => s.cpuPercent)}
-          gradId="grad-cpu"
-        />
-        <ResourceGraph
-          label="RAM"
-          icon={<MemoryStick size={13} />}
-          value={sm?.ramPercent ?? null}
-          history={systemHistory.map(s => s.ramPercent)}
-          gradId="grad-ram"
-          detail={sm ? `${sm.ramUsedMb} / ${sm.ramTotalMb} MB` : null}
-        />
-      </div>
+      {(() => {
+        const cpuHist = systemHistory.map(s => s.cpuPercent);
+        const cpuAvg  = cpuHist.length ? cpuHist.reduce((a, b) => a + b, 0) / cpuHist.length : null;
+        const cpuPk   = cpuHist.length ? Math.max(...cpuHist) : null;
+        const cpuColor = sm ? metricColor(sm.cpuPercent) : 'var(--clr-green)';
+
+        const ramHist   = systemHistory.map(s => s.ramPercent);
+        const ramMbHist = systemHistory.map(s => s.ramUsedMb);
+        const ramAvg    = ramMbHist.length ? ramMbHist.reduce((a, b) => a + b, 0) / ramMbHist.length : null;
+        const ramPk     = ramMbHist.length ? Math.max(...ramMbHist) : null;
+        const ramColor  = sm ? metricColor(sm.ramPercent) : 'var(--clr-amber)';
+
+        return (
+          <div className="dashboard__resources">
+            <ResourceGraph
+              label="CPU"
+              icon={<Cpu size={13} />}
+              displayValue={sm ? `${sm.cpuPercent.toFixed(1)}%` : '—'}
+              avgLabel={cpuAvg !== null ? `${cpuAvg.toFixed(1)}%` : '—'}
+              pkLabel={cpuPk !== null ? `${cpuPk.toFixed(1)}%` : '—'}
+              pctHistory={cpuHist}
+              color={cpuColor}
+            />
+            <ResourceGraph
+              label="RAM"
+              icon={<MemoryStick size={13} />}
+              subLabel={sm ? `${(sm.ramTotalMb / 1024).toFixed(1)} GB` : null}
+              displayValue={sm ? formatMb(sm.ramUsedMb) : '—'}
+              avgLabel={ramAvg !== null ? formatMb(Math.round(ramAvg)) : '—'}
+              pkLabel={ramPk !== null ? formatMb(ramPk) : '—'}
+              pctHistory={ramHist}
+              color={ramColor}
+            />
+          </div>
+        );
+      })()}
 
       {/* ── Connection Uptime ────────────────────────────── */}
       {(() => {
