@@ -36,21 +36,22 @@ function metricColor(pct: number): string {
 
 // ── Spark Bars ─────────────────────────────────────────────────
 const SparkBars: React.FC<{ data: number[]; color: string }> = ({ data, color }) => {
-  const bars = data.slice(-24);
+  const bars = data.slice(-40);
   if (bars.length === 0) return <div className="sparkbars-empty" />;
-  const H = 48; const barW = 5; const gap = 2;
-  const w = bars.length * (barW + gap) - gap;
   return (
-    <svg width={w} height={H} className="sparkbars-svg">
-      {bars.map((v, i) => {
-        const h = Math.max(2, (Math.min(100, v) / 100) * H);
-        const opacity = 0.3 + 0.7 * ((i + 1) / bars.length);
-        return (
-          <rect key={i} x={i * (barW + gap)} y={H - h} width={barW} height={h} rx={1.5}
-            fill={color} opacity={opacity} />
-        );
-      })}
-    </svg>
+    <div className="sparkbars-wrap">
+      {bars.map((v, i) => (
+        <div
+          key={i}
+          className="sparkbars-bar"
+          style={{
+            height: `${Math.max(4, Math.min(100, v))}%`,
+            background: color,
+            opacity: 0.25 + 0.75 * ((i + 1) / bars.length),
+          }}
+        />
+      ))}
+    </div>
   );
 };
 
@@ -70,17 +71,15 @@ const ResourceGraph: React.FC<{
   color: string;
 }> = ({ label, icon, subLabel, displayValue, avgLabel, pkLabel, pctHistory, color }) => (
   <GlassCard className="dashboard__resource">
-    <div className="dashboard__resource-top">
+    <div className="dashboard__resource-left">
       <span className="dashboard__resource-label">{icon}{label}</span>
-      {subLabel && <span className="dashboard__resource-sublabel">{subLabel}</span>}
-    </div>
-    <div className="dashboard__resource-body">
-      <div className="dashboard__resource-left">
+      <div className="dashboard__resource-valrow">
         <span className="dashboard__resource-bigval" style={{ color }}>{displayValue}</span>
-        <span className="dashboard__resource-avgpk">avg {avgLabel} · pk {pkLabel}</span>
+        {subLabel && <span className="dashboard__resource-sublabel">/ {subLabel}</span>}
       </div>
-      <SparkBars data={pctHistory} color={color} />
+      <span className="dashboard__resource-avgpk">avg {avgLabel} · pk {pkLabel}</span>
     </div>
+    <SparkBars data={pctHistory} color={color} />
   </GlassCard>
 );
 

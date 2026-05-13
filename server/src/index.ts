@@ -8,6 +8,7 @@ import { createServer } from 'http';
 import authRouter from './routes/auth';
 import vpnRouter from './routes/vpn';
 import passkeyRouter from './routes/passkey';
+import scriptsRouter from './routes/scripts';
 import { createWebSocketServer } from './websocket';
 import { pruneOldLogs } from './services/wg';
 import { startHistoryTracker } from './services/vpnHistory';
@@ -104,6 +105,9 @@ app.use('/api/auth', authRouter);
 
 // Passkey routes (WebAuthn registration + assertion)
 app.use('/api/passkey', passkeyRouter);
+
+// User scripts routes (protected by ssowatAuth + passkey inside scriptsRouter)
+app.use('/api/scripts', scriptsRouter);
 
 // API routes (protected by ssowatAuth inside vpnRouter)
 app.use('/api', vpnRouter);

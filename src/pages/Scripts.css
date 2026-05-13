@@ -1,0 +1,389 @@
+.scripts-page { display: flex; flex-direction: column; gap: 18px; }
+
+/* ── Topbar ─────────────────────────────────────────────────── */
+
+.scripts-page__topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.scripts-page__count {
+  font-size: 13px;
+  color: var(--clr-text-muted);
+}
+
+.scripts-page__topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ── Toast ──────────────────────────────────────────────────── */
+
+.scripts-page__toast {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--clr-green-dim);
+  border: 1px solid rgba(34,197,94,0.25);
+  color: var(--clr-green);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 10px 16px;
+  border-radius: var(--r-md);
+  animation: slide-up var(--dur-normal) var(--ease) both;
+}
+
+.scripts-page__toast--error {
+  background: rgba(239,68,68,0.12);
+  border-color: rgba(239,68,68,0.25);
+  color: #f87171;
+}
+
+/* ── Empty state ────────────────────────────────────────────── */
+
+.scripts-page__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 52px;
+  color: var(--clr-text-muted);
+  text-align: center;
+}
+
+/* ── Script list ────────────────────────────────────────────── */
+
+.scripts-page__list { display: flex; flex-direction: column; gap: 10px; }
+
+.script-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 18px;
+  flex-wrap: wrap;
+}
+
+.script-card__left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex: 1;
+  min-width: 0;
+}
+
+.script-card__icon {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--r-sm);
+  background: rgba(34,197,94,0.1);
+  border: 1px solid rgba(34,197,94,0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--clr-green);
+}
+
+.script-card__info { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+
+.script-card__name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--clr-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.script-card__meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+.script-card__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 99px;
+}
+
+.script-card__badge--cron {
+  background: rgba(34,197,94,0.12);
+  border: 1px solid rgba(34,197,94,0.25);
+  color: var(--clr-green);
+}
+
+.script-card__badge--idle {
+  background: rgba(100,116,139,0.12);
+  border: 1px solid rgba(100,116,139,0.2);
+  color: var(--clr-text-dim);
+}
+
+.script-card__date {
+  font-size: 11px;
+  color: var(--clr-text-dim);
+}
+
+.script-card__actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+
+.script-card__btn { gap: 5px; }
+
+.script-card__btn--danger:hover {
+  color: #f87171;
+  border-color: rgba(239,68,68,0.35);
+  background: rgba(239,68,68,0.08);
+}
+
+/* ── Editor modal ───────────────────────────────────────────── */
+
+.scripts-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.65);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 24px 16px;
+  z-index: 200;
+  overflow-y: auto;
+}
+
+.scripts-modal {
+  background: var(--clr-surface);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--r-lg);
+  width: 100%;
+  max-width: 740px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.scripts-modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--clr-border);
+}
+
+.scripts-modal__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--clr-text);
+}
+
+.scripts-modal__close {
+  background: none;
+  border: none;
+  color: var(--clr-text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 4px;
+  border-radius: var(--r-sm);
+  transition: color var(--dur-fast);
+}
+.scripts-modal__close:hover { color: var(--clr-text); }
+
+.scripts-modal__body {
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  overflow-y: auto;
+  max-height: calc(100vh - 80px);
+}
+
+.scripts-modal__name-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.scripts-modal__label {
+  font-size: 12px;
+  color: var(--clr-text-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+  width: 44px;
+}
+
+.scripts-modal__name-input {
+  flex: 1;
+  background: var(--clr-bg);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--r-sm);
+  color: var(--clr-text);
+  font-size: 13px;
+  padding: 7px 10px;
+  outline: none;
+  font-family: inherit;
+  transition: border-color var(--dur-fast);
+}
+.scripts-modal__name-input:focus { border-color: var(--clr-green); }
+
+.scripts-modal__error,
+.scripts-modal__syntax-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  background: rgba(239,68,68,0.1);
+  border: 1px solid rgba(239,68,68,0.25);
+  color: #f87171;
+  font-size: 12px;
+  padding: 8px 12px;
+  border-radius: var(--r-sm);
+}
+
+.scripts-modal__syntax-pre {
+  margin: 0;
+  white-space: pre-wrap;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+}
+
+.scripts-modal__loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--clr-text-muted);
+  font-size: 13px;
+  padding: 20px 0;
+}
+
+.scripts-modal__cm-wrap {
+  border: 1px solid var(--clr-border);
+  border-radius: var(--r-sm);
+  overflow: hidden;
+}
+
+.scripts-modal__actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.scripts-modal__hint {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--clr-text-dim);
+  margin-left: auto;
+}
+
+/* ── Cron section inside modal ───────────────────────────────── */
+
+.scripts-modal__cron {
+  border-top: 1px solid var(--clr-border);
+  padding-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.scripts-modal__cron-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--clr-text);
+}
+
+.scripts-modal__cron-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+  color: var(--clr-text-muted);
+}
+
+.scripts-modal__cron-label { font-size: 13px; color: var(--clr-text-muted); }
+
+/* ── Run output ──────────────────────────────────────────────── */
+
+.scripts-run-output {
+  background: #0b0e13;
+  border: 1px solid var(--clr-border);
+  border-radius: var(--r-sm);
+  padding: 14px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: #abb2bf;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 400px;
+  overflow-y: auto;
+  margin: 0;
+}
+
+/* ── Delete confirm overlay ──────────────────────────────────── */
+
+.scripts-page__confirm-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.65);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 300;
+  padding: 16px;
+}
+
+.scripts-page__confirm {
+  background: var(--clr-surface);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--r-lg);
+  padding: 24px;
+  max-width: 400px;
+  width: 100%;
+}
+
+.scripts-page__confirm-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--clr-text);
+  margin-bottom: 10px;
+}
+
+.scripts-page__confirm-desc {
+  font-size: 13px;
+  color: var(--clr-text-muted);
+  line-height: 1.55;
+  margin: 0 0 14px;
+}
+
+.scripts-page__confirm-desc code {
+  background: rgba(255,255,255,0.06);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+}
+
+.scripts-page__confirm-error {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #f87171;
+  font-size: 12px;
+  margin-bottom: 12px;
+}
+
+.scripts-page__confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
