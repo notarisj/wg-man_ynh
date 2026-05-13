@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom';
 import {
   Terminal, Plus, RefreshCw, Pencil, Trash2, Play, Clock,
   AlertCircle, CheckCircle2, X, Save, RotateCcw, ShieldCheck,
-  Info, Loader,
+  Loader,
 } from 'lucide-react';
 import CodeMirror from '@uiw/react-codemirror';
 import { StreamLanguage } from '@codemirror/language';
