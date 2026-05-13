@@ -269,7 +269,7 @@ const ScriptEditorModal: React.FC<ScriptEditorModalProps> = ({ editId, onSaved, 
                 onChange={(val) => { setContent(val); setSyntaxError(null); setSaved(false); }}
                 extensions={[bashLang, ...cmTheme]}
                 theme="dark"
-                height="340px"
+                height="460px"
                 basicSetup={{
                   lineNumbers: true, foldGutter: false,
                   autocompletion: false, highlightActiveLine: false,

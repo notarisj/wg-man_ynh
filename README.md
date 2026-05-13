@@ -18,9 +18,10 @@ A self-hosted WireGuard VPN manager designed for [YunoHost](https://yunohost.org
 - **Dashboard** — live connection status, handshake age, traffic counters, CPU/RAM metrics, uptime history bar
 - **Configs** — list, create, edit, delete, and switch WireGuard `.conf` files; grid or list view
 - **Logs** — real-time log tail over WebSocket, full-text search
+- **Scripts** — create and manage custom shell scripts; schedule each as an independent cron job; run on demand; all mutations passkey-gated
 - **History** — connection uptime timeline with selectable time windows
 - **Settings** — passkey management (register / lock / reset), cron schedule for the monitor script, monitor script editor, app version info
-- **Cron** — schedule the bundled `vpn-monitor.sh` via the API; no crontab editing needed
+- **Cron** — schedule the bundled `vpn-monitor.sh` and any user script via the API; no crontab editing needed
 
 
 ## Auth model
@@ -43,6 +44,20 @@ npm run dev
 ```
 
 Frontend runs on `http://localhost:5173`, backend on `http://localhost:3001`. CORS is relaxed in dev; SSOwat header injection is skipped.
+
+### Pre-flight checks (run before every commit / deploy)
+
+The YunoHost install script runs `tsc -b && vite build`, so any TypeScript error breaks the deployment. Catch them locally first:
+
+```bash
+# frontend — from repo root
+npx tsc --noEmit
+
+# backend — from server/
+cd server && npx tsc --noEmit && cd ..
+```
+
+Both must exit cleanly (no output, exit code 0) before pushing.
 
 
 ## Production deployment
