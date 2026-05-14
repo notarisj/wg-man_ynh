@@ -32,7 +32,7 @@ export const Settings: React.FC = () => {
 
   // ── Passkey management ────────────────────────────────────
   const [passkeyStatus, setPasskeyStatus]   = useState<PasskeyStatus | null>(null);
-  const [showPasskeyFor, setShowPasskeyFor] = useState<'lock' | 'reset' | null>(null);
+  const [showPasskeyFor, setShowPasskeyFor] = useState<'lock' | 'reset' | 'wg-edit' | null>(null);
   const [isLocking, setIsLocking]           = useState(false);
   const [isResetting, setIsResetting]       = useState(false);
   const [pkError, setPkError]               = useState<string | null>(null);
@@ -90,7 +90,30 @@ export const Settings: React.FC = () => {
     }
   }, [wgDraft]);
 
-const onPasskeySuccess = useCallback(() => {
+  // Poll until the server comes back after restart, then reload config
+  useEffect(() => {
+    if (!wgRestarting) return;
+    let cancelled = false;
+    let attempts = 0;
+    const poll = () => {
+      if (cancelled) return;
+      attempts++;
+      if (attempts > 20) { setWgRestarting(false); return; } // give up after ~40s
+      api.serverConfig.get().then((r) => {
+        if (cancelled) return;
+        if (r.ok) {
+          setWgConfig(r.data);
+          setWgRestarting(false);
+        } else {
+          setTimeout(poll, 2000);
+        }
+      }).catch(() => { if (!cancelled) setTimeout(poll, 2000); });
+    };
+    const t = setTimeout(poll, 2000); // wait 2s before first attempt
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [wgRestarting]);
+
+  const onPasskeySuccess = useCallback(() => {
     const action = showPasskeyFor;
     setShowPasskeyFor(null);
     setPkError(null);
@@ -108,8 +131,10 @@ const onPasskeySuccess = useCallback(() => {
         if (!res.ok) setPkError(res.error);
         else refreshPasskey();
       });
+    } else if (action === 'wg-edit') {
+      startWgEdit();
     }
-  }, [showPasskeyFor, refreshPasskey]);
+  }, [showPasskeyFor, refreshPasskey, startWgEdit]);
 
   const handleSaveDomain = useCallback(async () => {
     setDomainError(null);
@@ -199,7 +224,7 @@ const onPasskeySuccess = useCallback(() => {
         <div className="settings-card__title" style={{ justifyContent: 'space-between' }}>
           <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Shield size={16} /> WireGuard Configuration</span>
           {!wgEditing && !wgRestarting && wgConfig && (
-            <button className="btn btn-ghost btn-sm" onClick={startWgEdit} style={{ padding: '2px 8px' }}>
+            <button className="btn btn-ghost btn-sm" onClick={() => { setPkError(null); setShowPasskeyFor('wg-edit'); }} style={{ padding: '2px 8px' }}>
               <Pencil size={13} /> Edit
             </button>
           )}
