@@ -9,6 +9,11 @@ export const getLogoutUrl  = () => `${BASE_URL}/api/auth/logout`;
 export const getDexLoginUrl = () => `${BASE_URL}/api/auth/login`;
 export const getSsoLoginUrl = () => '/yunohost/sso/';
 
+export const healthz = () =>
+  fetch(`${BASE_URL}/healthz`, { credentials: 'include' })
+    .then((r) => r.ok)
+    .catch(() => false);
+
 export type VpnStatus = {
   connected: boolean;
   interface: string | null;

@@ -11,7 +11,7 @@ import { GlassCard } from '../components/ui/GlassCard';
 import { CronScheduler } from '../components/ui/CronScheduler';
 import { PasskeyPrompt } from '../components/ui/PasskeyPrompt';
 import { ScriptEditor } from '../components/ui/ScriptEditor';
-import { api } from '../lib/api';
+import { api, healthz } from '../lib/api';
 import { openModal, closeModal } from '../lib/modalManager';
 import type { PasskeyStatus } from '../lib/api';
 import './Settings.css';
@@ -90,7 +90,7 @@ export const Settings: React.FC = () => {
     }
   }, [wgDraft]);
 
-  // Poll until the server comes back after restart, then reload config
+  // Poll /healthz until the server comes back after restart, then reload the page
   useEffect(() => {
     if (!wgRestarting) return;
     let cancelled = false;
@@ -99,15 +99,14 @@ export const Settings: React.FC = () => {
       if (cancelled) return;
       attempts++;
       if (attempts > 20) { setWgRestarting(false); return; } // give up after ~40s
-      api.serverConfig.get().then((r) => {
+      healthz().then((alive) => {
         if (cancelled) return;
-        if (r.ok) {
-          setWgConfig(r.data);
-          setWgRestarting(false);
+        if (alive) {
+          window.location.reload();
         } else {
           setTimeout(poll, 2000);
         }
-      }).catch(() => { if (!cancelled) setTimeout(poll, 2000); });
+      });
     };
     const t = setTimeout(poll, 2000); // wait 2s before first attempt
     return () => { cancelled = true; clearTimeout(t); };
