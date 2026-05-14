@@ -1,28 +1,19 @@
 .arr-page { display: flex; flex-direction: column; gap: 16px; }
 
-/* ── Header ─────────────────────────────────────────────────── */
+/* ── Topbar ──────────────────────────────────────────────────── */
 
-.arr-page__header {
+.arr-page__topbar {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 10px;
-}
-
-.arr-page__icon { color: var(--clr-text-muted); display: flex; flex-shrink: 0; }
-
-.arr-page__title {
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--clr-text);
 }
 
 .arr-page__count {
   font-size: 12px;
   color: var(--clr-text-dim);
-  margin-left: auto;
 }
 
-.arr-refresh { margin-left: 8px; }
 .arr-refresh.spinning svg { animation: spin 600ms linear infinite; }
 
 

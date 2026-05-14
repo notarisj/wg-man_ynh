@@ -1,6 +1,5 @@
-import React, { useEffect, useState, useCallback, type ReactNode } from 'react';
-import { RefreshCw, Trash2, RotateCcw, ChevronLeft, AlertCircle, Search, X, ArrowDown, ArrowUp } from 'lucide-react';
-import { NavLink } from 'react-router-dom';
+import React, { useEffect, useState, useCallback } from 'react';
+import { RefreshCw, Trash2, RotateCcw, AlertCircle, Search, X, ArrowDown, ArrowUp } from 'lucide-react';
 import { GlassCard } from '../components/ui/GlassCard';
 import { type ArrQueueItem, type ArrQueue, type ArrRelease, type ApiResult } from '../lib/api';
 import { showToast } from '../lib/toast';
@@ -48,7 +47,6 @@ function statusCls(item: ArrQueueItem): string {
 
 interface Props {
   plugin: 'radarr' | 'sonarr';
-  icon: ReactNode;
   label: string;
   fetchQueue:     () => Promise<ApiResult<ArrQueue>>;
   removeItem:     (id: number, removeFromClient: boolean, blocklist: boolean) => Promise<ApiResult<{ ok: boolean }>>;
@@ -58,7 +56,7 @@ interface Props {
 }
 
 export const ArrPlugin: React.FC<Props> = ({
-  plugin, icon, label,
+  plugin, label,
   fetchQueue, removeItem, rejectItem, searchReleases, grabRelease,
 }) => {
   const [queue, setQueue]       = useState<ArrQueueItem[]>([]);
@@ -168,12 +166,7 @@ export const ArrPlugin: React.FC<Props> = ({
 
   return (
     <div className="arr-page animate-fade-in">
-      <div className="arr-page__header">
-        <NavLink to="/plugins" className="plugin-back-btn" title="Back to Plugins">
-          <ChevronLeft size={18} />
-        </NavLink>
-        <span className="arr-page__icon">{icon}</span>
-        <div className="arr-page__title">{label}</div>
+      <div className="arr-page__topbar">
         <span className="arr-page__count">
           {loading ? '…' : `${total} item${total !== 1 ? 's' : ''} in queue`}
         </span>

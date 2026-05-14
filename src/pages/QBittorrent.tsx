@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Wifi, RefreshCw, Pause, Play, Trash2, ArrowDown, ArrowUp, ChevronLeft } from 'lucide-react';
-import { NavLink } from 'react-router-dom';
+import { RefreshCw, Pause, Play, Trash2, ArrowDown, ArrowUp } from 'lucide-react';
 import { GlassCard } from '../components/ui/GlassCard';
 import { api, type QbitTorrent } from '../lib/api';
 import { showToast } from '../lib/toast';
@@ -130,12 +129,7 @@ export const QBittorrent: React.FC = () => {
 
   return (
     <div className="qbit-page animate-fade-in">
-      <div className="qbit-page__header">
-        <NavLink to="/plugins" className="plugin-back-btn" title="Back to Plugins">
-          <ChevronLeft size={18} />
-        </NavLink>
-        <Wifi size={20} className="qbit-page__icon" />
-        <div className="qbit-page__title">qBittorrent</div>
+      <div className="qbit-page__topbar">
         <div className="qbit-speeds">
           <span className="qbit-speed qbit-speed--dl"><ArrowDown size={13} />{fmtSpeed(dlSpeed)}</span>
           <span className="qbit-speed qbit-speed--up"><ArrowUp size={13} />{fmtSpeed(upSpeed)}</span>

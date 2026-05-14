@@ -1,43 +1,18 @@
 .qbit-page { display: flex; flex-direction: column; gap: 16px; }
 
-/* ── Header ─────────────────────────────────────────────────── */
+/* ── Topbar ──────────────────────────────────────────────────── */
 
-.qbit-page__header {
+.qbit-page__topbar {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 10px;
-}
-
-.plugin-back-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 30px;
-  height: 30px;
-  border-radius: var(--r-sm);
-  color: var(--clr-text-muted);
-  text-decoration: none;
-  flex-shrink: 0;
-  transition: background var(--dur-fast), color var(--dur-fast);
-}
-.plugin-back-btn:hover {
-  background: var(--clr-surface-md);
-  color: var(--clr-text);
-}
-
-.qbit-page__icon { color: var(--clr-text-muted); flex-shrink: 0; }
-
-.qbit-page__title {
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--clr-text);
 }
 
 .qbit-speeds {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-left: auto;
 }
 
 .qbit-speed {
