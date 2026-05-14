@@ -34,6 +34,12 @@ if [ -n "$dex_domain" ] && [ -f "/var/www/dex/config.yaml.d/${app}.yaml" ]; then
 fi
 
 #=================================================
+# REMOVE NODE.JS
+#=================================================
+ynh_script_progression "Removing Node.js..."
+ynh_nodejs_remove
+
+#=================================================
 # REMOVE APP FILES
 #=================================================
 ynh_script_progression "Removing application files..."

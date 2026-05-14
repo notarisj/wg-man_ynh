@@ -46,6 +46,12 @@ if [ -n "$dex_domain" ]; then
 fi
 
 #=================================================
+# INSTALL / UPDATE NODE.JS
+#=================================================
+ynh_script_progression "Updating Node.js $nodejs_version..."
+ynh_nodejs_install --nodejs_version="$nodejs_version"
+
+#=================================================
 # UPDATE APPLICATION SOURCE
 #=================================================
 ynh_script_progression "Updating application source..."

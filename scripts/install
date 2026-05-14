@@ -30,6 +30,12 @@ if [ -n "$dex_domain" ]; then
 fi
 
 #=================================================
+# INSTALL NODE.JS
+#=================================================
+ynh_script_progression "Installing Node.js $nodejs_version..."
+ynh_nodejs_install --nodejs_version="$nodejs_version"
+
+#=================================================
 # COPY APPLICATION SOURCE
 #=================================================
 ynh_script_progression "Copying application source..."
