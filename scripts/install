@@ -30,17 +30,6 @@ if [ -n "$dex_domain" ]; then
 fi
 
 #=================================================
-# INSTALL NODE.JS
-#=================================================
-ynh_script_progression "Installing Node.js $nodejs_version..."
-ynh_install_nodejs --nodejs_version="$nodejs_version"
-ynh_use_nodejs
-# Save the resolved node binary path so conf/systemd.service can reference it via __NODE__
-ynh_app_setting_set --key=node --value="$ynh_node"
-# Also expose as a bash variable so ynh_replace_vars can substitute __NODE__ in conf templates
-node="$ynh_node"
-
-#=================================================
 # COPY APPLICATION SOURCE
 #=================================================
 ynh_script_progression "Copying application source..."
@@ -63,10 +52,10 @@ rsync -a \
 ynh_script_progression "Building frontend (vite)..."
 pushd "$install_dir"
 # VITE_APP_PATH sets the Vite `base` option so assets and routes use the correct sub-path
-VITE_APP_PATH="$path/" $ynh_npm install --legacy-peer-deps 2>&1
-VITE_APP_PATH="$path/" $ynh_npm run build 2>&1
+VITE_APP_PATH="$path/" $npm install --legacy-peer-deps 2>&1
+VITE_APP_PATH="$path/" $npm run build 2>&1
 # PKG-03: remove dev dependencies after build — the compiled output is in dist/
-$ynh_npm prune --omit=dev --legacy-peer-deps 2>&1
+$npm prune --omit=dev --legacy-peer-deps 2>&1
 popd
 
 #=================================================
@@ -74,10 +63,10 @@ popd
 #=================================================
 ynh_script_progression "Building backend (TypeScript)..."
 pushd "$install_dir/server"
-$ynh_npm install --legacy-peer-deps 2>&1
-$ynh_npm run build 2>&1
+$npm install --legacy-peer-deps 2>&1
+$npm run build 2>&1
 # PKG-03: remove dev dependencies after build (typescript, @types/*, etc.)
-$ynh_npm prune --omit=dev --legacy-peer-deps 2>&1
+$npm prune --omit=dev --legacy-peer-deps 2>&1
 popd
 
 #=================================================
