@@ -4,7 +4,7 @@ import {
   UserCircle, ExternalLink, Shield,
   Clock, Server, Tag, GitBranch,
   KeyRound, Lock, Terminal, Copy, Check, AlertCircle, Trash2,
-  FileCode, ChevronRight, X,
+  FileCode, ChevronRight, X, Pencil, RotateCw,
 } from 'lucide-react';
 import { useVpnStore } from '../store/vpnStore';
 import { GlassCard } from '../components/ui/GlassCard';
@@ -17,7 +17,7 @@ import type { PasskeyStatus } from '../lib/api';
 import './Settings.css';
 
 export const Settings: React.FC = () => {
-  const { user, fetchMe, status } = useVpnStore();
+  const { user, fetchMe } = useVpnStore();
 
   // ── Modal visibility ──────────────────────────────────────
   const [showPasskeyModal, setShowPasskeyModal] = useState(false);
@@ -44,6 +44,15 @@ export const Settings: React.FC = () => {
   const [domainError, setDomainError]       = useState<string | null>(null);
   const [isSavingDomain, setIsSavingDomain] = useState(false);
 
+  // ── WG server config ──────────────────────────────────────
+  type WgConfig = { configDir: string; configPattern: string; staticInterface: string; checkIp: string; maxHandshakeAge: number; stateFile: string; logFile: string; monitorScript: string };
+  const [wgConfig, setWgConfig]           = useState<WgConfig | null>(null);
+  const [wgEditing, setWgEditing]         = useState(false);
+  const [wgDraft, setWgDraft]             = useState<Partial<WgConfig>>({});
+  const [wgSaving, setWgSaving]           = useState(false);
+  const [wgError, setWgError]             = useState<string | null>(null);
+  const [wgRestarting, setWgRestarting]   = useState(false);
+
   const refreshPasskey = useCallback(() => {
     api.passkey.status().then((res) => { if (res.ok) setPasskeyStatus(res.data); });
   }, []);
@@ -51,7 +60,35 @@ export const Settings: React.FC = () => {
   useEffect(() => {
     fetchMe();
     refreshPasskey();
+    api.serverConfig.get().then((res) => { if (res.ok) setWgConfig(res.data); });
   }, []);
+
+  const startWgEdit = useCallback(() => {
+    if (!wgConfig) return;
+    setWgDraft({
+      configDir:       wgConfig.configDir,
+      configPattern:   wgConfig.configPattern,
+      staticInterface: wgConfig.staticInterface,
+      checkIp:         wgConfig.checkIp,
+      maxHandshakeAge: wgConfig.maxHandshakeAge,
+    });
+    setWgError(null);
+    setWgEditing(true);
+  }, [wgConfig]);
+
+  const saveWgConfig = useCallback(async () => {
+    setWgSaving(true);
+    setWgError(null);
+    const res = await api.serverConfig.update(wgDraft);
+    setWgSaving(false);
+    if (!res.ok) { setWgError(res.error); return; }
+    setWgEditing(false);
+    if (res.data.restarting) {
+      setWgRestarting(true);
+    } else {
+      api.serverConfig.get().then((r) => { if (r.ok) setWgConfig(r.data); });
+    }
+  }, [wgDraft]);
 
 const onPasskeySuccess = useCallback(() => {
     const action = showPasskeyFor;
@@ -159,29 +196,86 @@ const onPasskeySuccess = useCallback(() => {
 
       {/* VPN Config */}
       <GlassCard className="settings-card">
-        <div className="settings-card__title">
-          <Shield size={16} /> WireGuard Configuration
+        <div className="settings-card__title" style={{ justifyContent: 'space-between' }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Shield size={16} /> WireGuard Configuration</span>
+          {!wgEditing && !wgRestarting && wgConfig && (
+            <button className="btn btn-ghost btn-sm" onClick={startWgEdit} style={{ padding: '2px 8px' }}>
+              <Pencil size={13} /> Edit
+            </button>
+          )}
         </div>
-        <div className="settings-row">
-          <span className="settings-label">Interface</span>
-          <span className="settings-value mono">{status?.interface ?? 'wg-vpn'}</span>
-        </div>
-        <div className="settings-row">
-          <span className="settings-label">Config Directory</span>
-          <span className="settings-value mono">/etc/wireguard/</span>
-        </div>
-        <div className="settings-row">
-          <span className="settings-label">Config Pattern</span>
-          <span className="settings-value mono">nl-ams-wg-*.conf</span>
-        </div>
-        <div className="settings-row">
-          <span className="settings-label">State File</span>
-          <span className="settings-value mono">/var/lib/vpn-monitor.current</span>
-        </div>
-        <div className="settings-row">
-          <span className="settings-label">Log File</span>
-          <span className="settings-value mono">/var/log/vpn-monitor.log</span>
-        </div>
+
+        {wgRestarting ? (
+          <div className="settings-passkey-loading">
+            <RotateCw size={14} className="spinning" /> Applying changes and restarting service…
+          </div>
+        ) : wgEditing ? (
+          <>
+            {(['configDir', 'configPattern', 'staticInterface', 'checkIp'] as const).map((key) => {
+              const labels: Record<string, string> = {
+                configDir: 'Config Directory', configPattern: 'Config Pattern',
+                staticInterface: 'Static Interface', checkIp: 'Ping Check IP',
+              };
+              return (
+                <div key={key} className="settings-row" style={{ alignItems: 'center' }}>
+                  <span className="settings-label">{labels[key]}</span>
+                  <input
+                    className="scripts-modal__name-input"
+                    value={String(wgDraft[key] ?? '')}
+                    onChange={(e) => setWgDraft((d) => ({ ...d, [key]: e.target.value }))}
+                    spellCheck={false}
+                  />
+                </div>
+              );
+            })}
+            <div className="settings-row" style={{ alignItems: 'center' }}>
+              <span className="settings-label">Handshake Age (s)</span>
+              <input
+                className="scripts-modal__name-input"
+                type="number" min={30} max={600}
+                value={wgDraft.maxHandshakeAge ?? 150}
+                onChange={(e) => setWgDraft((d) => ({ ...d, maxHandshakeAge: parseInt(e.target.value, 10) }))}
+              />
+            </div>
+            {wgError && (
+              <div className="scripts-modal__error" style={{ marginTop: 4 }}>
+                <AlertCircle size={13} /> {wgError}
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+              <button className="btn btn-primary btn-sm" onClick={saveWgConfig} disabled={wgSaving}>
+                {wgSaving ? <span className="spinner spinner-sm" /> : <Check size={13} />}
+                {wgSaving ? 'Saving…' : 'Save & Restart'}
+              </button>
+              <button className="btn btn-ghost btn-sm" onClick={() => { setWgEditing(false); setWgError(null); }} disabled={wgSaving}>
+                <X size={13} /> Cancel
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="settings-row">
+              <span className="settings-label">Interface</span>
+              <span className="settings-value mono">{wgConfig?.staticInterface ?? '—'}</span>
+            </div>
+            <div className="settings-row">
+              <span className="settings-label">Config Directory</span>
+              <span className="settings-value mono">{wgConfig?.configDir ?? '—'}</span>
+            </div>
+            <div className="settings-row">
+              <span className="settings-label">Config Pattern</span>
+              <span className="settings-value mono">{wgConfig?.configPattern ?? '—'}</span>
+            </div>
+            <div className="settings-row">
+              <span className="settings-label">State File</span>
+              <span className="settings-value mono">{wgConfig?.stateFile ?? '—'}</span>
+            </div>
+            <div className="settings-row">
+              <span className="settings-label">Log File</span>
+              <span className="settings-value mono">{wgConfig?.logFile ?? '—'}</span>
+            </div>
+          </>
+        )}
       </GlassCard>
 
       {/* Monitor Script — compact tile */}

@@ -162,6 +162,17 @@ export const api = {
     run:      (id: string)                   => apiFetch<{ output: string; exitCode: number }>(`/scripts/${encodeURIComponent(id)}/run`, { method: 'POST' }),
     readLog:  (id: string)                   => apiFetch<{ content: string; logFile: string }>(`/scripts/${encodeURIComponent(id)}/log`),
   },
+  serverConfig: {
+    get: () => apiFetch<{
+      configDir: string; configPattern: string; staticInterface: string;
+      checkIp: string; maxHandshakeAge: number; stateFile: string;
+      logFile: string; monitorScript: string;
+    }>('/server-config'),
+    update: (opts: {
+      configDir?: string; configPattern?: string; staticInterface?: string;
+      checkIp?: string; maxHandshakeAge?: number;
+    }) => apiFetch<{ ok: boolean; restarting: boolean }>('/server-config', { method: 'PUT', body: JSON.stringify(opts) }),
+  },
   configContent: (name: string) => apiFetch<{ content: string }>(`/configs/${encodeURIComponent(name)}/content`),
   createConfig:  (name: string, content: string) => apiFetch<{ ok: boolean; message: string }>('/configs', { method: 'POST', body: JSON.stringify({ name, content }) }),
   updateConfig:  (name: string, content: string) => apiFetch<{ ok: boolean; message: string }>(`/configs/${encodeURIComponent(name)}`, { method: 'PUT', body: JSON.stringify({ content }) }),
