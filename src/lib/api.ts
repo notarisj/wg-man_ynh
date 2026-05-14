@@ -63,6 +63,44 @@ export type CronStatus = {
   logFile:    string;
 };
 
+export type QbitTorrent = {
+  hash: string; name: string; size: number; progress: number;
+  dlspeed: number; upspeed: number; num_seeds: number; num_leechs: number;
+  eta: number; state: string; category: string; tags: string;
+  added_on: number; downloaded: number; uploaded: number; ratio: number;
+};
+
+export type ArrQueueItem = {
+  id: number;
+  // Radarr
+  movieId?: number;
+  movie?: { title: string; year: number };
+  // Sonarr
+  seriesId?: number;
+  episodeId?: number;
+  series?: { title: string };
+  episode?: { title: string; seasonNumber: number; episodeNumber: number };
+  // Common
+  quality: { quality: { name: string } };
+  size: number;
+  sizeleft: number;
+  title: string;
+  status: string;
+  trackedDownloadStatus: string;
+  trackedDownloadState: string;
+  statusMessages: { title: string; messages: string[] }[];
+  timeleft: string;
+  estimatedCompletionTime: string | null;
+  protocol: string;
+  downloadClient: string;
+  indexer: string;
+};
+
+export type ArrQueue = {
+  page: number; pageSize: number; totalRecords: number;
+  records: ArrQueueItem[];
+};
+
 export type UserScript = {
   id:        string;
   name:      string;
@@ -166,6 +204,36 @@ export const api = {
     disableCron: (id: string)               => apiFetch<{ ok: boolean }>(`/scripts/${encodeURIComponent(id)}/cron`, { method: 'DELETE' }),
     run:      (id: string)                   => apiFetch<{ output: string; exitCode: number }>(`/scripts/${encodeURIComponent(id)}/run`, { method: 'POST' }),
     readLog:  (id: string)                   => apiFetch<{ content: string; logFile: string }>(`/scripts/${encodeURIComponent(id)}/log`),
+  },
+  plugins: {
+    config: () => apiFetch<Record<string, {
+      enabled: boolean; host: string; port: number; https: boolean;
+      hasPassword?: boolean; hasApiKey?: boolean; hasUsername?: boolean; username?: string;
+    }>>('/plugins/config'),
+    save: (id: string, cfg: {
+      enabled?: boolean; host?: string; port?: number; https?: boolean;
+      username?: string; password?: string; apiKey?: string;
+    }) => apiFetch<{ ok: boolean }>(`/plugins/config/${id}`, { method: 'PUT', body: JSON.stringify(cfg) }),
+  },
+  qbit: {
+    transfer:  ()                            => apiFetch<Record<string, unknown>>('/plugins/qbittorrent/transfer'),
+    torrents:  ()                            => apiFetch<QbitTorrent[]>('/plugins/qbittorrent/torrents'),
+    pause:     (hashes: string[])            => apiFetch<{ ok: boolean }>('/plugins/qbittorrent/torrents/pause',  { method: 'POST', body: JSON.stringify({ hashes }) }),
+    resume:    (hashes: string[])            => apiFetch<{ ok: boolean }>('/plugins/qbittorrent/torrents/resume', { method: 'POST', body: JSON.stringify({ hashes }) }),
+    delete:    (hashes: string[], deleteFiles: boolean) => apiFetch<{ ok: boolean }>('/plugins/qbittorrent/torrents', { method: 'DELETE', body: JSON.stringify({ hashes, deleteFiles }) }),
+  },
+  radarr: {
+    queue:   ()                                      => apiFetch<ArrQueue>('/plugins/radarr/queue'),
+    remove:  (id: number, removeFromClient: boolean, blocklist: boolean) =>
+      apiFetch<{ ok: boolean }>(`/plugins/radarr/queue/${id}?removeFromClient=${removeFromClient}&blocklist=${blocklist}`, { method: 'DELETE' }),
+    reject:  (id: number, movieId: number)           => apiFetch<{ ok: boolean; searched: boolean }>(`/plugins/radarr/queue/${id}/reject`, { method: 'POST', body: JSON.stringify({ movieId }) }),
+  },
+  sonarr: {
+    queue:   ()                                      => apiFetch<ArrQueue>('/plugins/sonarr/queue'),
+    remove:  (id: number, removeFromClient: boolean, blocklist: boolean) =>
+      apiFetch<{ ok: boolean }>(`/plugins/sonarr/queue/${id}?removeFromClient=${removeFromClient}&blocklist=${blocklist}`, { method: 'DELETE' }),
+    reject:  (id: number, opts: { episodeId?: number; seriesId?: number; seasonNumber?: number }) =>
+      apiFetch<{ ok: boolean; searched: boolean }>(`/plugins/sonarr/queue/${id}/reject`, { method: 'POST', body: JSON.stringify(opts) }),
   },
   serverConfig: {
     get: () => apiFetch<{

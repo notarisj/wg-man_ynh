@@ -8,6 +8,10 @@ import { Logs } from './pages/Logs';
 import { Settings } from './pages/Settings';
 import { History } from './pages/History';
 import { Scripts } from './pages/Scripts';
+import { Plugins } from './pages/Plugins';
+import { QBittorrent } from './pages/QBittorrent';
+import { Radarr } from './pages/Radarr';
+import { Sonarr } from './pages/Sonarr';
 import './index.css';
 
 // Remove App.css - we use the design system from index.css
@@ -26,6 +30,10 @@ export default function App() {
               <Route path="/scripts" element={<Scripts />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/history"  element={<History />} />
+              <Route path="/plugins"              element={<Plugins />} />
+              <Route path="/plugins/qbittorrent"  element={<QBittorrent />} />
+              <Route path="/plugins/radarr"       element={<Radarr />} />
+              <Route path="/plugins/sonarr"       element={<Sonarr />} />
               {/* Fallback */}
               <Route path="*"        element={<Dashboard />} />
             </Routes>

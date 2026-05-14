@@ -163,6 +163,12 @@
   text-overflow: ellipsis;
 }
 
+.sidebar__nav-item--sub {
+  padding-left: 28px;
+  font-size: 13px;
+  color: var(--clr-text-dim);
+}
+
 /* Footer */
 .sidebar__footer {
   display: flex;

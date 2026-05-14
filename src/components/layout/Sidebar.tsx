@@ -12,8 +12,13 @@ import {
   PanelLeftOpen,
   History,
   Terminal,
+  Puzzle,
+  Wifi,
+  Film,
+  Tv,
 } from 'lucide-react';
 import { useVpnStore } from '../../store/vpnStore';
+import { usePluginStore } from '../../store/pluginStore';
 import './Sidebar.css';
 
 interface NavItem {
@@ -41,7 +46,12 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({
   collapsed, mobileOpen, onToggleCollapse, onMobileClose,
 }) => {
-  const status = useVpnStore((s) => s.status);
+  const status  = useVpnStore((s) => s.status);
+  const plugins = usePluginStore((s) => s.plugins);
+
+  useEffect(() => {
+    usePluginStore.getState().fetchPlugins();
+  }, []);
   const location = useLocation();
   const sidebarRef = useRef<HTMLElement>(null);
 
@@ -114,6 +124,62 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </NavLink>
           );
         })}
+
+        {/* Plugins section */}
+        <NavLink
+          to="/plugins"
+          className={({ isActive }) =>
+            `sidebar__nav-item${isActive && location.pathname === '/plugins' ? ' sidebar__nav-item--active' : ''}`
+          }
+          aria-label="Plugins"
+          title="Plugins"
+          onClick={onMobileClose}
+        >
+          <span className="sidebar__nav-icon"><Puzzle size={20} /></span>
+          <span className="sidebar__nav-label">Plugins</span>
+        </NavLink>
+        {plugins?.qbittorrent?.enabled && (
+          <NavLink
+            to="/plugins/qbittorrent"
+            className={({ isActive }) =>
+              `sidebar__nav-item sidebar__nav-item--sub${isActive ? ' sidebar__nav-item--active' : ''}`
+            }
+            aria-label="qBittorrent"
+            title="qBittorrent"
+            onClick={onMobileClose}
+          >
+            <span className="sidebar__nav-icon"><Wifi size={17} /></span>
+            <span className="sidebar__nav-label">qBittorrent</span>
+          </NavLink>
+        )}
+        {plugins?.radarr?.enabled && (
+          <NavLink
+            to="/plugins/radarr"
+            className={({ isActive }) =>
+              `sidebar__nav-item sidebar__nav-item--sub${isActive ? ' sidebar__nav-item--active' : ''}`
+            }
+            aria-label="Radarr"
+            title="Radarr"
+            onClick={onMobileClose}
+          >
+            <span className="sidebar__nav-icon"><Film size={17} /></span>
+            <span className="sidebar__nav-label">Radarr</span>
+          </NavLink>
+        )}
+        {plugins?.sonarr?.enabled && (
+          <NavLink
+            to="/plugins/sonarr"
+            className={({ isActive }) =>
+              `sidebar__nav-item sidebar__nav-item--sub${isActive ? ' sidebar__nav-item--active' : ''}`
+            }
+            aria-label="Sonarr"
+            title="Sonarr"
+            onClick={onMobileClose}
+          >
+            <span className="sidebar__nav-icon"><Tv size={17} /></span>
+            <span className="sidebar__nav-label">Sonarr</span>
+          </NavLink>
+        )}
 
         {/* Desktop-only collapse toggle */}
         <button
