@@ -50,6 +50,7 @@ fi
 #=================================================
 ynh_script_progression "Updating Node.js $nodejs_version..."
 ynh_nodejs_install --nodejs_version="$nodejs_version"
+node=$(which node)
 
 #=================================================
 # UPDATE APPLICATION SOURCE
@@ -72,10 +73,10 @@ rsync -a \
 #=================================================
 ynh_script_progression "Rebuilding frontend..."
 pushd "$install_dir"
-VITE_APP_PATH="$path/" $npm install --legacy-peer-deps 2>&1
-VITE_APP_PATH="$path/" $npm run build 2>&1
+VITE_APP_PATH="$path/" npm install --legacy-peer-deps 2>&1
+VITE_APP_PATH="$path/" npm run build 2>&1
 # PKG-03: remove dev dependencies after build
-$npm prune --omit=dev --legacy-peer-deps 2>&1
+npm prune --omit=dev --legacy-peer-deps 2>&1
 popd
 
 #=================================================
@@ -83,10 +84,10 @@ popd
 #=================================================
 ynh_script_progression "Rebuilding backend..."
 pushd "$install_dir/server"
-$npm install --legacy-peer-deps 2>&1
-$npm run build 2>&1
+npm install --legacy-peer-deps 2>&1
+npm run build 2>&1
 # PKG-03: remove dev dependencies after build (typescript, @types/*, etc.)
-$npm prune --omit=dev --legacy-peer-deps 2>&1
+npm prune --omit=dev --legacy-peer-deps 2>&1
 popd
 
 #=================================================
