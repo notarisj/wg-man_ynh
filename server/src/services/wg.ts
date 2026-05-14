@@ -349,7 +349,8 @@ export async function listConfigs(): Promise<WgConfig[]> {
   let files: string[];
   try {
     files = await readdir(CONFIG_DIR);
-  } catch {
+  } catch (err: any) {
+    console.error(`[wg] listConfigs: readdir(${CONFIG_DIR}) failed — ${err.code ?? err.message}`);
     return [];
   }
 
@@ -370,6 +371,13 @@ export async function listConfigs(): Promise<WgConfig[]> {
   const configs = files.filter(
     (f) => f.startsWith(prefix) && f.endsWith(suffix || '.conf') && f !== `${STATIC_IFACE}.conf`,
   );
+
+  if (configs.length === 0 && files.length > 0) {
+    console.warn(
+      `[wg] listConfigs: pattern "${CONFIG_PATTERN}" matched 0 of ${files.length} files in ${CONFIG_DIR} ` +
+      `(static iface excluded: ${STATIC_IFACE}.conf). Files: ${files.slice(0, 10).join(', ')}`,
+    );
+  }
 
   const results: WgConfig[] = [];
   for (const filename of configs.sort()) {
