@@ -60,7 +60,7 @@ export const ConfigEditor: React.FC<ConfigEditorProps> = ({
   };
 
   return (
-    <div className="ceditor-overlay" onClick={(e) => e.target === e.currentTarget && onCancel()}>
+    <div className="ceditor-overlay" onMouseDown={(e) => { (e.currentTarget as any).__md = e.target === e.currentTarget; }} onClick={(e) => { if (e.target === e.currentTarget && (e.currentTarget as any).__md) onCancel(); }}>
       <div className="ceditor-modal animate-slide-up">
         <div className="ceditor-header">
           <div className="ceditor-title">

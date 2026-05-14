@@ -450,7 +450,7 @@ const RunOutputModal: React.FC<RunOutputProps> = ({ output, exitCode, scriptName
   }, [output]);
 
   return ReactDOM.createPortal(
-    <div className="scripts-modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
+    <div className="scripts-modal-overlay" onMouseDown={(e) => { (e.currentTarget as any).__md = e.target === e.currentTarget; }} onClick={(e) => { if (e.target === e.currentTarget && (e.currentTarget as any).__md) onClose(); }}>
       <div className="scripts-modal animate-slide-up">
         <div className="scripts-modal__header">
           <span className="scripts-modal__title"><Play size={15} /> Run: {scriptName}</span>
@@ -490,7 +490,7 @@ const LogModal: React.FC<LogModalProps> = ({ content, logFile, scriptName, onClo
   }, [content]);
 
   return ReactDOM.createPortal(
-    <div className="scripts-modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
+    <div className="scripts-modal-overlay" onMouseDown={(e) => { (e.currentTarget as any).__md = e.target === e.currentTarget; }} onClick={(e) => { if (e.target === e.currentTarget && (e.currentTarget as any).__md) onClose(); }}>
       <div className="scripts-modal animate-slide-up">
         <div className="scripts-modal__header">
           <span className="scripts-modal__title"><FileText size={15} /> {scriptName}: log</span>
@@ -780,7 +780,8 @@ export const Scripts: React.FC = () => {
       {confirmDelete && (
         <div
           className="scripts-page__confirm-overlay"
-          onClick={(e) => e.target === e.currentTarget && setConfirmDelete(null)}
+          onMouseDown={(e) => { (e.currentTarget as any).__md = e.target === e.currentTarget; }}
+          onClick={(e) => { if (e.target === e.currentTarget && (e.currentTarget as any).__md) setConfirmDelete(null); }}
         >
           <div className="scripts-page__confirm animate-slide-up">
             <div className="scripts-page__confirm-title">Delete Script</div>

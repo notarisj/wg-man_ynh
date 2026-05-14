@@ -318,7 +318,7 @@ export const Configs: React.FC = () => {
 
       {/* Delete confirmation */}
       {confirmDelete && (
-        <div className="configs-page__confirm-overlay" onClick={(e) => e.target === e.currentTarget && setConfirmDelete(null)}>
+        <div className="configs-page__confirm-overlay" onMouseDown={(e) => { (e.currentTarget as any).__md = e.target === e.currentTarget; }} onClick={(e) => { if (e.target === e.currentTarget && (e.currentTarget as any).__md) setConfirmDelete(null); }}>
           <div className="configs-page__confirm animate-slide-up">
             <div className="configs-page__confirm-title">Delete Config</div>
             <p className="configs-page__confirm-desc">

@@ -227,7 +227,7 @@ export const QBittorrent: React.FC = () => {
       )}
 
       {delConfirm && (
-        <div className="qbit-confirm-overlay" onClick={(e) => { if (e.target === e.currentTarget) setDelConfirm(false); }}>
+        <div className="qbit-confirm-overlay" onMouseDown={(e) => { (e.currentTarget as any).__md = e.target === e.currentTarget; }} onClick={(e) => { if (e.target === e.currentTarget && (e.currentTarget as any).__md) setDelConfirm(false); }}>
           <div className="qbit-confirm">
             <div className="qbit-confirm__title">Delete {hashes.length} torrent(s)?</div>
             <label className="qbit-confirm__check">

@@ -136,7 +136,7 @@ export const Plugins: React.FC = () => {
 
       {/* Config modal — portal to document.body so it covers the full viewport */}
       {editing && draft && ReactDOM.createPortal(
-        <div className="plugins-modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) closeEdit(); }}>
+        <div className="plugins-modal-overlay" onMouseDown={(e) => { (e.currentTarget as any).__md = e.target === e.currentTarget; }} onClick={(e) => { if (e.target === e.currentTarget && (e.currentTarget as any).__md) closeEdit(); }}>
           <div className="plugins-modal">
             <div className="plugins-modal__header">
               <span className="plugins-modal__title">

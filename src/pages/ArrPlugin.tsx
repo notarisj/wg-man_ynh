@@ -276,7 +276,7 @@ export const ArrPlugin: React.FC<Props> = ({
 
       {/* Remove / Reject confirm overlay */}
       {confirmId !== null && confirmItem && (
-        <div className="arr-confirm-overlay" onClick={(e) => { if (e.target === e.currentTarget) setConfirmId(null); }}>
+        <div className="arr-confirm-overlay" onMouseDown={(e) => { (e.currentTarget as any).__md = e.target === e.currentTarget; }} onClick={(e) => { if (e.target === e.currentTarget && (e.currentTarget as any).__md) setConfirmId(null); }}>
           <div className="arr-confirm">
             {confirmMode === 'remove' ? (
               <>
@@ -329,7 +329,7 @@ export const ArrPlugin: React.FC<Props> = ({
 
       {/* Interactive search modal */}
       {searchItem && (
-        <div className="arr-search-overlay" onClick={(e) => { if (e.target === e.currentTarget) closeSearch(); }}>
+        <div className="arr-search-overlay" onMouseDown={(e) => { (e.currentTarget as any).__md = e.target === e.currentTarget; }} onClick={(e) => { if (e.target === e.currentTarget && (e.currentTarget as any).__md) closeSearch(); }}>
           <div className="arr-search-modal">
             <div className="arr-search-modal__header">
               <div className="arr-search-modal__title">
