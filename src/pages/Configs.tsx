@@ -70,7 +70,6 @@ export const Configs: React.FC = () => {
   // ── CRUD handlers ────────────────────────────────────────────
 
   const handleSwitch = async (name: string) => {
-    setSwitchError(null);
     const ok = await switchConfig(name);
     if (ok) {
       showToast(`Switched to ${name}`);
