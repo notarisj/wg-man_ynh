@@ -348,6 +348,20 @@
 
 .scripts-modal__cron-label { font-size: 13px; color: var(--clr-text-muted); }
 
+/* ── Log path chip ───────────────────────────────────────────── */
+
+.scripts-modal__log-path {
+  display: block;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--clr-text-dim);
+  background: var(--clr-surface-md);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--r-sm);
+  padding: 4px 10px;
+  margin-bottom: 10px;
+}
+
 /* ── Run status badge ────────────────────────────────────────── */
 
 .scripts-run-status {

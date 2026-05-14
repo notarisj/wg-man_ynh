@@ -9,6 +9,7 @@ import {
   deleteScript,
   validateScript,
   runScript,
+  readScriptLog,
   isValidId,
 } from '../services/userScripts';
 import {
@@ -182,6 +183,19 @@ router.delete('/:id/cron', mutationLimiter, requireAdmin, async (req, res) => {
     res.json({ ok: true });
   } catch (err: any) {
     res.status(500).json({ error: 'Failed to disable cron' });
+  }
+});
+
+/** GET /api/scripts/:id/log — read the tail of the script's configured log file */
+router.get('/:id/log', requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  if (!isValidId(id)) { res.status(400).json({ error: 'Invalid script id' }); return; }
+  try {
+    const result = await readScriptLog(id);
+    res.json(result);
+  } catch (err: any) {
+    if (err.code === 'ENOENT') { res.status(404).json({ error: err.message }); return; }
+    res.status(500).json({ error: 'Failed to read log' });
   }
 });
 

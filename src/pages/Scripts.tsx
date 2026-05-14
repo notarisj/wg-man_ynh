@@ -445,8 +445,14 @@ interface RunOutputProps {
   onClose: () => void;
 }
 
-const RunOutputModal: React.FC<RunOutputProps> = ({ output, exitCode, scriptName, onClose }) => (
-  ReactDOM.createPortal(
+const RunOutputModal: React.FC<RunOutputProps> = ({ output, exitCode, scriptName, onClose }) => {
+  const preRef = useRef<HTMLPreElement>(null);
+
+  useEffect(() => {
+    if (preRef.current) preRef.current.scrollTop = preRef.current.scrollHeight;
+  }, [output]);
+
+  return ReactDOM.createPortal(
     <div className="scripts-modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="scripts-modal animate-slide-up">
         <div className="scripts-modal__header">
@@ -460,13 +466,58 @@ const RunOutputModal: React.FC<RunOutputProps> = ({ output, exitCode, scriptName
           </div>
         </div>
         <div className="scripts-modal__body">
-          <pre className="scripts-run-output">{output || '(no output)'}</pre>
+          <pre ref={preRef} className="scripts-run-output">{output || '(no output)'}</pre>
         </div>
       </div>
     </div>,
     document.body,
-  )
-);
+  );
+};
+
+// ── Log Modal ─────────────────────────────────────────────────────────────────
+
+interface LogModalProps {
+  content: string;
+  logFile: string;
+  scriptName: string;
+  onClose: () => void;
+  onRefresh: () => void;
+  refreshing: boolean;
+}
+
+const LogModal: React.FC<LogModalProps> = ({ content, logFile, scriptName, onClose, onRefresh, refreshing }) => {
+  const preRef = useRef<HTMLPreElement>(null);
+
+  useEffect(() => {
+    if (preRef.current) preRef.current.scrollTop = preRef.current.scrollHeight;
+  }, [content]);
+
+  return ReactDOM.createPortal(
+    <div className="scripts-modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="scripts-modal animate-slide-up">
+        <div className="scripts-modal__header">
+          <span className="scripts-modal__title"><FileText size={15} /> {scriptName}: log</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button
+              className="btn btn-ghost btn-sm"
+              onClick={onRefresh}
+              disabled={refreshing}
+              title="Refresh log"
+            >
+              <RefreshCw size={13} className={refreshing ? 'spinning' : ''} />
+            </button>
+            <button className="scripts-modal__close" onClick={onClose}><X size={16} /></button>
+          </div>
+        </div>
+        <div className="scripts-modal__body">
+          <code className="scripts-modal__log-path">{logFile}</code>
+          <pre ref={preRef} className="scripts-run-output">{content || '(log file is empty)'}</pre>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+};
 
 // ── Main Scripts Page ─────────────────────────────────────────────────────────
 
@@ -501,6 +552,19 @@ export const Scripts: React.FC = () => {
   const [runScriptName, setRunScriptName] = useState('');
   const [isRunning, setIsRunning]     = useState<string | null>(null);
 
+  // Log viewer
+  const [logModal, setLogModal]       = useState<{ id: string; name: string; content: string; logFile: string } | null>(null);
+  const [logLoading, setLogLoading]   = useState<string | null>(null);
+  const [logRefreshing, setLogRefreshing] = useState(false);
+
+  const handleReadLog = useCallback(async (id: string, name: string, isRefresh = false) => {
+    if (isRefresh) setLogRefreshing(true); else setLogLoading(id);
+    const res = await api.scripts.readLog(id);
+    if (isRefresh) setLogRefreshing(false); else setLogLoading(null);
+    if (res.ok) setLogModal({ id, name, content: res.data.content, logFile: res.data.logFile });
+    else showToast(false, res.error);
+  }, []);
+
   const showToast = (ok: boolean, msg: string) => {
     setToast({ ok, msg });
     setTimeout(() => setToast(null), 3500);
@@ -519,8 +583,8 @@ export const Scripts: React.FC = () => {
 
   // Keep modal blur in sync
   useEffect(() => {
-    if (editorOpen || !!runResult || !!confirmDelete) { openModal(); return closeModal; }
-  }, [editorOpen, runResult, confirmDelete]);
+    if (editorOpen || !!runResult || !!confirmDelete || !!logModal) { openModal(); return closeModal; }
+  }, [editorOpen, runResult, confirmDelete, logModal]);
 
   const triggerPasskey = useCallback((action: PendingAction) => {
     setPendingAction(action);
@@ -654,6 +718,19 @@ export const Scripts: React.FC = () => {
                     : <Play size={13} />}
                   Run
                 </button>
+                {s.logFile && (
+                  <button
+                    className="btn btn-ghost btn-sm script-card__btn"
+                    title="View log"
+                    onClick={() => handleReadLog(s.id, s.name)}
+                    disabled={logLoading === s.id}
+                  >
+                    {logLoading === s.id
+                      ? <span className="spinner spinner-sm" />
+                      : <FileText size={13} />}
+                    Log
+                  </button>
+                )}
                 <button
                   className="btn btn-ghost btn-sm script-card__btn"
                   title="Edit script"
@@ -690,6 +767,18 @@ export const Scripts: React.FC = () => {
           editId={editingId}
           onSaved={handleEditorSaved}
           onCancel={() => { setEditorOpen(false); setEditingId(null); }}
+        />
+      )}
+
+      {/* Log viewer modal */}
+      {logModal !== null && (
+        <LogModal
+          content={logModal.content}
+          logFile={logModal.logFile}
+          scriptName={logModal.name}
+          onClose={() => setLogModal(null)}
+          onRefresh={() => handleReadLog(logModal.id, logModal.name, true)}
+          refreshing={logRefreshing}
         />
       )}
 

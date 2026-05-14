@@ -130,6 +130,23 @@ export async function deleteScript(id: string): Promise<void> {
   try { await unlink(scriptPath(id)); } catch { /* already gone */ }
 }
 
+export async function readScriptLog(id: string): Promise<{ content: string; logFile: string }> {
+  if (!isValidId(id)) throw Object.assign(new Error('Invalid script id'), { code: 'EINVAL' });
+  const store = await readStore();
+  const script = store.scripts.find((s) => s.id === id);
+  if (!script) throw Object.assign(new Error('Script not found'), { code: 'ENOENT' });
+  if (!script.logFile) throw Object.assign(new Error('No log file configured for this script'), { code: 'ENOENT' });
+  try {
+    const raw = await readFile(script.logFile, 'utf8');
+    return { content: raw.slice(-16384), logFile: script.logFile };
+  } catch (err: any) {
+    if (err.code === 'ENOENT') {
+      throw Object.assign(new Error(`Log file not found: ${script.logFile}`), { code: 'ENOENT' });
+    }
+    throw err;
+  }
+}
+
 export async function validateScript(content: string): Promise<{ ok: boolean; error?: string }> {
   const tmp = path.join(tmpdir(), `wg-man-validate-${Date.now()}.sh`);
   try {

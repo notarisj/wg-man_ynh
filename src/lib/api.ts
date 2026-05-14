@@ -159,6 +159,7 @@ export const api = {
     setCron:  (id: string, schedule: string) => apiFetch<{ ok: boolean }>(`/scripts/${encodeURIComponent(id)}/cron`, { method: 'POST', body: JSON.stringify({ schedule }) }),
     disableCron: (id: string)               => apiFetch<{ ok: boolean }>(`/scripts/${encodeURIComponent(id)}/cron`, { method: 'DELETE' }),
     run:      (id: string)                   => apiFetch<{ output: string; exitCode: number }>(`/scripts/${encodeURIComponent(id)}/run`, { method: 'POST' }),
+    readLog:  (id: string)                   => apiFetch<{ content: string; logFile: string }>(`/scripts/${encodeURIComponent(id)}/log`),
   },
   configContent: (name: string) => apiFetch<{ content: string }>(`/configs/${encodeURIComponent(name)}/content`),
   createConfig:  (name: string, content: string) => apiFetch<{ ok: boolean; message: string }>('/configs', { method: 'POST', body: JSON.stringify({ name, content }) }),
