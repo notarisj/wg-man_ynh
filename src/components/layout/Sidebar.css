@@ -134,11 +134,13 @@
   text-decoration: none;
   font-size: 14px;
   font-weight: 500;
-  transition: all var(--dur-fast) var(--ease);
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
   white-space: nowrap;
   overflow: hidden;
   width: 100%;
   box-sizing: border-box;
+  outline: none;
+  border: 1px solid transparent;
 }
 
 .sidebar__nav-item:hover {
