@@ -1,0 +1,45 @@
+#!/bin/bash
+source _common.sh
+source /usr/share/yunohost/helpers
+
+#=================================================
+# STOP SERVICE
+#=================================================
+ynh_script_progression "Stopping $app..."
+ynh_systemctl --service="$app" --action="stop"
+
+#=================================================
+# UPDATE NGINX CONFIGURATION
+#=================================================
+ynh_script_progression "Updating nginx configuration..."
+ynh_config_change_url_nginx
+
+#=================================================
+# RECONFIGURE .env (APP_PUBLIC_URL changes with domain/path)
+#=================================================
+ynh_script_progression "Updating .env configuration..."
+ynh_config_add --template=".env" --destination="$install_dir/server/.env"
+chmod 640 "$install_dir/server/.env"
+
+#=================================================
+# UPDATE DEX OIDC CLIENT (redirect URI includes path)
+#=================================================
+if [ -n "$dex_domain" ]; then
+    ynh_script_progression "Updating Dex OIDC client registration..."
+    ynh_config_add \
+        --template="dex-client.yaml" \
+        --destination="/var/www/dex/config.yaml.d/${app}.yaml"
+    chmod 640 "/var/www/dex/config.yaml.d/${app}.yaml"
+    if [ -x /var/www/dex/regenerate_config.sh ]; then
+        bash /var/www/dex/regenerate_config.sh
+    fi
+    ynh_systemctl --service=dex --action=restart
+fi
+
+#=================================================
+# START SERVICE
+#=================================================
+ynh_script_progression "Starting $app..."
+ynh_systemctl --service="$app" --action="start"
+
+ynh_script_progression "Change of URL completed for $app"

@@ -99,7 +99,7 @@ fi
 # substituted as __DEX_ISSUER__ / __DEX_CLIENT_ID__ / __DEX_CLIENT_SECRET__
 #=================================================
 ynh_script_progression "Writing .env configuration..."
-ynh_add_config --template=".env" --destination="$install_dir/server/.env"
+ynh_config_add --template=".env" --destination="$install_dir/server/.env"
 chmod 640 "$install_dir/server/.env"
 
 #=================================================
@@ -113,7 +113,7 @@ if [ -n "$dex_domain" ]; then
     mkdir -p /var/www/dex/config.yaml.d
 
     # dex-client.yaml template uses __APP__, __DOMAIN__, __PATH__, __DEX_CLIENT_SECRET__
-    ynh_add_config \
+    ynh_config_add \
         --template="dex-client.yaml" \
         --destination="/var/www/dex/config.yaml.d/${app}.yaml"
     chmod 640 "/var/www/dex/config.yaml.d/${app}.yaml"
@@ -124,7 +124,7 @@ if [ -n "$dex_domain" ]; then
     fi
 
     # Reload Dex so it picks up the new client
-    ynh_systemd_action --service_name=dex --action=restart
+    ynh_systemctl --service=dex --action=restart
 fi
 
 #=================================================
@@ -145,19 +145,19 @@ chmod 750 "$data_dir"
 # CONFIGURE NGINX
 #=================================================
 ynh_script_progression "Configuring nginx..."
-ynh_add_nginx_config
+ynh_config_add_nginx
 
 #=================================================
 # CONFIGURE SYSTEMD
 #=================================================
 ynh_script_progression "Configuring systemd service..."
-ynh_add_systemd_config
+ynh_config_add_systemd
 yunohost service add "$app" --description="WireGuard VPN Manager" --log="/var/log/$app.log"
 
 #=================================================
 # START SERVICE
 #=================================================
 ynh_script_progression "Starting $app..."
-ynh_systemd_action --service_name="$app" --action="start"
+ynh_systemctl --service="$app" --action="start"
 
 ynh_script_progression "Installation of $app completed"

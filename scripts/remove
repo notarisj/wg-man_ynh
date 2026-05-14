@@ -6,15 +6,17 @@ source /usr/share/yunohost/helpers
 # STOP AND REMOVE SERVICE
 #=================================================
 ynh_script_progression "Stopping $app service..."
-ynh_systemd_action --service_name="$app" --action="stop"
-yunohost service remove "$app"
-ynh_remove_systemd_config
+ynh_systemctl --service="$app" --action="stop"
+if ynh_hide_warnings yunohost service status "$app" >/dev/null; then
+    yunohost service remove "$app"
+fi
+ynh_config_remove_systemd
 
 #=================================================
 # REMOVE NGINX CONFIGURATION
 #=================================================
 ynh_script_progression "Removing nginx configuration..."
-ynh_remove_nginx_config
+ynh_config_remove_nginx
 
 #=================================================
 # REMOVE DEX OIDC CLIENT
@@ -23,12 +25,12 @@ ynh_remove_nginx_config
 dex_domain=$(ynh_app_setting_get --key=dex_domain)
 if [ -n "$dex_domain" ] && [ -f "/var/www/dex/config.yaml.d/${app}.yaml" ]; then
     ynh_script_progression "Removing Dex OIDC client registration..."
-    ynh_secure_remove "/var/www/dex/config.yaml.d/${app}.yaml"
+    ynh_safe_rm "/var/www/dex/config.yaml.d/${app}.yaml"
 
     if [ -x /var/www/dex/regenerate_config.sh ]; then
         bash /var/www/dex/regenerate_config.sh
     fi
-    ynh_systemd_action --service_name=dex --action=restart
+    ynh_systemctl --service=dex --action=restart
 fi
 
 #=================================================
@@ -41,7 +43,7 @@ ynh_remove_nodejs
 # REMOVE APP FILES
 #=================================================
 ynh_script_progression "Removing application files..."
-ynh_secure_remove "$install_dir"
-ynh_secure_remove "$data_dir"
+ynh_safe_rm "$install_dir"
+ynh_safe_rm "$data_dir"
 
 ynh_script_progression "Removal of $app completed"

@@ -6,7 +6,7 @@ source /usr/share/yunohost/helpers
 # STOP SERVICE
 #=================================================
 ynh_script_progression "Stopping $app for upgrade..."
-ynh_systemd_action --service_name="$app" --action="stop"
+ynh_systemctl --service="$app" --action="stop"
 
 #=================================================
 # GENERATE PROXY SECRET IF MISSING (AUTH-01)
@@ -96,13 +96,13 @@ popd
 # UPDATE CONFIGURATIONS
 #=================================================
 ynh_script_progression "Updating nginx configuration..."
-ynh_add_nginx_config
+ynh_config_add_nginx
 
 ynh_script_progression "Updating systemd service..."
-ynh_add_systemd_config
+ynh_config_add_systemd
 
 ynh_script_progression "Updating .env configuration..."
-ynh_add_config --template=".env" --destination="$install_dir/server/.env"
+ynh_config_add --template=".env" --destination="$install_dir/server/.env"
 chmod 640 "$install_dir/server/.env"
 
 #=================================================
@@ -114,7 +114,7 @@ if [ -n "$dex_domain" ]; then
 
     mkdir -p /var/www/dex/config.yaml.d
 
-    ynh_add_config \
+    ynh_config_add \
         --template="dex-client.yaml" \
         --destination="/var/www/dex/config.yaml.d/${app}.yaml"
     chmod 640 "/var/www/dex/config.yaml.d/${app}.yaml"
@@ -122,7 +122,7 @@ if [ -n "$dex_domain" ]; then
     if [ -x /var/www/dex/regenerate_config.sh ]; then
         bash /var/www/dex/regenerate_config.sh
     fi
-    ynh_systemd_action --service_name=dex --action=restart
+    ynh_systemctl --service=dex --action=restart
 fi
 
 #=================================================
@@ -141,6 +141,6 @@ chmod 750 "$data_dir"
 # START SERVICE
 #=================================================
 ynh_script_progression "Restarting $app..."
-ynh_systemd_action --service_name="$app" --action="start"
+ynh_systemctl --service="$app" --action="start"
 
 ynh_script_progression "Upgrade of $app completed"

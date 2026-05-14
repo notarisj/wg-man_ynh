@@ -1,3 +1,5 @@
+#:schema https://raw.githubusercontent.com/YunoHost/apps/main/schemas/manifest.v2.schema.json
+
 packaging_format = 2
 
 id = "wg-man"
@@ -11,7 +13,8 @@ maintainers = []
 license = "MIT"
 
 [integration]
-yunohost = ">= 11.2"
+yunohost = ">= 12.1.17"
+helpers_version = "2.1"
 architectures = ["amd64", "arm64"]
 multi_instance = false
 ldap = false
