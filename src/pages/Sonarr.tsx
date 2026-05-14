@@ -17,5 +17,13 @@ export const Sonarr: React.FC = () => (
         seasonNumber: item.episode?.seasonNumber,
       })
     }
+    searchReleases={(item: ArrQueueItem) =>
+      api.sonarr.releases({
+        episodeId:    item.episodeId,
+        seriesId:     item.seriesId,
+        seasonNumber: item.episode?.seasonNumber,
+      })
+    }
+    grabRelease={api.sonarr.grab}
   />
 );

@@ -101,6 +101,21 @@ export type ArrQueue = {
   records: ArrQueueItem[];
 };
 
+export type ArrRelease = {
+  guid: string;
+  protocol: 'torrent' | 'usenet';
+  age: number;
+  title: string;
+  size: number;
+  indexer: string;
+  indexerId: number;
+  quality: { quality: { id: number; name: string } };
+  rejections: string[];
+  seeders?: number;
+  leechers?: number;
+  downloadAllowed: boolean;
+};
+
 export type UserScript = {
   id:        string;
   name:      string;
@@ -227,6 +242,8 @@ export const api = {
     remove:  (id: number, removeFromClient: boolean, blocklist: boolean) =>
       apiFetch<{ ok: boolean }>(`/plugins/radarr/queue/${id}?removeFromClient=${removeFromClient}&blocklist=${blocklist}`, { method: 'DELETE' }),
     reject:  (id: number, movieId: number)           => apiFetch<{ ok: boolean; searched: boolean }>(`/plugins/radarr/queue/${id}/reject`, { method: 'POST', body: JSON.stringify({ movieId }) }),
+    releases: (movieId: number)                      => apiFetch<ArrRelease[]>(`/plugins/radarr/releases?movieId=${movieId}`),
+    grab:     (guid: string, indexerId: number)      => apiFetch<{ ok: boolean }>('/plugins/radarr/releases/grab', { method: 'POST', body: JSON.stringify({ guid, indexerId }) }),
   },
   sonarr: {
     queue:   ()                                      => apiFetch<ArrQueue>('/plugins/sonarr/queue'),
@@ -234,6 +251,14 @@ export const api = {
       apiFetch<{ ok: boolean }>(`/plugins/sonarr/queue/${id}?removeFromClient=${removeFromClient}&blocklist=${blocklist}`, { method: 'DELETE' }),
     reject:  (id: number, opts: { episodeId?: number; seriesId?: number; seasonNumber?: number }) =>
       apiFetch<{ ok: boolean; searched: boolean }>(`/plugins/sonarr/queue/${id}/reject`, { method: 'POST', body: JSON.stringify(opts) }),
+    releases: (opts: { episodeId?: number; seriesId?: number; seasonNumber?: number }) => {
+      const p = new URLSearchParams();
+      if (opts.episodeId    !== undefined) p.set('episodeId',    String(opts.episodeId));
+      if (opts.seriesId     !== undefined) p.set('seriesId',     String(opts.seriesId));
+      if (opts.seasonNumber !== undefined) p.set('seasonNumber', String(opts.seasonNumber));
+      return apiFetch<ArrRelease[]>(`/plugins/sonarr/releases?${p.toString()}`);
+    },
+    grab:     (guid: string, indexerId: number)      => apiFetch<{ ok: boolean }>('/plugins/sonarr/releases/grab', { method: 'POST', body: JSON.stringify({ guid, indexerId }) }),
   },
   serverConfig: {
     get: () => apiFetch<{

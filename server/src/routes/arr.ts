@@ -93,6 +93,34 @@ export function makeArrRouter(plugin: 'radarr' | 'sonarr'): Router {
     } catch (e) { next(e); }
   });
 
+  /** GET /releases — interactive search for a movie / episode */
+  router.get('/releases', requireAdmin, async (req, res, next) => {
+    try {
+      const params = new URLSearchParams();
+      if (req.query.movieId)      params.set('movieId',      String(req.query.movieId));
+      if (req.query.episodeId)    params.set('episodeId',    String(req.query.episodeId));
+      if (req.query.seriesId)     params.set('seriesId',     String(req.query.seriesId));
+      if (req.query.seasonNumber) params.set('seasonNumber', String(req.query.seasonNumber));
+      const r = await arr(`/api/v3/release?${params.toString()}`);
+      if (!r.ok) return handleErr(r, next);
+      res.json(await r.json());
+    } catch (e) { next(e); }
+  });
+
+  /** POST /releases/grab — grab a specific release from interactive search */
+  router.post('/releases/grab', requireAdmin, async (req, res, next) => {
+    const { guid, indexerId } = req.body as { guid?: string; indexerId?: number };
+    if (!guid) { res.status(400).json({ error: 'guid is required' }); return; }
+    try {
+      const r = await arr('/api/v3/release', {
+        method: 'POST',
+        body: JSON.stringify({ guid, indexerId }),
+      });
+      if (!r.ok) return handleErr(r, next);
+      res.json({ ok: true });
+    } catch (e) { next(e); }
+  });
+
   // Error handler
   router.use((err: any, _req: any, res: any, _next: any) => {
     if (err.code === 'NOT_ENABLED') { res.status(503).json({ error: 'Plugin not enabled' }); return; }

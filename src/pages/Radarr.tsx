@@ -13,5 +13,9 @@ export const Radarr: React.FC = () => (
     rejectItem={(item: ArrQueueItem) =>
       api.radarr.reject(item.id, item.movieId!)
     }
+    searchReleases={(item: ArrQueueItem) =>
+      api.radarr.releases(item.movieId!)
+    }
+    grabRelease={api.radarr.grab}
   />
 );

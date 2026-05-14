@@ -177,15 +177,11 @@ export const QBittorrent: React.FC = () => {
             </button>
           ))}
         </div>
-        <div className="qbit-bulk-actions">
-          {selected.size > 0 && (
-            <>
-              <span className="qbit-sel-count">{selected.size} selected</span>
-              <button className="btn btn-ghost btn-sm" onClick={doPause}><Pause size={13} /> Pause</button>
-              <button className="btn btn-ghost btn-sm" onClick={doResume}><Play size={13} /> Resume</button>
-              <button className="btn btn-ghost btn-sm qbit-del-btn" onClick={() => setDelConfirm(true)}><Trash2 size={13} /> Delete</button>
-            </>
-          )}
+        <div className={`qbit-bulk-actions${selected.size > 0 ? ' qbit-bulk-actions--visible' : ''}`}>
+          <span className="qbit-sel-count">{selected.size > 0 ? `${selected.size} selected` : ''}</span>
+          <button className="btn btn-ghost btn-sm" onClick={doPause}><Pause size={13} /> Pause</button>
+          <button className="btn btn-ghost btn-sm" onClick={doResume}><Play size={13} /> Resume</button>
+          <button className="btn btn-ghost btn-sm qbit-del-btn" onClick={() => setDelConfirm(true)}><Trash2 size={13} /> Delete</button>
         </div>
       </GlassCard>
 

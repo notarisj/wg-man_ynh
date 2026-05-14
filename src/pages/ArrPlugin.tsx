@@ -1,8 +1,8 @@
 import React, { useEffect, useState, useCallback, type ReactNode } from 'react';
-import { RefreshCw, Trash2, RotateCcw, ChevronLeft, AlertCircle, CheckCircle } from 'lucide-react';
+import { RefreshCw, Trash2, RotateCcw, ChevronLeft, AlertCircle, CheckCircle, Search, X, ArrowDown, ArrowUp } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { GlassCard } from '../components/ui/GlassCard';
-import { type ArrQueueItem, type ArrQueue } from '../lib/api';
+import { type ArrQueueItem, type ArrQueue, type ArrRelease, type ApiResult } from '../lib/api';
 import './ArrPlugin.css';
 
 function fmtBytes(b: number): string {
@@ -29,12 +29,12 @@ function progressPct(item: ArrQueueItem): number {
 }
 
 const STATUS_CLS: Record<string, string> = {
-  downloading:  'arr-badge--dl',
-  paused:       'arr-badge--paused',
-  queued:       'arr-badge--queued',
-  completed:    'arr-badge--ok',
-  failed:       'arr-badge--err',
-  warning:      'arr-badge--warn',
+  downloading: 'arr-badge--dl',
+  paused:      'arr-badge--paused',
+  queued:      'arr-badge--queued',
+  completed:   'arr-badge--ok',
+  failed:      'arr-badge--err',
+  warning:     'arr-badge--warn',
 };
 
 function statusCls(item: ArrQueueItem): string {
@@ -49,12 +49,17 @@ interface Props {
   plugin: 'radarr' | 'sonarr';
   icon: ReactNode;
   label: string;
-  fetchQueue: () => Promise<{ ok: true; data: ArrQueue } | { ok: false; error: string }>;
-  removeItem: (id: number, removeFromClient: boolean, blocklist: boolean) => Promise<{ ok: boolean } | { ok: false; error: string }>;
-  rejectItem: (item: ArrQueueItem) => Promise<{ ok: boolean; searched?: boolean } | { ok: false; error: string }>;
+  fetchQueue:     () => Promise<ApiResult<ArrQueue>>;
+  removeItem:     (id: number, removeFromClient: boolean, blocklist: boolean) => Promise<ApiResult<{ ok: boolean }>>;
+  rejectItem:     (item: ArrQueueItem) => Promise<ApiResult<{ ok: boolean; searched?: boolean }>>;
+  searchReleases: (item: ArrQueueItem) => Promise<ApiResult<ArrRelease[]>>;
+  grabRelease:    (guid: string, indexerId: number) => Promise<ApiResult<{ ok: boolean }>>;
 }
 
-export const ArrPlugin: React.FC<Props> = ({ plugin, icon, label, fetchQueue, removeItem, rejectItem }) => {
+export const ArrPlugin: React.FC<Props> = ({
+  plugin, icon, label,
+  fetchQueue, removeItem, rejectItem, searchReleases, grabRelease,
+}) => {
   const [queue, setQueue]       = useState<ArrQueueItem[]>([]);
   const [total, setTotal]       = useState(0);
   const [loading, setLoading]   = useState(true);
@@ -65,6 +70,15 @@ export const ArrPlugin: React.FC<Props> = ({ plugin, icon, label, fetchQueue, re
   const [confirmId, setConfirmId] = useState<number | null>(null);
   const [confirmMode, setConfirmMode] = useState<'remove' | 'reject'>('remove');
   const [removeFromClient, setRemoveFromClient] = useState(true);
+
+  // Interactive search state
+  const [searchItem, setSearchItem]     = useState<ArrQueueItem | null>(null);
+  const [releases, setReleases]         = useState<ArrRelease[] | null>(null);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchErr, setSearchErr]       = useState<string | null>(null);
+  const [grabConfirm, setGrabConfirm]   = useState<ArrRelease | null>(null);
+  const [grabbing, setGrabbing]         = useState(false);
+  const [releaseFilter, setReleaseFilter] = useState('');
 
   const showToast = (msg: string, ok = true) => {
     setToast({ msg, ok });
@@ -94,7 +108,7 @@ export const ArrPlugin: React.FC<Props> = ({ plugin, icon, label, fetchQueue, re
     setActionId(null);
     setConfirmId(null);
     if (!res.ok) { showToast((res as any).error ?? 'Remove failed', false); return; }
-    showToast(`Removed from queue`);
+    showToast('Removed from queue');
     await load();
   };
 
@@ -109,12 +123,53 @@ export const ArrPlugin: React.FC<Props> = ({ plugin, icon, label, fetchQueue, re
     await load();
   };
 
+  const openSearch = async (item: ArrQueueItem) => {
+    setSearchItem(item);
+    setReleases(null);
+    setSearchErr(null);
+    setReleaseFilter('');
+    setGrabConfirm(null);
+    setSearchLoading(true);
+    const res = await searchReleases(item);
+    setSearchLoading(false);
+    if (!res.ok) { setSearchErr(res.error); return; }
+    setReleases(res.data);
+  };
+
+  const closeSearch = () => {
+    setSearchItem(null);
+    setReleases(null);
+    setGrabConfirm(null);
+    setSearchErr(null);
+  };
+
+  const doGrab = async () => {
+    if (!grabConfirm || !searchItem) return;
+    setGrabbing(true);
+    const res = await grabRelease(grabConfirm.guid, grabConfirm.indexerId);
+    if (!res.ok) {
+      setGrabbing(false);
+      showToast((res as any).error ?? 'Grab failed', false);
+      return;
+    }
+    // Remove the old queue item from the download client
+    await removeItem(searchItem.id, true, false);
+    setGrabbing(false);
+    closeSearch();
+    showToast(`Grabbed: ${grabConfirm.title}`);
+    await load();
+  };
+
   const openConfirm = (item: ArrQueueItem, mode: 'remove' | 'reject') => {
     setConfirmId(item.id);
     setConfirmMode(mode);
   };
 
   const confirmItem = queue.find((q) => q.id === confirmId);
+
+  const filteredReleases = releases?.filter((r) =>
+    !releaseFilter || r.title.toLowerCase().includes(releaseFilter.toLowerCase())
+  );
 
   return (
     <div className="arr-page animate-fade-in">
@@ -218,6 +273,15 @@ export const ArrPlugin: React.FC<Props> = ({ plugin, icon, label, fetchQueue, re
                     {busy ? <span className="spinner spinner-sm" /> : <RotateCcw size={13} />}
                     Re-grab
                   </button>
+                  <button
+                    className="btn btn-ghost btn-sm arr-btn-search"
+                    onClick={() => openSearch(item)}
+                    disabled={busy}
+                    title="Interactive search — pick a specific release"
+                  >
+                    <Search size={13} />
+                    Interactive Search
+                  </button>
                 </div>
               </GlassCard>
             );
@@ -225,6 +289,7 @@ export const ArrPlugin: React.FC<Props> = ({ plugin, icon, label, fetchQueue, re
         </div>
       )}
 
+      {/* Remove / Reject confirm overlay */}
       {confirmId !== null && confirmItem && (
         <div className="arr-confirm-overlay" onClick={(e) => { if (e.target === e.currentTarget) setConfirmId(null); }}>
           <div className="arr-confirm">
@@ -272,6 +337,119 @@ export const ArrPlugin: React.FC<Props> = ({ plugin, icon, label, fetchQueue, re
                   </button>
                 </div>
               </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Interactive search modal */}
+      {searchItem && (
+        <div className="arr-search-overlay" onClick={(e) => { if (e.target === e.currentTarget) closeSearch(); }}>
+          <div className="arr-search-modal">
+            <div className="arr-search-modal__header">
+              <div className="arr-search-modal__title">
+                <Search size={15} />
+                Interactive Search — {itemTitle(searchItem, plugin)}
+              </div>
+              <button className="scripts-modal__close" onClick={closeSearch}><X size={16} /></button>
+            </div>
+
+            <div className="arr-search-modal__toolbar">
+              <input
+                className="arr-search-filter"
+                placeholder="Filter releases…"
+                value={releaseFilter}
+                onChange={(e) => setReleaseFilter(e.target.value)}
+                spellCheck={false}
+              />
+              {releases && (
+                <span className="arr-search-count">
+                  {filteredReleases?.length} / {releases.length} release{releases.length !== 1 ? 's' : ''}
+                </span>
+              )}
+            </div>
+
+            <div className="arr-search-modal__body">
+              {searchLoading ? (
+                <div className="arr-search-loading"><span className="spinner" /> Searching indexers…</div>
+              ) : searchErr ? (
+                <div className="arr-search-err"><AlertCircle size={14} /> {searchErr}</div>
+              ) : releases && filteredReleases?.length === 0 ? (
+                <div className="arr-search-empty">No releases found</div>
+              ) : (
+                <table className="arr-search-table">
+                  <thead>
+                    <tr>
+                      <th className="arr-sth">Title</th>
+                      <th className="arr-sth arr-sth--num">Age</th>
+                      <th className="arr-sth arr-sth--num">Size</th>
+                      <th className="arr-sth arr-sth--num">Peers</th>
+                      <th className="arr-sth">Quality</th>
+                      <th className="arr-sth">Indexer</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredReleases?.map((r) => {
+                      const rejected = r.rejections?.length > 0;
+                      const notAllowed = !r.downloadAllowed;
+                      const cls = `arr-srow${rejected ? ' arr-srow--rejected' : ''}${notAllowed ? ' arr-srow--blocked' : ''}`;
+                      return (
+                        <tr
+                          key={r.guid}
+                          className={cls}
+                          onClick={() => !notAllowed && setGrabConfirm(r)}
+                          title={rejected ? r.rejections.join(' · ') : undefined}
+                        >
+                          <td className="arr-std arr-std--title">
+                            <span className="arr-srow__title">{r.title}</span>
+                            {rejected && (
+                              <span className="arr-srow__rejections">
+                                <AlertCircle size={11} />
+                                {r.rejections.slice(0,2).join(' · ')}
+                                {r.rejections.length > 2 && ` +${r.rejections.length - 2}`}
+                              </span>
+                            )}
+                          </td>
+                          <td className="arr-std arr-std--num">{r.age}d</td>
+                          <td className="arr-std arr-std--num">{fmtBytes(r.size)}</td>
+                          <td className="arr-std arr-std--num">
+                            {r.protocol === 'torrent' ? (
+                              <span className="arr-peers">
+                                <ArrowDown size={10} className="arr-peers--dl" />{r.seeders ?? '—'}
+                                <ArrowUp size={10} className="arr-peers--ul" />{r.leechers ?? '—'}
+                              </span>
+                            ) : '—'}
+                          </td>
+                          <td className="arr-std">
+                            <span className="arr-badge arr-badge--quality">{r.quality?.quality?.name}</span>
+                          </td>
+                          <td className="arr-std arr-std--indexer">{r.indexer}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            {/* Grab confirm bar */}
+            {grabConfirm && (
+              <div className="arr-grab-bar">
+                <div className="arr-grab-bar__title" title={grabConfirm.title}>
+                  Grab: {grabConfirm.title}
+                </div>
+                <div className="arr-grab-bar__actions">
+                  <button className="btn btn-ghost btn-sm" onClick={() => setGrabConfirm(null)}>Cancel</button>
+                  <button
+                    className="btn btn-primary btn-sm"
+                    onClick={doGrab}
+                    disabled={grabbing}
+                  >
+                    {grabbing ? <span className="spinner spinner-sm" /> : <ArrowDown size={13} />}
+                    Grab & replace
+                  </button>
+                </div>
+              </div>
             )}
           </div>
         </div>
