@@ -3,7 +3,8 @@ import { execFile } from 'child_process';
 import path from 'path';
 
 const IS_PROD = process.env.NODE_ENV === 'production';
-const ENV_FILE = path.join(process.cwd(), '.env');
+const DATA_DIR = process.env.DATA_DIR || '/var/lib/wg-man';
+const CONFIG_FILE = path.join(DATA_DIR, 'server-config.json');
 
 export interface ServerConfig {
   configDir:        string;
@@ -54,7 +55,8 @@ export function validateConfigUpdate(u: ConfigUpdate): string | null {
     if (prefix.length === 0) return 'configPattern must have a non-empty prefix before the wildcard';
   }
   if (u.staticInterface !== undefined) {
-    if (!SAFE_IFACE_RE.test(u.staticInterface)) return 'staticInterface must contain only alphanumerics, underscores, and hyphens';
+    if (!SAFE_IFACE_RE.test(u.staticInterface))
+      return 'staticInterface must contain only alphanumerics, underscores, and hyphens';
   }
   if (u.checkIp !== undefined) {
     if (!SAFE_IP_RE.test(u.checkIp)) return 'checkIp must be a valid IPv4 or IPv6 address';
@@ -66,30 +68,17 @@ export function validateConfigUpdate(u: ConfigUpdate): string | null {
   return null;
 }
 
-function setEnvLine(content: string, key: string, value: string): string {
-  const re = new RegExp(`^${key}=.*$`, 'm');
-  return re.test(content)
-    ? content.replace(re, `${key}=${value}`)
-    : `${content}\n${key}=${value}`;
-}
-
 export async function updateServerConfig(updates: ConfigUpdate): Promise<void> {
-  const KEY_MAP: Record<keyof ConfigUpdate, string> = {
-    configDir:       'WG_CONFIG_DIR',
-    configPattern:   'WG_CONFIG_PATTERN',
-    staticInterface: 'WG_STATIC_INTERFACE',
-    checkIp:         'CHECK_IP',
-    maxHandshakeAge: 'MAX_HANDSHAKE_AGE',
-  };
-
-  let content = await readFile(ENV_FILE, 'utf8');
-  for (const [field, envKey] of Object.entries(KEY_MAP) as [keyof ConfigUpdate, string][]) {
-    const val = updates[field];
-    if (val !== undefined) {
-      content = setEnvLine(content, envKey, String(val));
-    }
+  let existing: Record<string, unknown> = {};
+  try {
+    const raw = await readFile(CONFIG_FILE, 'utf8');
+    existing = JSON.parse(raw);
+  } catch {
+    // file doesn't exist yet — start fresh
   }
-  await writeFile(ENV_FILE, content, 'utf8');
+
+  const merged = { ...existing, ...updates };
+  await writeFile(CONFIG_FILE, JSON.stringify(merged, null, 2), { mode: 0o640 });
 
   if (IS_PROD) {
     setTimeout(() => {

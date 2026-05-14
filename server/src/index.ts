@@ -1,4 +1,4 @@
-import 'dotenv/config';
+import './loadConfig'; // must be first — loads dotenv + DATA_DIR overrides before wg.ts constants are set
 import express from 'express';
 import session from 'express-session';
 import cors from 'cors';
