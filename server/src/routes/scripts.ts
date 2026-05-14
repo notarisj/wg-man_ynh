@@ -160,13 +160,15 @@ router.delete('/:id', mutationLimiter, requireAdmin, requirePasskey, async (req,
 router.post('/:id/cron', mutationLimiter, requireAdmin, requirePasskey, async (req, res) => {
   const { id } = req.params;
   if (!isValidId(id)) { res.status(400).json({ error: 'Invalid script id' }); return; }
-  const { schedule } = req.body as { schedule?: unknown };
+  const { schedule, delay } = req.body as { schedule?: unknown; delay?: unknown };
   if (typeof schedule !== 'string' || !schedule.trim()) {
     res.status(400).json({ error: 'schedule is required' }); return;
   }
+  const safeDelay = typeof delay === 'number' && Number.isFinite(delay) && delay >= 0
+    ? Math.floor(delay) : 0;
   try {
     const { script } = await getScript(id);
-    await setScriptCron(id, schedule.trim(), script.logFile);
+    await setScriptCron(id, schedule.trim(), safeDelay, script.logFile);
     res.json({ ok: true });
   } catch (err: any) {
     if (err.code === 'ENOENT') { res.status(404).json({ error: 'Script not found' }); return; }

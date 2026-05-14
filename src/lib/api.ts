@@ -69,6 +69,7 @@ export type UserScript = {
 export type UserCronStatus = {
   enabled:    boolean;
   schedule:   string | null;
+  delay:      number;
   cronFile:   string;
   scriptPath: string;
 };
@@ -156,7 +157,7 @@ export const api = {
     validate: (content: string)              => apiFetch<{ ok: boolean; error?: string }>('/scripts/validate', { method: 'POST', body: JSON.stringify({ content }) }),
     update:   (id: string, opts: { name?: string; content?: string; logFile?: string }) => apiFetch<{ ok: boolean }>(`/scripts/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(opts) }),
     delete:   (id: string)                   => apiFetch<{ ok: boolean }>(`/scripts/${encodeURIComponent(id)}`, { method: 'DELETE' }),
-    setCron:  (id: string, schedule: string) => apiFetch<{ ok: boolean }>(`/scripts/${encodeURIComponent(id)}/cron`, { method: 'POST', body: JSON.stringify({ schedule }) }),
+    setCron:  (id: string, schedule: string, delay?: number) => apiFetch<{ ok: boolean }>(`/scripts/${encodeURIComponent(id)}/cron`, { method: 'POST', body: JSON.stringify({ schedule, delay: delay ?? 0 }) }),
     disableCron: (id: string)               => apiFetch<{ ok: boolean }>(`/scripts/${encodeURIComponent(id)}/cron`, { method: 'DELETE' }),
     run:      (id: string)                   => apiFetch<{ output: string; exitCode: number }>(`/scripts/${encodeURIComponent(id)}/run`, { method: 'POST' }),
     readLog:  (id: string)                   => apiFetch<{ content: string; logFile: string }>(`/scripts/${encodeURIComponent(id)}/log`),

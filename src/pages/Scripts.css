@@ -348,6 +348,10 @@
 
 .scripts-modal__cron-label { font-size: 13px; color: var(--clr-text-muted); }
 
+/* ── Cron delay input ────────────────────────────────────────── */
+
+.cron-delay-input { max-width: 100px; }
+
 /* ── Log path chip ───────────────────────────────────────────── */
 
 .scripts-modal__log-path {

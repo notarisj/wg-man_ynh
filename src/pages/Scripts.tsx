@@ -56,6 +56,10 @@ const PRESETS: Preset[] = [
   { label: 'Every 30 min', expr: '*/30 * * * *' },
   { label: 'Hourly',       expr: '0 * * * *'    },
   { label: 'Every 6 h',   expr: '0 */6 * * *'  },
+  { label: '@reboot',      expr: '@reboot'       },
+  { label: '@daily',       expr: '@daily'        },
+  { label: '@weekly',      expr: '@weekly'       },
+  { label: '@monthly',     expr: '@monthly'      },
   { label: 'Custom',       expr: 'custom'        },
 ];
 
@@ -63,12 +67,6 @@ const DEFAULT_EXPR = '*/5 * * * *';
 
 function matchPreset(expr: string): string {
   return PRESETS.find((p) => p.expr === expr)?.expr ?? 'custom';
-}
-
-function splitExpr(expr: string): [string, string, string, string, string] {
-  const parts = expr.split(/\s+/);
-  if (parts.length === 5) return parts as [string, string, string, string, string];
-  return ['*', '*', '*', '*', '*'];
 }
 
 // ── Script Editor Modal ───────────────────────────────────────────────────────
@@ -109,7 +107,7 @@ const ScriptEditorModal: React.FC<ScriptEditorModalProps> = ({ editId, onSaved, 
   const [cronEnabled, setCronEnabled] = useState(false);
   const [cronExpr, setCronExpr]     = useState(DEFAULT_EXPR);
   const [cronPreset, setCronPreset] = useState<string>(DEFAULT_EXPR);
-  const [cronFields, setCronFields] = useState<[string, string, string, string, string]>(['*', '*', '*', '*', '*']);
+  const [cronDelay, setCronDelay]   = useState(0);
   const [cronDirty, setCronDirty]   = useState(false);
   const [cronSaving, setCronSaving] = useState(false);
   const [cronFeedback, setCronFeedback] = useState<{ ok: boolean; msg: string } | null>(null);
@@ -128,10 +126,10 @@ const ScriptEditorModal: React.FC<ScriptEditorModalProps> = ({ editId, onSaved, 
           const cron = res.data.cron;
           setCronInfo(cron);
           setCronEnabled(cron.enabled);
+          setCronDelay(cron.delay ?? 0);
           const e = cron.schedule ?? DEFAULT_EXPR;
           setCronExpr(e);
           setCronPreset(matchPreset(e));
-          setCronFields(splitExpr(e));
         } else {
           setSaveError(res.error);
         }
@@ -185,19 +183,7 @@ const ScriptEditorModal: React.FC<ScriptEditorModalProps> = ({ editId, onSaved, 
   // Cron handlers
   const pickPreset = (p: Preset) => {
     setCronPreset(p.expr);
-    if (p.expr !== 'custom') {
-      setCronExpr(p.expr);
-      setCronFields(splitExpr(p.expr));
-    }
-    setCronDirty(true);
-    setCronFeedback(null);
-  };
-
-  const updateCronField = (i: number, val: string) => {
-    const next = [...cronFields] as [string, string, string, string, string];
-    next[i] = val || '*';
-    setCronFields(next);
-    setCronExpr(next.join(' '));
+    if (p.expr !== 'custom') setCronExpr(p.expr);
     setCronDirty(true);
     setCronFeedback(null);
   };
@@ -207,7 +193,7 @@ const ScriptEditorModal: React.FC<ScriptEditorModalProps> = ({ editId, onSaved, 
     setCronSaving(true);
     setCronFeedback(null);
     const res = cronEnabled
-      ? await api.scripts.setCron(editId, cronExpr)
+      ? await api.scripts.setCron(editId, cronExpr, cronDelay)
       : await api.scripts.disableCron(editId);
     setCronSaving(false);
     if (res.ok) {
@@ -364,27 +350,35 @@ const ScriptEditorModal: React.FC<ScriptEditorModalProps> = ({ editId, onSaved, 
 
                 {isCustomCron && (
                   <div className="cron-custom">
-                    <div className="cron-section-label">Expression fields</div>
-                    <div className="cron-fields">
-                      {(['Min', 'Hour', 'Day', 'Mon', 'DoW'] as const).map((lbl, i) => (
-                        <div className="cron-field" key={lbl}>
-                          <label>{lbl}</label>
-                          <input
-                            value={cronFields[i]}
-                            onChange={(e) => updateCronField(i, e.target.value)}
-                            disabled={!cronEnabled}
-                            maxLength={10}
-                            spellCheck={false}
-                          />
-                        </div>
-                      ))}
-                    </div>
+                    <div className="cron-section-label">Expression</div>
+                    <input
+                      className="scripts-modal__name-input"
+                      value={cronExpr}
+                      onChange={(e) => { setCronExpr(e.target.value); setCronDirty(true); setCronFeedback(null); }}
+                      disabled={!cronEnabled}
+                      placeholder="*/10 * * * *  or  @monthly"
+                      spellCheck={false}
+                    />
                   </div>
                 )}
 
+                <div className="cron-custom">
+                  <div className="cron-section-label">Delay (seconds)</div>
+                  <input
+                    className="scripts-modal__name-input cron-delay-input"
+                    type="number"
+                    min={0}
+                    max={3600}
+                    value={cronDelay}
+                    onChange={(e) => { setCronDelay(Math.max(0, parseInt(e.target.value) || 0)); setCronDirty(true); setCronFeedback(null); }}
+                    disabled={!cronEnabled}
+                    placeholder="0"
+                  />
+                </div>
+
                 <div className="cron-expr">
                   <span className="cron-expr__label">Expression</span>
-                  <code className="cron-expr__value">{cronExpr}</code>
+                  <code className="cron-expr__value">{cronExpr}{cronDelay > 0 ? ` (+ ${cronDelay}s delay)` : ''}</code>
                 </div>
 
                 {cronInfo && (
