@@ -34,8 +34,9 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/logs',    icon: <ScrollText size={20} />,      label: 'Logs' },
   { to: '/scripts', icon: <Terminal size={20} />,        label: 'Scripts' },
   { to: '/history', icon: <History size={20} />,         label: 'History' },
-  { to: '/settings',icon: <Settings2 size={20} />,       label: 'Settings' },
 ];
+
+const SETTINGS_ITEM: NavItem = { to: '/settings', icon: <Settings2 size={20} />, label: 'Settings' };
 
 interface SidebarProps {
   collapsed: boolean;
@@ -219,6 +220,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
             )}
           </div>
         </div>
+
+        <NavLink
+          to={SETTINGS_ITEM.to}
+          className={({ isActive }) =>
+            `sidebar__nav-item${isActive ? ' sidebar__nav-item--active' : ''}`
+          }
+          aria-label={SETTINGS_ITEM.label}
+          title={SETTINGS_ITEM.label}
+          onClick={onMobileClose}
+        >
+          <span className="sidebar__nav-icon">{SETTINGS_ITEM.icon}</span>
+          <span className="sidebar__nav-label">{SETTINGS_ITEM.label}</span>
+        </NavLink>
 
         {/* Desktop-only collapse toggle */}
         <button
