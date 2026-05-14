@@ -392,12 +392,18 @@ export const ArrPlugin: React.FC<Props> = ({
                     {filteredReleases?.map((r) => {
                       const rejected = r.rejections?.length > 0;
                       const notAllowed = !r.downloadAllowed;
-                      const cls = `arr-srow${rejected ? ' arr-srow--rejected' : ''}${notAllowed ? ' arr-srow--blocked' : ''}`;
+                      const isSelected = grabConfirm?.guid === r.guid;
+                      const cls = [
+                        'arr-srow',
+                        rejected    ? 'arr-srow--rejected' : '',
+                        notAllowed  ? 'arr-srow--blocked'  : '',
+                        isSelected  ? 'arr-srow--selected' : '',
+                      ].filter(Boolean).join(' ');
                       return (
                         <tr
                           key={r.guid}
                           className={cls}
-                          onClick={() => !notAllowed && setGrabConfirm(r)}
+                          onClick={() => !notAllowed && setGrabConfirm(isSelected ? null : r)}
                           title={rejected ? r.rejections.join(' · ') : undefined}
                         >
                           <td className="arr-std arr-std--title">

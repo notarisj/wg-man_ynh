@@ -211,11 +211,10 @@
   background: rgba(0,0,0,0.7);
   backdrop-filter: blur(4px);
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: center;
-  padding: 32px 16px;
+  padding: 24px 16px;
   z-index: 300;
-  overflow-y: auto;
 }
 
 .arr-search-modal {
@@ -226,7 +225,7 @@
   max-width: 980px;
   display: flex;
   flex-direction: column;
-  max-height: calc(100vh - 64px);
+  height: min(780px, calc(100vh - 48px));
   animation: slide-up var(--dur-normal) var(--ease) both;
   overflow: hidden;
 }
@@ -286,6 +285,7 @@
 .arr-search-modal__body {
   overflow-y: auto;
   flex: 1;
+  min-height: 0;
 }
 
 .arr-search-loading,
@@ -357,16 +357,26 @@
   cursor: pointer;
   transition: background var(--dur-fast);
 }
-.arr-srow:hover { background: rgba(59,130,246,0.06); }
+
+.arr-srow:hover:not(.arr-srow--rejected):not(.arr-srow--blocked) {
+  background: rgba(255,255,255,0.05);
+}
+
+.arr-srow--selected {
+  background: rgba(34,197,94,0.08) !important;
+}
+
+.arr-srow--selected .arr-std {
+  color: var(--clr-text);
+}
 
 .arr-srow--rejected {
-  opacity: 0.55;
+  opacity: 0.5;
   cursor: default;
 }
-.arr-srow--rejected:hover { background: transparent; }
 
 .arr-srow--blocked {
-  opacity: 0.4;
+  opacity: 0.35;
   cursor: not-allowed;
   pointer-events: none;
 }
