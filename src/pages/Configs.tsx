@@ -9,6 +9,7 @@ import { PasskeyPrompt } from '../components/ui/PasskeyPrompt';
 import { ConfigEditor } from '../components/ui/ConfigEditor';
 import { api } from '../lib/api';
 import type { PasskeyStatus } from '../lib/api';
+import { showToast } from '../lib/toast';
 import './Configs.css';
 
 type PendingAction = { type: 'create' } | { type: 'edit'; name: string } | { type: 'delete'; name: string };
@@ -20,8 +21,6 @@ export const Configs: React.FC = () => {
     () => (localStorage.getItem('configs-view-mode') as 'grid' | 'list') ?? 'grid',
   );
   const [refreshing, setRefreshing]       = useState(false);
-  const [switchedMsg, setSwitchedMsg]     = useState<string | null>(null);
-  const [switchError, setSwitchError]     = useState<string | null>(null);
   const [search, setSearch]               = useState('');
 
   // Passkey gate
@@ -74,19 +73,16 @@ export const Configs: React.FC = () => {
     setSwitchError(null);
     const ok = await switchConfig(name);
     if (ok) {
-      setSwitchedMsg(`Switched to ${name}`);
-      setTimeout(() => setSwitchedMsg(null), 3500);
+      showToast(`Switched to ${name}`);
     } else {
-      setSwitchError(error ?? 'Failed to switch config');
-      setTimeout(() => setSwitchError(null), 5000);
+      showToast(error ?? 'Failed to switch config', 'error');
     }
   };
 
   const handleEditorSave = useCallback((savedName: string) => {
     setEditorOpen(false);
     setEditingConfig(null);
-    setSwitchedMsg(`Config "${savedName}" saved`);
-    setTimeout(() => setSwitchedMsg(null), 3500);
+    showToast(`Config "${savedName}" saved`);
     fetchConfigs();
   }, [fetchConfigs]);
 
@@ -98,8 +94,7 @@ export const Configs: React.FC = () => {
     setIsDeleting(false);
     if (!res.ok) { setDeleteError(res.error); return; }
     setConfirmDelete(null);
-    setSwitchedMsg(`Config "${confirmDelete}" deleted`);
-    setTimeout(() => setSwitchedMsg(null), 3500);
+    showToast(`Config "${confirmDelete}" deleted`);
     fetchConfigs();
   };
 
@@ -174,18 +169,6 @@ export const Configs: React.FC = () => {
           </button>
         </div>
       </div>
-
-      {/* Toasts */}
-      {switchedMsg && (
-        <div className="configs-page__toast">
-          <CheckCircle2 size={15} /> {switchedMsg}
-        </div>
-      )}
-      {switchError && (
-        <div className="configs-page__toast configs-page__toast--error">
-          <AlertCircle size={15} /> {switchError}
-        </div>
-      )}
 
       {/* Config grid */}
       {isLoadingConfigs && configs.length === 0 ? (

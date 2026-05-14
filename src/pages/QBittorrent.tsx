@@ -3,6 +3,7 @@ import { Wifi, RefreshCw, Pause, Play, Trash2, ArrowDown, ArrowUp, ChevronLeft }
 import { NavLink } from 'react-router-dom';
 import { GlassCard } from '../components/ui/GlassCard';
 import { api, type QbitTorrent } from '../lib/api';
+import { showToast } from '../lib/toast';
 import './QBittorrent.css';
 
 const STATES: Record<string, { label: string; cls: string }> = {
@@ -55,13 +56,6 @@ export const QBittorrent: React.FC = () => {
   const [delConfirm, setDelConfirm] = useState(false);
   const [delFiles, setDelFiles]   = useState(false);
   const [actionErr, setActionErr] = useState<string | null>(null);
-  const [toast, setToast]         = useState<string | null>(null);
-
-  const showToast = (msg: string) => {
-    setToast(msg);
-    setTimeout(() => setToast(null), 3000);
-  };
-
   const load = useCallback(async (spin = false) => {
     if (spin) { setSpinning(true); setTimeout(() => setSpinning(false), 600); }
     const [tRes, trRes] = await Promise.all([api.qbit.torrents(), api.qbit.transfer()]);
@@ -155,7 +149,6 @@ export const QBittorrent: React.FC = () => {
         </button>
       </div>
 
-      {toast && <div className="qbit-toast">{toast}</div>}
       {actionErr && <div className="qbit-action-err">{actionErr}</div>}
 
       <GlassCard className="qbit-toolbar">

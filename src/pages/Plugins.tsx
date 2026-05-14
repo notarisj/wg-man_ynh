@@ -6,6 +6,7 @@ import { PasskeyPrompt } from '../components/ui/PasskeyPrompt';
 import { api } from '../lib/api';
 import { usePluginStore, type PluginSafe } from '../store/pluginStore';
 import { openModal, closeModal } from '../lib/modalManager';
+import { showToast } from '../lib/toast';
 import './Plugins.css';
 
 const PLUGIN_META = {
@@ -34,8 +35,6 @@ export const Plugins: React.FC = () => {
   const [saveErr, setSaveErr]     = useState<string | null>(null);
   const [showPasskey, setShowPasskey] = useState(false);
   const [pendingDisable, setPendingDisable] = useState<PluginId | null>(null);
-  const [toast, setToast]         = useState<string | null>(null);
-
   useEffect(() => { fetchPlugins(); }, []);
 
   // Track modal open state for background blur
@@ -43,11 +42,6 @@ export const Plugins: React.FC = () => {
   useEffect(() => {
     if (isModalOpen) { openModal(); return closeModal; }
   }, [isModalOpen]);
-
-  const showToast = (msg: string) => {
-    setToast(msg);
-    setTimeout(() => setToast(null), 3000);
-  };
 
   const openEdit = useCallback((id: PluginId) => {
     setEditing(id);
@@ -96,10 +90,6 @@ export const Plugins: React.FC = () => {
           <div className="plugins-page__sub">Connect wg-man to your local services</div>
         </div>
       </div>
-
-      {toast && (
-        <div className="plugins-toast"><Check size={14} /> {toast}</div>
-      )}
 
       <div className="plugins-grid">
         {(Object.keys(PLUGIN_META) as PluginId[]).map((id) => {

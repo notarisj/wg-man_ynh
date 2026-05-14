@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
+import { ToastContainer } from '../ui/ToastContainer';
 import { useVpnStore } from '../../store/vpnStore';
 
 interface LayoutProps {
@@ -35,6 +36,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   return (
     <div className={`app-layout${collapsed ? ' sidebar-collapsed' : ''}`}>
+      <ToastContainer />
       {mobileOpen && (
         <div className="sidebar-backdrop" onClick={closeMobile} aria-hidden="true" />
       )}

@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useCallback, type ReactNode } from 'react';
-import { RefreshCw, Trash2, RotateCcw, ChevronLeft, AlertCircle, CheckCircle, Search, X, ArrowDown, ArrowUp } from 'lucide-react';
+import { RefreshCw, Trash2, RotateCcw, ChevronLeft, AlertCircle, Search, X, ArrowDown, ArrowUp } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { GlassCard } from '../components/ui/GlassCard';
 import { type ArrQueueItem, type ArrQueue, type ArrRelease, type ApiResult } from '../lib/api';
+import { showToast } from '../lib/toast';
 import './ArrPlugin.css';
 
 function fmtBytes(b: number): string {
@@ -65,7 +66,6 @@ export const ArrPlugin: React.FC<Props> = ({
   const [loading, setLoading]   = useState(true);
   const [err, setErr]           = useState<string | null>(null);
   const [spinning, setSpinning] = useState(false);
-  const [toast, setToast]       = useState<{ msg: string; ok: boolean } | null>(null);
   const [actionId, setActionId] = useState<number | null>(null);
   const [confirmId, setConfirmId] = useState<number | null>(null);
   const [confirmMode, setConfirmMode] = useState<'remove' | 'reject'>('remove');
@@ -79,11 +79,6 @@ export const ArrPlugin: React.FC<Props> = ({
   const [grabConfirm, setGrabConfirm]   = useState<ArrRelease | null>(null);
   const [grabbing, setGrabbing]         = useState(false);
   const [releaseFilter, setReleaseFilter] = useState('');
-
-  const showToast = (msg: string, ok = true) => {
-    setToast({ msg, ok });
-    setTimeout(() => setToast(null), 4000);
-  };
 
   const load = useCallback(async (spin = false) => {
     if (spin) { setSpinning(true); setTimeout(() => setSpinning(false), 600); }
@@ -107,7 +102,7 @@ export const ArrPlugin: React.FC<Props> = ({
     const res = await removeItem(item.id, removeFromClient, false);
     setActionId(null);
     setConfirmId(null);
-    if (!res.ok) { showToast((res as any).error ?? 'Remove failed', false); return; }
+    if (!res.ok) { showToast((res as any).error ?? 'Remove failed', 'error'); return; }
     showToast('Removed from queue');
     await load();
   };
@@ -117,7 +112,7 @@ export const ArrPlugin: React.FC<Props> = ({
     const res = await rejectItem(item);
     setActionId(null);
     setConfirmId(null);
-    if (!res.ok) { showToast((res as any).error ?? 'Reject failed', false); return; }
+    if (!res.ok) { showToast((res as any).error ?? 'Reject failed', 'error'); return; }
     const searched = (res as any).searched;
     showToast(searched ? 'Blocklisted & searching for alternatives…' : 'Blocklisted — no alternatives found');
     await load();
@@ -149,7 +144,7 @@ export const ArrPlugin: React.FC<Props> = ({
     const res = await grabRelease(grabConfirm.guid, grabConfirm.indexerId);
     if (!res.ok) {
       setGrabbing(false);
-      showToast((res as any).error ?? 'Grab failed', false);
+      showToast((res as any).error ?? 'Grab failed', 'error');
       return;
     }
     // Remove the old queue item from the download client
@@ -190,12 +185,6 @@ export const ArrPlugin: React.FC<Props> = ({
           <RefreshCw size={14} />
         </button>
       </div>
-
-      {toast && (
-        <div className={`arr-toast ${toast.ok ? 'arr-toast--ok' : 'arr-toast--err'}`}>
-          {toast.ok ? <CheckCircle size={14} /> : <AlertCircle size={14} />} {toast.msg}
-        </div>
-      )}
 
       {loading ? (
         <div className="arr-loading"><span className="spinner" /> Loading queue…</div>

@@ -15,6 +15,7 @@ import { GlassCard } from '../components/ui/GlassCard';
 import { PasskeyPrompt } from '../components/ui/PasskeyPrompt';
 import { api } from '../lib/api';
 import type { UserScriptWithCron, UserScript, UserCronStatus, PasskeyStatus } from '../lib/api';
+import { showToast } from '../lib/toast';
 import { openModal, closeModal } from '../lib/modalManager';
 import './Scripts.css';
 
@@ -527,8 +528,6 @@ export const Scripts: React.FC = () => {
   const [scripts, setScripts]     = useState<UserScriptWithCron[]>([]);
   const [loading, setLoading]     = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [toast, setToast]         = useState<{ ok: boolean; msg: string } | null>(null);
-
   const [passkeyStatus, setPasskeyStatus] = useState<PasskeyStatus | null>(null);
   const [showPasskey, setShowPasskey]     = useState(false);
   const [passkeyMode, setPasskeyMode]     = useState<'register' | 'authenticate'>('authenticate');
@@ -558,13 +557,8 @@ export const Scripts: React.FC = () => {
     const res = await api.scripts.readLog(id);
     if (isRefresh) setLogRefreshing(false); else setLogLoading(null);
     if (res.ok) setLogModal({ id, name, content: res.data.content, logFile: res.data.logFile });
-    else showToast(false, res.error);
+    else showToast(res.error, 'error');
   }, []);
-
-  const showToast = (ok: boolean, msg: string) => {
-    setToast({ ok, msg });
-    setTimeout(() => setToast(null), 3500);
-  };
 
   const loadScripts = useCallback(async () => {
     const res = await api.scripts.list();
@@ -602,7 +596,7 @@ export const Scripts: React.FC = () => {
       api.scripts.run(action.id).then((res) => {
         setIsRunning(null);
         if (res.ok) setRunResult({ output: res.data.output, exitCode: res.data.exitCode });
-        else showToast(false, res.error);
+        else showToast(res.error, 'error');
       });
     }
   }, [pendingAction]);
@@ -610,7 +604,7 @@ export const Scripts: React.FC = () => {
   const handleEditorSaved = useCallback((script: UserScript) => {
     setEditorOpen(false);
     setEditingId(null);
-    showToast(true, editingId === null ? `Script "${script.name}" created` : `Script "${script.name}" saved`);
+    showToast(editingId === null ? `Script "${script.name}" created` : `Script "${script.name}" saved`);
     loadScripts();
   }, [editingId, loadScripts]);
 
@@ -622,7 +616,7 @@ export const Scripts: React.FC = () => {
     setIsDeleting(false);
     if (!res.ok) { setDeleteError(res.error); return; }
     setConfirmDelete(null);
-    showToast(true, `Script "${confirmDelete.name}" deleted`);
+    showToast(`Script "${confirmDelete.name}" deleted`);
     loadScripts();
   };
 
@@ -658,13 +652,6 @@ export const Scripts: React.FC = () => {
           </button>
         </div>
       </div>
-
-      {/* Toast */}
-      {toast && (
-        <div className={`scripts-page__toast${toast.ok ? '' : ' scripts-page__toast--error'}`}>
-          {toast.ok ? <CheckCircle2 size={15} /> : <AlertCircle size={15} />} {toast.msg}
-        </div>
-      )}
 
       {/* Empty / loading / list */}
       {loading ? (

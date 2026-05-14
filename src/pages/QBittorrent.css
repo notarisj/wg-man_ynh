@@ -55,18 +55,7 @@
 .qbit-refresh { margin-left: 4px; }
 .qbit-refresh.spinning svg { animation: spin 600ms linear infinite; }
 
-/* ── Toast / error ──────────────────────────────────────────── */
-
-.qbit-toast {
-  background: var(--clr-green-dim);
-  border: 1px solid rgba(34,197,94,0.25);
-  color: var(--clr-green);
-  font-size: 13px;
-  font-weight: 500;
-  padding: 10px 16px;
-  border-radius: var(--r-md);
-  animation: slide-up var(--dur-normal) var(--ease) both;
-}
+/* ── Error ───────────────────────────────────────────────────── */
 
 .qbit-action-err {
   background: rgba(239,68,68,0.1);
