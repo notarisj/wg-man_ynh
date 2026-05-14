@@ -169,6 +169,63 @@
   color: var(--clr-text-dim);
 }
 
+/* ── Plugin group ──────────────────────────────────────────── */
+
+.sidebar__nav-group-header {
+  display: flex;
+  align-items: center;
+}
+
+.sidebar__nav-group-header .sidebar__nav-item {
+  flex: 1;
+  width: auto;
+  min-width: 0;
+}
+
+.sidebar__plugins-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 36px;
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--clr-text-muted);
+  border-radius: var(--r-sm);
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+  margin-right: 2px;
+}
+
+.sidebar__plugins-toggle:hover {
+  background: var(--clr-surface-md);
+  color: var(--clr-text);
+}
+
+.sidebar__plugins-toggle > svg {
+  transition: transform var(--dur-normal) var(--ease);
+}
+
+.sidebar__plugins-toggle.expanded > svg {
+  transform: rotate(180deg);
+}
+
+.sidebar__nav-group-body {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height var(--dur-normal) var(--ease);
+}
+
+.sidebar__nav-group-body.expanded {
+  max-height: 160px;
+}
+
+/* Hide chevron in icon-only collapsed mode */
+.sidebar--collapsed .sidebar__plugins-toggle {
+  display: none;
+}
+
 /* Footer */
 .sidebar__footer {
   display: flex;

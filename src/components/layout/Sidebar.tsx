@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -16,6 +16,7 @@ import {
   Wifi,
   Film,
   Tv,
+  ChevronDown,
 } from 'lucide-react';
 import { useVpnStore } from '../../store/vpnStore';
 import { usePluginStore } from '../../store/pluginStore';
@@ -52,7 +53,29 @@ export const Sidebar: React.FC<SidebarProps> = ({
   useEffect(() => {
     usePluginStore.getState().fetchPlugins();
   }, []);
+
+  const [pluginsExpanded, setPluginsExpanded] = useState(
+    () => localStorage.getItem('plugins-sidebar-expanded') !== 'false',
+  );
+
   const location = useLocation();
+
+  // Auto-expand when navigating to a plugin sub-page
+  useEffect(() => {
+    if (location.pathname.startsWith('/plugins/')) setPluginsExpanded(true);
+  }, [location.pathname]);
+
+  const togglePlugins = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setPluginsExpanded((v) => {
+      const next = !v;
+      localStorage.setItem('plugins-sidebar-expanded', String(next));
+      return next;
+    });
+  };
+
+  const hasEnabledPlugins = !!plugins && Object.values(plugins).some((p) => p.enabled);
   const sidebarRef = useRef<HTMLElement>(null);
 
   // Disable transitions during window resize so the sidebar snaps to its
@@ -126,60 +149,76 @@ export const Sidebar: React.FC<SidebarProps> = ({
         })}
 
         {/* Plugins section */}
-        <NavLink
-          to="/plugins"
-          className={({ isActive }) =>
-            `sidebar__nav-item${isActive && location.pathname === '/plugins' ? ' sidebar__nav-item--active' : ''}`
-          }
-          aria-label="Plugins"
-          title="Plugins"
-          onClick={onMobileClose}
-        >
-          <span className="sidebar__nav-icon"><Puzzle size={20} /></span>
-          <span className="sidebar__nav-label">Plugins</span>
-        </NavLink>
-        {plugins?.qbittorrent?.enabled && (
-          <NavLink
-            to="/plugins/qbittorrent"
-            className={({ isActive }) =>
-              `sidebar__nav-item sidebar__nav-item--sub${isActive ? ' sidebar__nav-item--active' : ''}`
-            }
-            aria-label="qBittorrent"
-            title="qBittorrent"
-            onClick={onMobileClose}
-          >
-            <span className="sidebar__nav-icon"><Wifi size={17} /></span>
-            <span className="sidebar__nav-label">qBittorrent</span>
-          </NavLink>
-        )}
-        {plugins?.radarr?.enabled && (
-          <NavLink
-            to="/plugins/radarr"
-            className={({ isActive }) =>
-              `sidebar__nav-item sidebar__nav-item--sub${isActive ? ' sidebar__nav-item--active' : ''}`
-            }
-            aria-label="Radarr"
-            title="Radarr"
-            onClick={onMobileClose}
-          >
-            <span className="sidebar__nav-icon"><Film size={17} /></span>
-            <span className="sidebar__nav-label">Radarr</span>
-          </NavLink>
-        )}
-        {plugins?.sonarr?.enabled && (
-          <NavLink
-            to="/plugins/sonarr"
-            className={({ isActive }) =>
-              `sidebar__nav-item sidebar__nav-item--sub${isActive ? ' sidebar__nav-item--active' : ''}`
-            }
-            aria-label="Sonarr"
-            title="Sonarr"
-            onClick={onMobileClose}
-          >
-            <span className="sidebar__nav-icon"><Tv size={17} /></span>
-            <span className="sidebar__nav-label">Sonarr</span>
-          </NavLink>
-        )}
+        <div className="sidebar__nav-group">
+          <div className="sidebar__nav-group-header">
+            <NavLink
+              to="/plugins"
+              className={({ isActive }) =>
+                `sidebar__nav-item${isActive && location.pathname === '/plugins' ? ' sidebar__nav-item--active' : ''}`
+              }
+              aria-label="Plugins"
+              title="Plugins"
+              onClick={onMobileClose}
+            >
+              <span className="sidebar__nav-icon"><Puzzle size={20} /></span>
+              <span className="sidebar__nav-label">Plugins</span>
+            </NavLink>
+            {hasEnabledPlugins && (
+              <button
+                className={`sidebar__plugins-toggle${pluginsExpanded ? ' expanded' : ''}`}
+                onClick={togglePlugins}
+                aria-label={pluginsExpanded ? 'Collapse plugins' : 'Expand plugins'}
+                title={pluginsExpanded ? 'Collapse plugins' : 'Expand plugins'}
+              >
+                <ChevronDown size={14} />
+              </button>
+            )}
+          </div>
+          <div className={`sidebar__nav-group-body${pluginsExpanded && hasEnabledPlugins ? ' expanded' : ''}`}>
+            {plugins?.qbittorrent?.enabled && (
+              <NavLink
+                to="/plugins/qbittorrent"
+                className={({ isActive }) =>
+                  `sidebar__nav-item sidebar__nav-item--sub${isActive ? ' sidebar__nav-item--active' : ''}`
+                }
+                aria-label="qBittorrent"
+                title="qBittorrent"
+                onClick={onMobileClose}
+              >
+                <span className="sidebar__nav-icon"><Wifi size={17} /></span>
+                <span className="sidebar__nav-label">qBittorrent</span>
+              </NavLink>
+            )}
+            {plugins?.radarr?.enabled && (
+              <NavLink
+                to="/plugins/radarr"
+                className={({ isActive }) =>
+                  `sidebar__nav-item sidebar__nav-item--sub${isActive ? ' sidebar__nav-item--active' : ''}`
+                }
+                aria-label="Radarr"
+                title="Radarr"
+                onClick={onMobileClose}
+              >
+                <span className="sidebar__nav-icon"><Film size={17} /></span>
+                <span className="sidebar__nav-label">Radarr</span>
+              </NavLink>
+            )}
+            {plugins?.sonarr?.enabled && (
+              <NavLink
+                to="/plugins/sonarr"
+                className={({ isActive }) =>
+                  `sidebar__nav-item sidebar__nav-item--sub${isActive ? ' sidebar__nav-item--active' : ''}`
+                }
+                aria-label="Sonarr"
+                title="Sonarr"
+                onClick={onMobileClose}
+              >
+                <span className="sidebar__nav-icon"><Tv size={17} /></span>
+                <span className="sidebar__nav-label">Sonarr</span>
+              </NavLink>
+            )}
+          </div>
+        </div>
 
         {/* Desktop-only collapse toggle */}
         <button
