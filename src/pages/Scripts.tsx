@@ -91,7 +91,8 @@ const ScriptEditorModal: React.FC<ScriptEditorModalProps> = ({ editId, onSaved, 
   const isNew = editId === null;
 
   const [name, setName]               = useState('');
-  const [logFile, setLogFile]         = useState('');
+  const [logFile, setLogFile]             = useState('');
+  const [originalLogFile, setOriginalLogFile] = useState('');
   const [content, setContent]         = useState(NEW_TEMPLATE);
   const [original, setOriginal]       = useState(NEW_TEMPLATE);
   const [loading, setLoading]         = useState(!isNew);
@@ -119,6 +120,7 @@ const ScriptEditorModal: React.FC<ScriptEditorModalProps> = ({ editId, onSaved, 
         if (res.ok) {
           setName(res.data.script.name);
           setLogFile(res.data.script.logFile ?? '');
+          setOriginalLogFile(res.data.script.logFile ?? '');
           setContent(res.data.content);
           setOriginal(res.data.content);
           const cron = res.data.cron;
@@ -136,7 +138,7 @@ const ScriptEditorModal: React.FC<ScriptEditorModalProps> = ({ editId, onSaved, 
     }
   }, [editId, isNew]);
 
-  const isDirty = content !== original;
+  const isDirty = content !== original || logFile !== originalLogFile;
 
   const handleSaveClick = useCallback(async () => {
     setSyntaxError(null);
@@ -165,6 +167,7 @@ const ScriptEditorModal: React.FC<ScriptEditorModalProps> = ({ editId, onSaved, 
       setSaving(false);
       if (!res.ok) { setSaveError(res.error); return; }
       setOriginal(content);
+      setOriginalLogFile(logFile.trim());
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
       onSaved({ id: editId, name: name.trim(), createdAt: 0, updatedAt: Date.now() });
