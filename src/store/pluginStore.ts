@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { api } from '../lib/api';
 
 export type PluginSafe = {
-  enabled: boolean; host: string; port: number; https: boolean;
+  enabled: boolean; host: string; port: number; https: boolean; publicUrl?: string;
   hasPassword?: boolean; hasApiKey?: boolean; hasUsername?: boolean; username?: string;
 };
 

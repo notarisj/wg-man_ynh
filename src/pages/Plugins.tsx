@@ -16,15 +16,16 @@ const PLUGIN_META = {
 } as const;
 type PluginId = keyof typeof PLUGIN_META;
 
-type Draft = { host: string; port: string; https: boolean; username: string; password: string; apiKey: string };
+type Draft = { host: string; port: string; https: boolean; publicUrl: string; username: string; password: string; apiKey: string };
 
 const defaultDraft = (cfg: PluginSafe | undefined, id: PluginId): Draft => ({
-  host:     cfg?.host  || 'localhost',
-  port:     String(cfg?.port || PLUGIN_META[id].defaultPort),
-  https:    cfg?.https || false,
-  username: cfg?.username || '',
-  password: '',
-  apiKey:   '',
+  host:      cfg?.host  || 'localhost',
+  port:      String(cfg?.port || PLUGIN_META[id].defaultPort),
+  https:     cfg?.https || false,
+  publicUrl: cfg?.publicUrl || '',
+  username:  cfg?.username || '',
+  password:  '',
+  apiKey:    '',
 });
 
 export const Plugins: React.FC = () => {
@@ -56,13 +57,14 @@ export const Plugins: React.FC = () => {
     setSaving(true);
     setSaveErr(null);
     const res = await api.plugins.save(editing, {
-      enabled:  true,
-      host:     draft.host.trim(),
-      port:     parseInt(draft.port, 10) || PLUGIN_META[editing].defaultPort,
-      https:    draft.https,
-      username: draft.username || undefined,
-      password: draft.password || undefined,
-      apiKey:   draft.apiKey   || undefined,
+      enabled:   true,
+      host:      draft.host.trim(),
+      port:      parseInt(draft.port, 10) || PLUGIN_META[editing].defaultPort,
+      https:     draft.https,
+      publicUrl: draft.publicUrl.trim() || undefined,
+      username:  draft.username || undefined,
+      password:  draft.password || undefined,
+      apiKey:    draft.apiKey   || undefined,
     });
     setSaving(false);
     if (!res.ok) { setSaveErr(res.error); return; }
@@ -106,6 +108,7 @@ export const Plugins: React.FC = () => {
                 {active && cfg && (
                   <div className="plugin-card__detail">
                     {cfg.https ? 'https' : 'http'}://{cfg.host}:{cfg.port}
+                    {cfg.publicUrl && <span className="plugin-card__puburl"> · {cfg.publicUrl}</span>}
                   </div>
                 )}
               </div>
@@ -115,8 +118,13 @@ export const Plugins: React.FC = () => {
                 </span>
               </div>
               <div className="plugin-card__actions">
-                {active && (
-                  <a href={`/plugins/${id}`} className="btn btn-primary btn-sm">
+                {active && cfg && (
+                  <a
+                    href={cfg.publicUrl || `${cfg.https ? 'https' : 'http'}://${cfg.host}:${cfg.port}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn btn-primary btn-sm"
+                  >
                     Open <ChevronRight size={13} />
                   </a>
                 )}
@@ -156,6 +164,17 @@ export const Plugins: React.FC = () => {
               <div className="plugins-form-row plugins-form-row--check">
                 <label className="plugins-form-label">HTTPS</label>
                 <input type="checkbox" checked={draft.https} onChange={(e) => set('https', e.target.checked)} />
+              </div>
+              <div className="plugins-form-row">
+                <label className="plugins-form-label">Public URL</label>
+                <input
+                  className="scripts-modal__name-input"
+                  value={draft.publicUrl}
+                  onChange={(e) => set('publicUrl', e.target.value)}
+                  placeholder="https://radarr.example.com  (optional — used for the Open button only)"
+                  spellCheck={false}
+                  autoComplete="off"
+                />
               </div>
               {PLUGIN_META[editing].needsAuth && (
                 <>

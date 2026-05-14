@@ -97,6 +97,10 @@
   color: var(--clr-teal);
 }
 
+.plugin-card__puburl {
+  color: var(--clr-text-dim);
+}
+
 .plugin-card__status {
   position: absolute;
   top: 16px;

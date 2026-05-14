@@ -5,13 +5,14 @@ const DATA_DIR   = process.env.DATA_DIR || '/var/lib/wg-man';
 const CONFIG_FILE = path.join(DATA_DIR, 'plugins.json');
 
 export interface PluginConfig {
-  enabled:   boolean;
-  host:      string;
-  port:      number;
-  https:     boolean;
-  username?: string; // qBittorrent
-  password?: string; // qBittorrent
-  apiKey?:   string; // Radarr / Sonarr
+  enabled:    boolean;
+  host:       string;
+  port:       number;
+  https:      boolean;
+  publicUrl?: string; // optional override URL used only for the "Open" button
+  username?:  string; // qBittorrent
+  password?:  string; // qBittorrent
+  apiKey?:    string; // Radarr / Sonarr
 }
 
 export interface PluginsConfig {
@@ -51,6 +52,7 @@ export function sanitizeConfig(config: PluginsConfig): Record<string, unknown> {
     host:        cfg.host,
     port:        cfg.port,
     https:       cfg.https,
+    publicUrl:   cfg.publicUrl ?? '',
     hasPassword: !!cfg.password,
     hasApiKey:   !!cfg.apiKey,
     hasUsername: !!cfg.username,

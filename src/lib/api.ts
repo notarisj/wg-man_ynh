@@ -222,11 +222,11 @@ export const api = {
   },
   plugins: {
     config: () => apiFetch<Record<string, {
-      enabled: boolean; host: string; port: number; https: boolean;
+      enabled: boolean; host: string; port: number; https: boolean; publicUrl?: string;
       hasPassword?: boolean; hasApiKey?: boolean; hasUsername?: boolean; username?: string;
     }>>('/plugins/config'),
     save: (id: string, cfg: {
-      enabled?: boolean; host?: string; port?: number; https?: boolean;
+      enabled?: boolean; host?: string; port?: number; https?: boolean; publicUrl?: string;
       username?: string; password?: string; apiKey?: string;
     }) => apiFetch<{ ok: boolean }>(`/plugins/config/${id}`, { method: 'PUT', body: JSON.stringify(cfg) }),
   },

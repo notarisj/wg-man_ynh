@@ -27,21 +27,22 @@ router.put('/config/:id', requireAdmin, requirePasskey, async (req, res) => {
   const id = req.params.id as PluginId;
   if (!PLUGIN_IDS.includes(id)) { res.status(400).json({ error: 'Unknown plugin' }); return; }
 
-  const { enabled, host, port, https: useHttps, username, password, apiKey } =
+  const { enabled, host, port, https: useHttps, publicUrl, username, password, apiKey } =
     req.body as Record<string, unknown>;
 
   const config = await loadPluginsConfig();
   const existing: PluginConfig = config[id];
 
   const updated: PluginConfig = {
-    enabled:  typeof enabled  === 'boolean' ? enabled  : existing.enabled,
-    host:     typeof host     === 'string'  ? host.trim()     : existing.host,
-    port:     typeof port     === 'number'  ? Math.floor(port) : existing.port,
-    https:    typeof useHttps === 'boolean' ? useHttps : existing.https,
-    username: typeof username === 'string' && username ? username : existing.username,
+    enabled:   typeof enabled    === 'boolean' ? enabled    : existing.enabled,
+    host:      typeof host       === 'string'  ? host.trim()       : existing.host,
+    port:      typeof port       === 'number'  ? Math.floor(port)  : existing.port,
+    https:     typeof useHttps   === 'boolean' ? useHttps   : existing.https,
+    publicUrl: typeof publicUrl  === 'string'  ? (publicUrl.trim() || undefined) : existing.publicUrl,
+    username:  typeof username   === 'string' && username   ? username  : existing.username,
     // empty string means "clear"; undefined means "keep"
-    password: typeof password === 'string' ? (password || undefined) : existing.password,
-    apiKey:   typeof apiKey   === 'string' ? (apiKey   || undefined) : existing.apiKey,
+    password:  typeof password   === 'string'  ? (password  || undefined) : existing.password,
+    apiKey:    typeof apiKey     === 'string'  ? (apiKey    || undefined) : existing.apiKey,
   };
 
   config[id] = updated;
