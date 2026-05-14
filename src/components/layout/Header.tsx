@@ -6,11 +6,16 @@ import { getLogoutUrl, api } from '../../lib/api';
 import './Header.css';
 
 const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
-  '/':        { title: 'Dashboard',   subtitle: 'Real-time VPN overview' },
-  '/configs': { title: 'Configs',     subtitle: 'Manage WireGuard configurations' },
-  '/logs':    { title: 'Logs',        subtitle: 'Monitor activity & events' },
-  '/history': { title: 'History',    subtitle: 'Connection history & uptime' },
-  '/settings':{ title: 'Settings',   subtitle: 'Application configuration' },
+  '/':                       { title: 'Dashboard',          subtitle: 'Real-time VPN overview' },
+  '/configs':                { title: 'Configs',            subtitle: 'Manage WireGuard configurations' },
+  '/logs':                   { title: 'Logs',               subtitle: 'Monitor activity & events' },
+  '/history':                { title: 'History',            subtitle: 'Connection history & uptime' },
+  '/settings':               { title: 'Settings',           subtitle: 'Application configuration' },
+  '/scripts':                { title: 'Scripts',            subtitle: 'Manage & schedule shell scripts' },
+  '/plugins':                { title: 'Plugins',            subtitle: 'Connect to local services' },
+  '/plugins/qbittorrent':    { title: 'qBittorrent',        subtitle: 'Torrent manager' },
+  '/plugins/radarr':         { title: 'Radarr',             subtitle: 'Movie download queue' },
+  '/plugins/sonarr':         { title: 'Sonarr',             subtitle: 'TV episode download queue' },
 };
 
 interface HeaderProps {
@@ -19,7 +24,7 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({ onMobileMenuToggle }) => {
   const location = useLocation();
-  const meta = PAGE_TITLES[location.pathname] ?? PAGE_TITLES['/'];
+  const meta = PAGE_TITLES[location.pathname] ?? { title: 'WG Manager', subtitle: '' };
   const { fetchStatus, fetchConfigs, isLoadingStatus, lastUpdated, user } = useVpnStore();
   const [refreshing, setRefreshing] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);

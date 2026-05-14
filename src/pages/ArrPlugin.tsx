@@ -174,25 +174,21 @@ export const ArrPlugin: React.FC<Props> = ({
   return (
     <div className="arr-page animate-fade-in">
       <div className="arr-page__header">
-        <NavLink to="/plugins" className="arr-back-link">
-          <ChevronLeft size={15} /> Plugins
+        <NavLink to="/plugins" className="plugin-back-btn" title="Back to Plugins">
+          <ChevronLeft size={18} />
         </NavLink>
-        <div className="arr-page__title-row">
-          <span className="arr-page__icon">{icon}</span>
-          <div>
-            <div className="arr-page__title">{label}</div>
-            <div className="arr-page__sub">
-              {loading ? 'Loading…' : `${total} item${total !== 1 ? 's' : ''} in queue`}
-            </div>
-          </div>
-          <button
-            className={`btn btn-ghost btn-sm arr-refresh${spinning ? ' spinning' : ''}`}
-            onClick={() => load(true)}
-            title="Refresh"
-          >
-            <RefreshCw size={14} />
-          </button>
-        </div>
+        <span className="arr-page__icon">{icon}</span>
+        <div className="arr-page__title">{label}</div>
+        <span className="arr-page__count">
+          {loading ? '…' : `${total} item${total !== 1 ? 's' : ''} in queue`}
+        </span>
+        <button
+          className={`btn btn-ghost btn-sm arr-refresh${spinning ? ' spinning' : ''}`}
+          onClick={() => load(true)}
+          title="Refresh"
+        >
+          <RefreshCw size={14} />
+        </button>
       </div>
 
       {toast && (

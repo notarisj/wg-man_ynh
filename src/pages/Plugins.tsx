@@ -1,9 +1,11 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import ReactDOM from 'react-dom';
 import { Puzzle, Wifi, Film, Tv, Check, X, ExternalLink, ChevronRight } from 'lucide-react';
 import { GlassCard } from '../components/ui/GlassCard';
 import { PasskeyPrompt } from '../components/ui/PasskeyPrompt';
 import { api } from '../lib/api';
 import { usePluginStore, type PluginSafe } from '../store/pluginStore';
+import { openModal, closeModal } from '../lib/modalManager';
 import './Plugins.css';
 
 const PLUGIN_META = {
@@ -31,9 +33,16 @@ export const Plugins: React.FC = () => {
   const [saving, setSaving]       = useState(false);
   const [saveErr, setSaveErr]     = useState<string | null>(null);
   const [showPasskey, setShowPasskey] = useState(false);
+  const [pendingDisable, setPendingDisable] = useState<PluginId | null>(null);
   const [toast, setToast]         = useState<string | null>(null);
 
   useEffect(() => { fetchPlugins(); }, []);
+
+  // Track modal open state for background blur
+  const isModalOpen = editing !== null || showPasskey || pendingDisable !== null;
+  useEffect(() => {
+    if (isModalOpen) { openModal(); return closeModal; }
+  }, [isModalOpen]);
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -45,6 +54,8 @@ export const Plugins: React.FC = () => {
     setDraft(defaultDraft(plugins?.[id], id));
     setSaveErr(null);
   }, [plugins]);
+
+  const closeEdit = useCallback(() => setEditing(null), []);
 
   const doSave = useCallback(async () => {
     if (!editing || !draft) return;
@@ -69,6 +80,7 @@ export const Plugins: React.FC = () => {
 
   const doDisable = useCallback(async (id: PluginId) => {
     const res = await api.plugins.save(id, { enabled: false });
+    setPendingDisable(null);
     if (res.ok) { await fetchPlugins(); showToast(`${PLUGIN_META[id].label} disabled`); }
   }, [fetchPlugins]);
 
@@ -122,7 +134,7 @@ export const Plugins: React.FC = () => {
                   Configure
                 </button>
                 {active && (
-                  <button className="btn btn-ghost btn-sm plugin-card__disable" onClick={() => doDisable(id)}>
+                  <button className="btn btn-ghost btn-sm plugin-card__disable" onClick={() => setPendingDisable(id)}>
                     <X size={13} /> Disable
                   </button>
                 )}
@@ -132,15 +144,15 @@ export const Plugins: React.FC = () => {
         })}
       </div>
 
-      {/* Config modal */}
-      {editing && draft && (
-        <div className="plugins-modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) setEditing(null); }}>
+      {/* Config modal — portal to document.body so it covers the full viewport */}
+      {editing && draft && ReactDOM.createPortal(
+        <div className="plugins-modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) closeEdit(); }}>
           <div className="plugins-modal">
             <div className="plugins-modal__header">
               <span className="plugins-modal__title">
                 {PLUGIN_META[editing].icon} Configure {PLUGIN_META[editing].label}
               </span>
-              <button className="scripts-modal__close" onClick={() => setEditing(null)}><X size={16} /></button>
+              <button className="scripts-modal__close" onClick={closeEdit}><X size={16} /></button>
             </div>
             <div className="plugins-modal__body">
               <div className="plugins-form-row">
@@ -183,11 +195,12 @@ export const Plugins: React.FC = () => {
                   {saving ? <span className="spinner spinner-sm" /> : <Check size={13} />}
                   Save & Enable
                 </button>
-                <button className="btn btn-ghost btn-sm" onClick={() => setEditing(null)}>Cancel</button>
+                <button className="btn btn-ghost btn-sm" onClick={closeEdit}>Cancel</button>
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
 
       {showPasskey && (
@@ -195,6 +208,14 @@ export const Plugins: React.FC = () => {
           mode="authenticate"
           onSuccess={() => { setShowPasskey(false); doSave(); }}
           onCancel={() => setShowPasskey(false)}
+        />
+      )}
+
+      {pendingDisable && (
+        <PasskeyPrompt
+          mode="authenticate"
+          onSuccess={() => doDisable(pendingDisable)}
+          onCancel={() => setPendingDisable(null)}
         />
       )}
     </div>

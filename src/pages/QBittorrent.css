@@ -2,36 +2,35 @@
 
 /* ── Header ─────────────────────────────────────────────────── */
 
-.qbit-back-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  color: var(--clr-text-dim);
-  text-decoration: none;
-  transition: color var(--dur-fast);
-}
-.qbit-back-link:hover { color: var(--clr-text-muted); }
-
-.qbit-page__title-row {
+.qbit-page__header {
   display: flex;
   align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
+  gap: 10px;
 }
 
-.qbit-page__icon { color: var(--clr-text-muted); }
+.plugin-back-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--r-sm);
+  color: var(--clr-text-muted);
+  text-decoration: none;
+  flex-shrink: 0;
+  transition: background var(--dur-fast), color var(--dur-fast);
+}
+.plugin-back-btn:hover {
+  background: var(--clr-surface-md);
+  color: var(--clr-text);
+}
+
+.qbit-page__icon { color: var(--clr-text-muted); flex-shrink: 0; }
 
 .qbit-page__title {
   font-size: 15px;
   font-weight: 600;
   color: var(--clr-text);
-}
-
-.qbit-page__sub {
-  font-size: 12px;
-  color: var(--clr-text-dim);
-  margin-top: 2px;
 }
 
 .qbit-speeds {

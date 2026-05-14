@@ -137,29 +137,22 @@ export const QBittorrent: React.FC = () => {
   return (
     <div className="qbit-page animate-fade-in">
       <div className="qbit-page__header">
-        <div className="qbit-page__back-row">
-          <NavLink to="/plugins" className="qbit-back-link">
-            <ChevronLeft size={15} /> Plugins
-          </NavLink>
+        <NavLink to="/plugins" className="plugin-back-btn" title="Back to Plugins">
+          <ChevronLeft size={18} />
+        </NavLink>
+        <Wifi size={20} className="qbit-page__icon" />
+        <div className="qbit-page__title">qBittorrent</div>
+        <div className="qbit-speeds">
+          <span className="qbit-speed qbit-speed--dl"><ArrowDown size={13} />{fmtSpeed(dlSpeed)}</span>
+          <span className="qbit-speed qbit-speed--up"><ArrowUp size={13} />{fmtSpeed(upSpeed)}</span>
         </div>
-        <div className="qbit-page__title-row">
-          <Wifi size={20} className="qbit-page__icon" />
-          <div>
-            <div className="qbit-page__title">qBittorrent</div>
-            <div className="qbit-page__sub">Torrent manager</div>
-          </div>
-          <div className="qbit-speeds">
-            <span className="qbit-speed qbit-speed--dl"><ArrowDown size={13} />{fmtSpeed(dlSpeed)}</span>
-            <span className="qbit-speed qbit-speed--up"><ArrowUp size={13} />{fmtSpeed(upSpeed)}</span>
-          </div>
-          <button
-            className={`btn btn-ghost btn-sm qbit-refresh${spinning ? ' spinning' : ''}`}
-            onClick={() => load(true)}
-            title="Refresh"
-          >
-            <RefreshCw size={14} />
-          </button>
-        </div>
+        <button
+          className={`btn btn-ghost btn-sm qbit-refresh${spinning ? ' spinning' : ''}`}
+          onClick={() => load(true)}
+          title="Refresh"
+        >
+          <RefreshCw size={14} />
+        </button>
       </div>
 
       {toast && <div className="qbit-toast">{toast}</div>}
