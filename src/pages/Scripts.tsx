@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom';
 import {
   Terminal, Plus, RefreshCw, Pencil, Trash2, Play, Clock,
   AlertCircle, CheckCircle2, X, Save, RotateCcw, ShieldCheck,
-  Loader,
+  Loader, FileText,
 } from 'lucide-react';
 import CodeMirror from '@uiw/react-codemirror';
 import { StreamLanguage } from '@codemirror/language';
@@ -91,6 +91,7 @@ const ScriptEditorModal: React.FC<ScriptEditorModalProps> = ({ editId, onSaved, 
   const isNew = editId === null;
 
   const [name, setName]               = useState('');
+  const [logFile, setLogFile]         = useState('');
   const [content, setContent]         = useState(NEW_TEMPLATE);
   const [original, setOriginal]       = useState(NEW_TEMPLATE);
   const [loading, setLoading]         = useState(!isNew);
@@ -117,6 +118,7 @@ const ScriptEditorModal: React.FC<ScriptEditorModalProps> = ({ editId, onSaved, 
       api.scripts.get(editId).then((res) => {
         if (res.ok) {
           setName(res.data.script.name);
+          setLogFile(res.data.script.logFile ?? '');
           setContent(res.data.content);
           setOriginal(res.data.content);
           const cron = res.data.cron;
@@ -151,14 +153,15 @@ const ScriptEditorModal: React.FC<ScriptEditorModalProps> = ({ editId, onSaved, 
   const doSave = useCallback(async () => {
     setSaving(true);
     setSaveError(null);
+    const lf = logFile.trim() || undefined;
     if (isNew) {
-      const res = await api.scripts.create(name.trim(), content);
+      const res = await api.scripts.create(name.trim(), content, lf);
       setSaving(false);
       if (!res.ok) { setSaveError(res.error); return; }
       setSaved(true);
       onSaved(res.data.script);
     } else if (editId) {
-      const res = await api.scripts.update(editId, { name: name.trim(), content });
+      const res = await api.scripts.update(editId, { name: name.trim(), content, logFile: logFile.trim() });
       setSaving(false);
       if (!res.ok) { setSaveError(res.error); return; }
       setOriginal(content);
@@ -166,7 +169,7 @@ const ScriptEditorModal: React.FC<ScriptEditorModalProps> = ({ editId, onSaved, 
       setTimeout(() => setSaved(false), 2500);
       onSaved({ id: editId, name: name.trim(), createdAt: 0, updatedAt: Date.now() });
     }
-  }, [isNew, editId, name, content, onSaved]);
+  }, [isNew, editId, name, content, logFile, onSaved]);
 
   const onPasskeySuccess = useCallback(async () => {
     setShowPasskey(false);
@@ -242,6 +245,21 @@ const ScriptEditorModal: React.FC<ScriptEditorModalProps> = ({ editId, onSaved, 
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="my-backup-script"
+              spellCheck={false}
+              disabled={loading}
+            />
+          </div>
+
+          {/* Log file */}
+          <div className="scripts-modal__name-row">
+            <label className="scripts-modal__label scripts-modal__label--icon">
+              <FileText size={12} /> Log
+            </label>
+            <input
+              className="scripts-modal__name-input"
+              value={logFile}
+              onChange={(e) => setLogFile(e.target.value)}
+              placeholder="/var/log/my-script.log  (optional — leave empty to capture stdout)"
               spellCheck={false}
               disabled={loading}
             />
@@ -416,17 +434,24 @@ const ScriptEditorModal: React.FC<ScriptEditorModalProps> = ({ editId, onSaved, 
 
 interface RunOutputProps {
   output: string;
+  exitCode: number;
   scriptName: string;
   onClose: () => void;
 }
 
-const RunOutputModal: React.FC<RunOutputProps> = ({ output, scriptName, onClose }) => (
+const RunOutputModal: React.FC<RunOutputProps> = ({ output, exitCode, scriptName, onClose }) => (
   ReactDOM.createPortal(
     <div className="scripts-modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="scripts-modal animate-slide-up">
         <div className="scripts-modal__header">
           <span className="scripts-modal__title"><Play size={15} /> Run: {scriptName}</span>
-          <button className="scripts-modal__close" onClick={onClose}><X size={16} /></button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {exitCode === 0
+              ? <span className="scripts-run-status scripts-run-status--ok"><CheckCircle2 size={13} /> Exit 0</span>
+              : <span className="scripts-run-status scripts-run-status--err"><AlertCircle size={13} /> Exit {exitCode}</span>
+            }
+            <button className="scripts-modal__close" onClick={onClose}><X size={16} /></button>
+          </div>
         </div>
         <div className="scripts-modal__body">
           <pre className="scripts-run-output">{output || '(no output)'}</pre>
@@ -466,7 +491,7 @@ export const Scripts: React.FC = () => {
   const [isDeleting, setIsDeleting]       = useState(false);
 
   // Run output
-  const [runOutput, setRunOutput]     = useState<string | null>(null);
+  const [runResult, setRunResult]     = useState<{ output: string; exitCode: number } | null>(null);
   const [runScriptName, setRunScriptName] = useState('');
   const [isRunning, setIsRunning]     = useState<string | null>(null);
 
@@ -488,8 +513,8 @@ export const Scripts: React.FC = () => {
 
   // Keep modal blur in sync
   useEffect(() => {
-    if (editorOpen || !!runOutput || !!confirmDelete) { openModal(); return closeModal; }
-  }, [editorOpen, runOutput, confirmDelete]);
+    if (editorOpen || !!runResult || !!confirmDelete) { openModal(); return closeModal; }
+  }, [editorOpen, runResult, confirmDelete]);
 
   const triggerPasskey = useCallback((action: PendingAction) => {
     setPendingAction(action);
@@ -510,7 +535,7 @@ export const Scripts: React.FC = () => {
       setRunScriptName(action.name);
       api.scripts.run(action.id).then((res) => {
         setIsRunning(null);
-        if (res.ok) setRunOutput(res.data.output);
+        if (res.ok) setRunResult({ output: res.data.output, exitCode: res.data.exitCode });
         else showToast(false, res.error);
       });
     }
@@ -663,11 +688,12 @@ export const Scripts: React.FC = () => {
       )}
 
       {/* Run output modal */}
-      {runOutput !== null && (
+      {runResult !== null && (
         <RunOutputModal
-          output={runOutput}
+          output={runResult.output}
+          exitCode={runResult.exitCode}
           scriptName={runScriptName}
-          onClose={() => setRunOutput(null)}
+          onClose={() => setRunResult(null)}
         />
       )}
 

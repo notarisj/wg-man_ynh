@@ -218,6 +218,12 @@
   width: 44px;
 }
 
+.scripts-modal__label--icon {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .scripts-modal__name-input {
   flex: 1;
   background: var(--clr-bg);
@@ -341,6 +347,30 @@
 }
 
 .scripts-modal__cron-label { font-size: 13px; color: var(--clr-text-muted); }
+
+/* ── Run status badge ────────────────────────────────────────── */
+
+.scripts-run-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 99px;
+}
+
+.scripts-run-status--ok {
+  background: rgba(34,197,94,0.12);
+  border: 1px solid rgba(34,197,94,0.25);
+  color: var(--clr-green);
+}
+
+.scripts-run-status--err {
+  background: rgba(239,68,68,0.12);
+  border: 1px solid rgba(239,68,68,0.25);
+  color: #f87171;
+}
 
 /* ── Run output ──────────────────────────────────────────────── */
 

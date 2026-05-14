@@ -22,7 +22,7 @@ function scriptPath(id: string): string {
   return path.join(SCRIPTS_DIR, `${id}.sh`);
 }
 
-function logFile(id: string): string {
+function defaultLogFile(id: string): string {
   return path.join(LOG_DIR, `script-${id}.log`);
 }
 
@@ -50,14 +50,14 @@ export async function getScriptCronStatus(id: string): Promise<UserCronStatus> {
   }
 }
 
-export async function setScriptCron(id: string, schedule: string): Promise<void> {
+export async function setScriptCron(id: string, schedule: string, logFile?: string): Promise<void> {
   const fields = schedule.trim().split(/\s+/);
   if (fields.length !== 5 || fields.some((f) => !SAFE_FIELD_RE.test(f))) {
     throw new Error('Invalid cron expression — must be 5 fields using digits, *, , - /');
   }
   const safe    = fields.join(' ');
   const sp      = scriptPath(id);
-  const lf      = logFile(id);
+  const lf      = logFile || defaultLogFile(id);
   const content = [
     `# wg-man user script ${id} — managed by wg-man app, do not edit manually`,
     `${safe} root bash ${sp} >> ${lf} 2>&1`,

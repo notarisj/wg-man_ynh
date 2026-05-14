@@ -61,6 +61,7 @@ export type CronStatus = {
 export type UserScript = {
   id:        string;
   name:      string;
+  logFile?:  string;
   createdAt: number;
   updatedAt: number;
 };
@@ -151,13 +152,13 @@ export const api = {
   scripts: {
     list:     ()                             => apiFetch<UserScriptWithCron[]>('/scripts'),
     get:      (id: string)                   => apiFetch<{ script: UserScript; content: string; cron: UserCronStatus }>(`/scripts/${encodeURIComponent(id)}`),
-    create:   (name: string, content: string) => apiFetch<{ ok: boolean; script: UserScript }>('/scripts', { method: 'POST', body: JSON.stringify({ name, content }) }),
+    create:   (name: string, content: string, logFile?: string) => apiFetch<{ ok: boolean; script: UserScript }>('/scripts', { method: 'POST', body: JSON.stringify({ name, content, logFile }) }),
     validate: (content: string)              => apiFetch<{ ok: boolean; error?: string }>('/scripts/validate', { method: 'POST', body: JSON.stringify({ content }) }),
-    update:   (id: string, opts: { name?: string; content?: string }) => apiFetch<{ ok: boolean }>(`/scripts/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(opts) }),
+    update:   (id: string, opts: { name?: string; content?: string; logFile?: string }) => apiFetch<{ ok: boolean }>(`/scripts/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(opts) }),
     delete:   (id: string)                   => apiFetch<{ ok: boolean }>(`/scripts/${encodeURIComponent(id)}`, { method: 'DELETE' }),
     setCron:  (id: string, schedule: string) => apiFetch<{ ok: boolean }>(`/scripts/${encodeURIComponent(id)}/cron`, { method: 'POST', body: JSON.stringify({ schedule }) }),
     disableCron: (id: string)               => apiFetch<{ ok: boolean }>(`/scripts/${encodeURIComponent(id)}/cron`, { method: 'DELETE' }),
-    run:      (id: string)                   => apiFetch<{ output: string }>(`/scripts/${encodeURIComponent(id)}/run`, { method: 'POST' }),
+    run:      (id: string)                   => apiFetch<{ output: string; exitCode: number }>(`/scripts/${encodeURIComponent(id)}/run`, { method: 'POST' }),
   },
   configContent: (name: string) => apiFetch<{ content: string }>(`/configs/${encodeURIComponent(name)}/content`),
   createConfig:  (name: string, content: string) => apiFetch<{ ok: boolean; message: string }>('/configs', { method: 'POST', body: JSON.stringify({ name, content }) }),

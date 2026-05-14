@@ -18,9 +18,13 @@ const SAFE_NAME_RE = /^[A-Za-z0-9 _\-\.]{1,64}$/;
 // UUIDs only as IDs — prevents path traversal
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
+// Absolute paths only, no shell metacharacters
+const SAFE_LOG_PATH_RE = /^\/[A-Za-z0-9._\-\/]+$/;
+
 export interface UserScript {
   id:        string;
   name:      string;
+  logFile?:  string;
   createdAt: number;
   updatedAt: number;
 }
@@ -62,15 +66,19 @@ export async function listScripts(): Promise<UserScript[]> {
   return store.scripts;
 }
 
-export async function createScript(name: string, content: string): Promise<UserScript> {
+export async function createScript(name: string, content: string, logFile?: string): Promise<UserScript> {
   if (!SAFE_NAME_RE.test(name)) {
     throw new Error('Invalid script name — use letters, numbers, spaces, hyphens, underscores, periods (max 64 chars)');
+  }
+  if (logFile !== undefined && logFile !== '' && !SAFE_LOG_PATH_RE.test(logFile)) {
+    throw new Error('Invalid log file path — must be an absolute path with no special characters');
   }
   await ensureDirs();
   const store = await readStore();
   const id  = randomUUID();
   const now = Date.now();
   const script: UserScript = { id, name, createdAt: now, updatedAt: now };
+  if (logFile) script.logFile = logFile;
   await writeFile(scriptPath(id), content, { mode: 0o750 });
   store.scripts.push(script);
   await writeStore(store);
@@ -88,11 +96,14 @@ export async function getScript(id: string): Promise<{ script: UserScript; conte
 
 export async function updateScript(
   id: string,
-  opts: { name?: string; content?: string },
+  opts: { name?: string; content?: string; logFile?: string },
 ): Promise<void> {
   if (!isValidId(id)) throw Object.assign(new Error('Invalid script id'), { code: 'EINVAL' });
   if (opts.name !== undefined && !SAFE_NAME_RE.test(opts.name)) {
     throw new Error('Invalid script name');
+  }
+  if (opts.logFile !== undefined && opts.logFile !== '' && !SAFE_LOG_PATH_RE.test(opts.logFile)) {
+    throw new Error('Invalid log file path — must be an absolute path with no special characters');
   }
   const store = await readStore();
   const script = store.scripts.find((s) => s.id === id);
@@ -101,6 +112,10 @@ export async function updateScript(
     await writeFile(scriptPath(id), opts.content, { mode: 0o750 });
   }
   if (opts.name !== undefined) script.name = opts.name;
+  if (opts.logFile !== undefined) {
+    if (opts.logFile) script.logFile = opts.logFile;
+    else delete script.logFile;
+  }
   script.updatedAt = Date.now();
   await writeStore(store);
 }
@@ -128,14 +143,40 @@ export async function validateScript(content: string): Promise<{ ok: boolean; er
   }
 }
 
-export async function runScript(id: string): Promise<{ output: string }> {
+export async function runScript(id: string): Promise<{ output: string; exitCode: number }> {
   if (!isValidId(id)) throw Object.assign(new Error('Invalid script id'), { code: 'EINVAL' });
-  if (!existsSync(scriptPath(id))) {
+  const store = await readStore();
+  const script = store.scripts.find((s) => s.id === id);
+  if (!script || !existsSync(scriptPath(id))) {
     throw Object.assign(new Error('Script not found'), { code: 'ENOENT' });
   }
-  const { stdout, stderr } = await execFileAsync('bash', [scriptPath(id)], {
-    timeout: 30_000,
-    env: { PATH: '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin' },
-  });
-  return { output: (stdout + stderr).slice(0, 8192) };
+
+  let exitCode = 0;
+  let directOutput = '';
+
+  try {
+    const { stdout, stderr } = await execFileAsync('bash', [scriptPath(id)], {
+      timeout: 30_000,
+      env: { PATH: '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin' },
+    });
+    directOutput = (stdout + stderr).slice(0, 8192);
+  } catch (err: any) {
+    // Rethrow infrastructure errors (timeout, bash not found, etc.)
+    if (typeof err.code !== 'number') throw err;
+    exitCode = err.code as number;
+    directOutput = ((err.stdout ?? '') + (err.stderr ?? '')).slice(0, 8192)
+      || `Script exited with code ${exitCode}`;
+  }
+
+  if (!script.logFile) {
+    return { output: directOutput, exitCode };
+  }
+
+  // User specified a log file — read its tail after running
+  try {
+    const content = await readFile(script.logFile, 'utf8');
+    return { output: content.slice(-8192), exitCode };
+  } catch {
+    return { output: directOutput || `(log file ${script.logFile} not found or unreadable)`, exitCode };
+  }
 }

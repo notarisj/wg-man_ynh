@@ -57,15 +57,16 @@ router.get('/', async (_req, res) => {
 
 /** POST /api/scripts — create a new user script (passkey-gated) */
 router.post('/', mutationLimiter, requireAdmin, requirePasskey, async (req, res) => {
-  const { name, content } = req.body as { name?: unknown; content?: unknown };
+  const { name, content, logFile } = req.body as { name?: unknown; content?: unknown; logFile?: unknown };
   if (typeof name !== 'string' || !name.trim()) {
     res.status(400).json({ error: 'name is required' }); return;
   }
   if (typeof content !== 'string') {
     res.status(400).json({ error: 'content is required' }); return;
   }
+  const lf = typeof logFile === 'string' ? logFile.trim() : undefined;
   try {
-    const script = await createScript(name.trim(), content);
+    const script = await createScript(name.trim(), content, lf);
     res.json({ ok: true, script });
   } catch (err: any) {
     res.status(400).json({ error: err.message ?? 'Failed to create script' });
@@ -120,7 +121,7 @@ router.post('/:id/validate', requireAdmin, async (req, res) => {
 router.put('/:id', mutationLimiter, requireAdmin, requirePasskey, async (req, res) => {
   const { id } = req.params;
   if (!isValidId(id)) { res.status(400).json({ error: 'Invalid script id' }); return; }
-  const { name, content } = req.body as { name?: unknown; content?: unknown };
+  const { name, content, logFile } = req.body as { name?: unknown; content?: unknown; logFile?: unknown };
   if (name !== undefined && typeof name !== 'string') {
     res.status(400).json({ error: 'name must be a string' }); return;
   }
@@ -131,6 +132,7 @@ router.put('/:id', mutationLimiter, requireAdmin, requirePasskey, async (req, re
     await updateScript(id, {
       name:    typeof name    === 'string' ? name.trim()    : undefined,
       content: typeof content === 'string' ? content        : undefined,
+      logFile: typeof logFile === 'string' ? logFile.trim() : undefined,
     });
     res.json({ ok: true });
   } catch (err: any) {
@@ -162,9 +164,11 @@ router.post('/:id/cron', mutationLimiter, requireAdmin, requirePasskey, async (r
     res.status(400).json({ error: 'schedule is required' }); return;
   }
   try {
-    await setScriptCron(id, schedule.trim());
+    const { script } = await getScript(id);
+    await setScriptCron(id, schedule.trim(), script.logFile);
     res.json({ ok: true });
   } catch (err: any) {
+    if (err.code === 'ENOENT') { res.status(404).json({ error: 'Script not found' }); return; }
     res.status(400).json({ error: err.message ?? 'Failed to set cron' });
   }
 });
