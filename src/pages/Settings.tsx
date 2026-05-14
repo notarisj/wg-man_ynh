@@ -131,9 +131,9 @@ export const Settings: React.FC = () => {
         else refreshPasskey();
       });
     } else if (action === 'wg-edit') {
-      startWgEdit();
+      saveWgConfig();
     }
-  }, [showPasskeyFor, refreshPasskey, startWgEdit]);
+  }, [showPasskeyFor, refreshPasskey, saveWgConfig]);
 
   const handleSaveDomain = useCallback(async () => {
     setDomainError(null);
@@ -223,7 +223,7 @@ export const Settings: React.FC = () => {
         <div className="settings-card__title" style={{ justifyContent: 'space-between' }}>
           <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Shield size={16} /> WireGuard Configuration</span>
           {!wgEditing && !wgRestarting && wgConfig && (
-            <button className="btn btn-ghost btn-sm" onClick={() => { setPkError(null); setShowPasskeyFor('wg-edit'); }} style={{ padding: '2px 8px' }}>
+            <button className="btn btn-ghost btn-sm" onClick={startWgEdit} style={{ padding: '2px 8px' }}>
               <Pencil size={13} /> Edit
             </button>
           )}
@@ -267,7 +267,7 @@ export const Settings: React.FC = () => {
               </div>
             )}
             <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-              <button className="btn btn-primary btn-sm" onClick={saveWgConfig} disabled={wgSaving}>
+              <button className="btn btn-primary btn-sm" onClick={() => { setWgError(null); setShowPasskeyFor('wg-edit'); }} disabled={wgSaving}>
                 {wgSaving ? <span className="spinner spinner-sm" /> : <Check size={13} />}
                 {wgSaving ? 'Saving…' : 'Save & Restart'}
               </button>
