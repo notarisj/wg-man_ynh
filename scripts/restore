@@ -8,7 +8,6 @@ source /usr/share/yunohost/helpers
 ynh_script_progression "Reinstalling Node.js $nodejs_version..."
 ynh_install_nodejs --nodejs_version="$nodejs_version"
 ynh_use_nodejs
-# Re-save node path in case the binary location changed after reinstall
 ynh_app_setting_set --key=node --value="$ynh_node"
 node="$ynh_node"
 
@@ -16,63 +15,41 @@ node="$ynh_node"
 # RESTORE APP FILES
 #=================================================
 ynh_script_progression "Restoring application files..."
-
-# Restore install_dir from backup when available.
-# If the backup entry is absent (e.g. pre-upgrade backup taken after a
-# previous failed upgrade left install_dir missing), rebuild from source
-# instead so the restore can still succeed.
-if ynh_restore "$install_dir" 2>/dev/null; then
-    ynh_script_progression "Restored $install_dir from backup."
-else
-    ynh_script_progression "$install_dir not found in backup — rebuilding from source..."
-
-    rsync -a \
-        --exclude='.git' \
-        --exclude='scripts' \
-        --exclude='conf' \
-        --exclude='manifest.toml' \
-        --exclude='node_modules' \
-        --exclude='server/node_modules' \
-        --exclude='dist' \
-        --exclude='server/dist' \
-        "$YNH_APP_BASEDIR/" "$install_dir/"
-
-    pushd "$install_dir"
-    VITE_APP_PATH="$path/" $ynh_npm install --legacy-peer-deps 2>&1
-    VITE_APP_PATH="$path/" $ynh_npm run build 2>&1
-    $ynh_npm prune --omit=dev --legacy-peer-deps 2>&1
-    popd
-
-    pushd "$install_dir/server"
-    $ynh_npm install --legacy-peer-deps 2>&1
-    $ynh_npm run build 2>&1
-    $ynh_npm prune --omit=dev --legacy-peer-deps 2>&1
-    popd
-
-    # Regenerate .env since it was not in the backup
-    ynh_config_add --template=".env" --destination="$install_dir/server/.env"
-    chmod 640 "$install_dir/server/.env"
-fi
-
+ynh_restore "$install_dir"
 ynh_restore "$data_dir"
 
 #=================================================
 # FIX PERMISSIONS
 #=================================================
-# PKG-01: restore root:root 750 after ynh_restore (which may set different ownership)
 chown -R root:root "$install_dir"
 chmod -R 750 "$install_dir"
 chmod 640 "$install_dir/server/.env"
 
+chown root:root "$data_dir"
+chmod 750 "$data_dir"
+
 #=================================================
-# RESTORE NGINX
+# RESTORE DEX OIDC CLIENT
+#=================================================
+if [ -n "$dex_domain" ]; then
+    ynh_script_progression "Restoring Dex OIDC client registration..."
+    mkdir -p /var/www/dex/config.yaml.d
+    ynh_config_add \
+        --template="dex-client.yaml" \
+        --destination="/var/www/dex/config.yaml.d/${app}.yaml"
+    chmod 640 "/var/www/dex/config.yaml.d/${app}.yaml"
+    if [ -x /var/www/dex/regenerate_config.sh ]; then
+        bash /var/www/dex/regenerate_config.sh
+    fi
+    ynh_systemctl --service=dex --action=restart
+fi
+
+#=================================================
+# RESTORE NGINX AND SYSTEMD
 #=================================================
 ynh_script_progression "Restoring nginx configuration..."
 ynh_config_add_nginx
 
-#=================================================
-# RESTORE SYSTEMD SERVICE
-#=================================================
 ynh_script_progression "Restoring systemd service..."
 ynh_config_add_systemd
 yunohost service add "$app" --description="WireGuard VPN Manager" --log="/var/log/$app.log"
