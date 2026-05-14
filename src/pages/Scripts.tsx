@@ -75,6 +75,7 @@ interface ScriptEditorModalProps {
   /** null = create new */
   editId: string | null;
   onSaved: (script: UserScript) => void;
+  onCronSaved?: () => void;
   onCancel: () => void;
 }
 
@@ -85,7 +86,7 @@ set -euo pipefail
 echo "Script running at $(date)"
 `;
 
-const ScriptEditorModal: React.FC<ScriptEditorModalProps> = ({ editId, onSaved, onCancel }) => {
+const ScriptEditorModal: React.FC<ScriptEditorModalProps> = ({ editId, onSaved, onCronSaved, onCancel }) => {
   const isNew = editId === null;
 
   const [name, setName]               = useState('');
@@ -199,10 +200,11 @@ const ScriptEditorModal: React.FC<ScriptEditorModalProps> = ({ editId, onSaved, 
     if (res.ok) {
       setCronFeedback({ ok: true, msg: cronEnabled ? 'Schedule saved.' : 'Cron job disabled.' });
       setCronDirty(false);
+      onCronSaved?.();
     } else {
       setCronFeedback({ ok: false, msg: (res as { ok: false; error: string }).error });
     }
-  }, [editId, cronEnabled, cronExpr]);
+  }, [editId, cronEnabled, cronExpr, cronDelay, onCronSaved]);
 
   const onCronPasskeySuccess = useCallback(async () => {
     setShowCronPasskey(false);
@@ -760,7 +762,8 @@ export const Scripts: React.FC = () => {
         <ScriptEditorModal
           editId={editingId}
           onSaved={handleEditorSaved}
-          onCancel={() => { setEditorOpen(false); setEditingId(null); }}
+          onCronSaved={loadScripts}
+          onCancel={() => { setEditorOpen(false); setEditingId(null); loadScripts(); }}
         />
       )}
 
