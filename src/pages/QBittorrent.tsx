@@ -51,6 +51,42 @@ function fmtDate(ts: number): string {
 
 type Filter = 'all' | 'downloading' | 'seeding' | 'paused' | 'error';
 
+const DEV_TORRENTS: QbitTorrent[] = import.meta.env.DEV ? [
+  {
+    hash: 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2',
+    name: 'Ubuntu 24.04.1 LTS Desktop AMD64 [ISO]',
+    size: 1_572_864_000, progress: 0.62,
+    dlspeed: 2_457_600, upspeed: 153_600,
+    num_seeds: 142, num_leechs: 23, eta: 312,
+    state: 'downloading', category: 'Software', tags: 'linux,iso',
+    added_on: Math.floor(Date.now() / 1000) - 3600,
+    downloaded: 975_175_680, uploaded: 125_829_120, ratio: 0.13,
+    save_path: '/downloads/',
+  },
+  {
+    hash: 'b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3',
+    name: 'Debian 12.4.0 DVD Binary 1 AMD64',
+    size: 3_891_036_160, progress: 1.0,
+    dlspeed: 0, upspeed: 921_600,
+    num_seeds: 88, num_leechs: 5, eta: -1,
+    state: 'uploading', category: 'Software', tags: 'linux',
+    added_on: Math.floor(Date.now() / 1000) - 86400,
+    downloaded: 3_891_036_160, uploaded: 7_782_072_320, ratio: 2.0,
+    save_path: '/downloads/',
+  },
+  {
+    hash: 'c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4',
+    name: 'Fedora Workstation 39 x86_64 Live [Stalled]',
+    size: 2_097_152_000, progress: 0,
+    dlspeed: 0, upspeed: 0,
+    num_seeds: 0, num_leechs: 0, eta: -1,
+    state: 'stalledDL', category: '', tags: '',
+    added_on: Math.floor(Date.now() / 1000) - 7200,
+    downloaded: 0, uploaded: 0, ratio: 0,
+    save_path: '/downloads/',
+  },
+] : [];
+
 const QbitCheck: React.FC<{
   checked: boolean;
   indeterminate?: boolean;
@@ -89,7 +125,17 @@ export const QBittorrent: React.FC = () => {
   const load = useCallback(async (spin = false) => {
     if (spin) { setSpinning(true); setTimeout(() => setSpinning(false), 600); }
     const [tRes, trRes] = await Promise.all([api.qbit.torrents(), api.qbit.transfer()]);
-    if (!tRes.ok) { setErr(tRes.error); setLoading(false); return; }
+    if (!tRes.ok) {
+      if (import.meta.env.DEV && DEV_TORRENTS.length) {
+        setTorrents(DEV_TORRENTS);
+        setErr(null);
+        setLoading(false);
+      } else {
+        setErr(tRes.error);
+        setLoading(false);
+      }
+      return;
+    }
     setTorrents(tRes.data);
     const dt = detailRef.current;
     if (dt) {

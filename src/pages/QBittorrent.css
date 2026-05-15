@@ -161,12 +161,14 @@
 .qbit-check__box::after {
   content: '';
   position: absolute;
-  width: 4px;
-  height: 7px;
+  top: 50%;
+  left: 50%;
+  width: 5px;
+  height: 9px;
   border: 2px solid #000;
   border-top: none;
   border-left: none;
-  transform: rotate(45deg) translate(0, -1px);
+  transform: translate(-50%, -60%) rotate(45deg);
   opacity: 0;
   transition: opacity 0.1s;
 }
@@ -184,12 +186,8 @@
   height: 0;
   border: none;
   border-top: 2px solid var(--clr-green);
-  transform: none;
+  transform: translate(-50%, -50%);
   opacity: 1;
-  top: 50%;
-  left: 50%;
-  margin-top: -1px;
-  margin-left: -3.5px;
 }
 
 /* ── Table ──────────────────────────────────────────────────── */
@@ -314,13 +312,13 @@
   bottom: 0;
   width: 340px;
   z-index: 200;
-  background: var(--clr-surface);
-  border-left: 1px solid var(--clr-border);
+  background: #161b22;
+  border-left: 1px solid rgba(255,255,255,0.1);
   display: flex;
   flex-direction: column;
   overflow: hidden;
   animation: qbit-slide-in 0.2s var(--ease) both;
-  box-shadow: -8px 0 32px rgba(0,0,0,0.4);
+  box-shadow: -12px 0 40px rgba(0,0,0,0.6);
 }
 
 @keyframes qbit-slide-in {
@@ -332,14 +330,14 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 16px 0;
+  padding: 14px 14px 0;
   flex-shrink: 0;
 }
 
 .qbit-drawer__close {
   background: none;
   border: none;
-  color: var(--clr-text-muted);
+  color: rgba(255,255,255,0.45);
   cursor: pointer;
   padding: 4px;
   border-radius: var(--r-md);
@@ -348,20 +346,20 @@
   transition: color var(--dur-fast), background var(--dur-fast);
 }
 
-.qbit-drawer__close:hover { color: var(--clr-text); background: var(--clr-surface-md); }
+.qbit-drawer__close:hover { color: #fff; background: rgba(255,255,255,0.08); }
 
 .qbit-drawer__name {
   font-size: 13px;
-  font-weight: 500;
-  color: var(--clr-text);
-  padding: 10px 16px 0;
+  font-weight: 600;
+  color: #fff;
+  padding: 10px 14px 0;
   line-height: 1.45;
   word-break: break-word;
   flex-shrink: 0;
 }
 
 .qbit-drawer__prog-area {
-  padding: 10px 16px 0;
+  padding: 10px 14px 0;
   flex-shrink: 0;
 }
 
@@ -369,7 +367,7 @@
   font-size: 11px;
   font-weight: 600;
   font-family: 'JetBrains Mono', monospace;
-  color: var(--clr-text-muted);
+  color: rgba(255,255,255,0.5);
   display: block;
   margin-bottom: 5px;
 }
@@ -377,7 +375,7 @@
 .qbit-drawer__prog-wrap {
   position: relative;
   height: 5px;
-  background: rgba(255,255,255,0.07);
+  background: rgba(255,255,255,0.1);
   border-radius: 99px;
   overflow: hidden;
 }
@@ -395,36 +393,36 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 10px 16px;
-  border-bottom: 1px solid var(--clr-border);
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
   flex-shrink: 0;
 }
 
 .qbit-drawer__body {
   flex: 1;
   overflow-y: auto;
-  padding: 14px 16px 16px;
+  padding: 12px 14px 16px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
 .qbit-drawer__grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 1px;
-  background: var(--clr-border);
+  background: rgba(255,255,255,0.07);
   border-radius: var(--r-md);
-  border: 1px solid var(--clr-border);
+  border: 1px solid rgba(255,255,255,0.07);
   overflow: hidden;
 }
 
 .qbit-drawer__stat {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 5px;
   padding: 10px 12px;
-  background: var(--clr-surface);
+  background: rgba(255,255,255,0.04);
 }
 
 .qbit-drawer__stat--full { grid-column: 1 / -1; }
@@ -433,20 +431,21 @@
   font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--clr-text-dim);
+  letter-spacing: 0.07em;
+  color: rgba(255,255,255,0.4);
 }
 
 .qbit-drawer__stat-value {
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--clr-text);
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
   font-family: 'JetBrains Mono', monospace;
 }
 
 .qbit-drawer__stat-value--path {
   font-size: 10px;
-  color: var(--clr-text-muted);
+  font-weight: 400;
+  color: rgba(255,255,255,0.55);
   word-break: break-all;
 }
 
@@ -458,17 +457,17 @@
   flex-direction: column;
   gap: 6px;
   padding: 10px 12px;
-  background: rgba(255,255,255,0.02);
-  border: 1px solid var(--clr-border);
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.07);
   border-radius: var(--r-md);
 }
 
 .qbit-drawer__hash-value {
   font-size: 10px;
   font-family: 'JetBrains Mono', monospace;
-  color: var(--clr-text-muted);
+  color: rgba(255,255,255,0.4);
   word-break: break-all;
-  line-height: 1.5;
+  line-height: 1.6;
 }
 
 /* ── Delete confirm ─────────────────────────────────────────── */
