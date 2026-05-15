@@ -26,17 +26,6 @@
 .qbit-refresh { margin-left: 4px; }
 .qbit-refresh.spinning svg { animation: spin 600ms linear infinite; }
 
-/* ── Error ───────────────────────────────────────────────────── */
-
-.qbit-action-err {
-  background: rgba(239,68,68,0.1);
-  border: 1px solid rgba(239,68,68,0.25);
-  color: #f87171;
-  font-size: 12px;
-  padding: 10px 14px;
-  border-radius: var(--r-md);
-}
-
 /* ── Toolbar ────────────────────────────────────────────────── */
 
 .qbit-toolbar {

@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import ReactDOM from 'react-dom';
-import { Puzzle, Wifi, Film, Tv, Check, X, ExternalLink, ChevronRight } from 'lucide-react';
+import { Puzzle, Wifi, Film, Tv, Check, X, ChevronRight, AlertCircle } from 'lucide-react';
 import { GlassCard } from '../components/ui/GlassCard';
 import { PasskeyPrompt } from '../components/ui/PasskeyPrompt';
 import { api } from '../lib/api';
@@ -198,7 +198,7 @@ export const Plugins: React.FC = () => {
                     spellCheck={false} autoComplete="off" />
                 </div>
               )}
-              {saveErr && <div className="scripts-modal__error"><ExternalLink size={12} /> {saveErr}</div>}
+              {saveErr && <div className="scripts-modal__error"><AlertCircle size={12} /> {saveErr}</div>}
               <div className="plugins-modal__actions">
                 <button className="btn btn-primary btn-sm" onClick={() => setShowPasskey(true)} disabled={saving}>
                   {saving ? <span className="spinner spinner-sm" /> : <Check size={13} />}

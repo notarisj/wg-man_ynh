@@ -116,7 +116,6 @@ export const QBittorrent: React.FC = () => {
   const [delConfirm, setDelConfirm] = useState(false);
   const [delHashes, setDelHashes]   = useState<string[]>([]);
   const [delFiles, setDelFiles]     = useState(false);
-  const [actionErr, setActionErr]   = useState<string | null>(null);
   const [detail, setDetail]         = useState<QbitTorrent | null>(null);
 
   const detailRef = useRef<QbitTorrent | null>(null);
@@ -185,9 +184,8 @@ export const QBittorrent: React.FC = () => {
     msg: string,
     clearSel = false,
   ) => {
-    setActionErr(null);
     const res = await fn(hs);
-    if (!res.ok) { setActionErr(res.error ?? 'Action failed'); return; }
+    if (!res.ok) { showToast(res.error ?? 'Action failed', 'error'); return; }
     showToast(msg);
     if (clearSel) setSelected(new Set());
     await load();
@@ -207,9 +205,8 @@ export const QBittorrent: React.FC = () => {
   const openDelete = (hs: string[]) => { setDelHashes(hs); setDelFiles(false); setDelConfirm(true); };
 
   const doDelete = async () => {
-    setActionErr(null);
     const res = await api.qbit.delete(delHashes, delFiles);
-    if (!res.ok) { setActionErr(res.error ?? 'Delete failed'); return; }
+    if (!res.ok) { showToast(res.error ?? 'Delete failed', 'error'); return; }
     showToast(`Deleted ${delHashes.length} torrent(s)${delFiles ? ' + files' : ''}`);
     if (detail && delHashes.includes(detail.hash)) setDetail(null);
     setSelected(s => { const n = new Set(s); delHashes.forEach(h => n.delete(h)); return n; });
@@ -235,8 +232,6 @@ export const QBittorrent: React.FC = () => {
           <RefreshCw size={14} />
         </button>
       </div>
-
-      {actionErr && <div className="qbit-action-err">{actionErr}</div>}
 
       <GlassCard className="qbit-toolbar">
         <div className="qbit-filters">
