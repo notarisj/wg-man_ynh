@@ -34,6 +34,13 @@ if [ -n "$dex_domain" ] && [ -f "/var/www/dex/config.yaml.d/${app}.yaml" ]; then
 fi
 
 #=================================================
+# REMOVE RESCUE SCRIPT
+#=================================================
+ynh_script_progression "Removing rescue script..."
+ynh_safe_rm /usr/local/bin/wg-man-rescue
+ynh_safe_rm /etc/cron.d/wg-man-rescue
+
+#=================================================
 # REMOVE NODE.JS
 #=================================================
 ynh_script_progression "Removing Node.js..."

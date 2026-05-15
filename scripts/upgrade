@@ -91,6 +91,12 @@ npm prune --omit=dev --legacy-peer-deps 2>&1
 popd
 
 #=================================================
+# UPDATE RESCUE SCRIPT
+#=================================================
+ynh_script_progression "Updating rescue script..."
+install -o root -g root -m 755 "$YNH_APP_BASEDIR/tools/wg-man-rescue.sh" /usr/local/bin/wg-man-rescue
+
+#=================================================
 # UPDATE CONFIGURATIONS
 #=================================================
 ynh_script_progression "Updating nginx configuration..."

@@ -138,6 +138,12 @@ chown root:root "$data_dir"
 chmod 750 "$data_dir"
 
 #=================================================
+# INSTALL RESCUE SCRIPT
+#=================================================
+ynh_script_progression "Installing rescue script..."
+install -o root -g root -m 755 "$YNH_APP_BASEDIR/tools/wg-man-rescue.sh" /usr/local/bin/wg-man-rescue
+
+#=================================================
 # CONFIGURE NGINX
 #=================================================
 ynh_script_progression "Configuring nginx..."
