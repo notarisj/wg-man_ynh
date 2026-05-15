@@ -68,6 +68,7 @@ export type QbitTorrent = {
   dlspeed: number; upspeed: number; num_seeds: number; num_leechs: number;
   eta: number; state: string; category: string; tags: string;
   added_on: number; downloaded: number; uploaded: number; ratio: number;
+  save_path?: string;
 };
 
 export type ArrQueueItem = {
@@ -235,7 +236,8 @@ export const api = {
     torrents:  ()                            => apiFetch<QbitTorrent[]>('/plugins/qbittorrent/torrents'),
     pause:     (hashes: string[])            => apiFetch<{ ok: boolean }>('/plugins/qbittorrent/torrents/pause',  { method: 'POST', body: JSON.stringify({ hashes }) }),
     resume:    (hashes: string[])            => apiFetch<{ ok: boolean }>('/plugins/qbittorrent/torrents/resume', { method: 'POST', body: JSON.stringify({ hashes }) }),
-    delete:    (hashes: string[], deleteFiles: boolean) => apiFetch<{ ok: boolean }>('/plugins/qbittorrent/torrents', { method: 'DELETE', body: JSON.stringify({ hashes, deleteFiles }) }),
+    delete:      (hashes: string[], deleteFiles: boolean) => apiFetch<{ ok: boolean }>('/plugins/qbittorrent/torrents', { method: 'DELETE', body: JSON.stringify({ hashes, deleteFiles }) }),
+    forceResume: (hashes: string[]) => apiFetch<{ ok: boolean }>('/plugins/qbittorrent/torrents/forceresume', { method: 'POST', body: JSON.stringify({ hashes }) }),
   },
   radarr: {
     queue:   ()                                      => apiFetch<ArrQueue>('/plugins/radarr/queue'),

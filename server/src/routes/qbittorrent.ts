@@ -103,6 +103,21 @@ router.post('/torrents/resume', requireAdmin, async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+/** POST /api/plugins/qbittorrent/torrents/forceresume — force-start by hash list */
+router.post('/torrents/forceresume', requireAdmin, async (req, res, next) => {
+  const hashes: string[] = req.body?.hashes ?? [];
+  if (!hashes.length) { res.status(400).json({ error: 'hashes required' }); return; }
+  try {
+    const r = await qbit('/api/v2/torrents/setForceStart', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body:    new URLSearchParams({ hashes: hashes.join('|'), value: 'true' }).toString(),
+    });
+    if (!r.ok) return handleErr(r, next);
+    res.json({ ok: true });
+  } catch (e) { next(e); }
+});
+
 /** DELETE /api/plugins/qbittorrent/torrents — delete by hash list */
 router.delete('/torrents', requireAdmin, async (req, res, next) => {
   const hashes: string[] = req.body?.hashes ?? [];
