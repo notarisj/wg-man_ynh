@@ -75,7 +75,7 @@ do_backup() {
     local dest_dir="${1:-/root}"
     local ts; ts=$(date +%Y%m%d_%H%M%S)
     local archive="${dest_dir}/${APP}-rescue-${ts}.tar.gz"
-    local tmp; tmp=$(mktemp -d)
+    tmp=$(mktemp -d)
     local src="${tmp}/backup"
     local had_any=false
 
@@ -177,7 +177,7 @@ do_restore() {
     local archive="$1"
     [[ -f "$archive" ]] || die "Archive not found: ${archive}"
 
-    local tmp; tmp=$(mktemp -d)
+    tmp=$(mktemp -d)
     local src="${tmp}/backup"
     trap 'rm -rf "$tmp"' EXIT
 
