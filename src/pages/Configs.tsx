@@ -201,23 +201,25 @@ export const Configs: React.FC = () => {
                         ? <CheckCircle2 size={18} className="config-card__icon--active" />
                         : <Circle size={18} className="config-card__icon--inactive" />}
                     </div>
-                    <div>
+                    <div className="config-card__name-block">
                       <div className="config-card__name">{cfg.name}</div>
                       {cfg.comment && <div className="config-card__comment">{cfg.comment}</div>}
                     </div>
-                    {isActive && <span className="config-card__badge">Active</span>}
-                    <div className="config-card__actions">
-                      <button className="config-card__action-btn" title="Edit config" onClick={() => requirePasskey({ type: 'edit', name: cfg.name })}>
-                        <Pencil size={13} />
-                      </button>
-                      <button
-                        className="config-card__action-btn config-card__action-btn--danger"
-                        title={isActive ? 'Cannot delete active config' : 'Delete config'}
-                        disabled={isActive}
-                        onClick={() => requirePasskey({ type: 'delete', name: cfg.name })}
-                      >
-                        <Trash2 size={13} />
-                      </button>
+                    <div className="config-card__right">
+                      {isActive && <span className="config-card__badge">Active</span>}
+                      <div className="config-card__actions">
+                        <button className="config-card__action-btn" title="Edit config" onClick={() => requirePasskey({ type: 'edit', name: cfg.name })}>
+                          <Pencil size={13} />
+                        </button>
+                        <button
+                          className="config-card__action-btn config-card__action-btn--danger"
+                          title={isActive ? 'Cannot delete active config' : 'Delete config'}
+                          disabled={isActive}
+                          onClick={() => requirePasskey({ type: 'delete', name: cfg.name })}
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
