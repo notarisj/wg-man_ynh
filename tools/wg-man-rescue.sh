@@ -205,6 +205,16 @@ do_restore() {
     confirm "Overwrite live files?" || { info "Aborted."; exit 0; }
     echo ""
 
+    # ── Capture live proxy_secret before overwriting settings ────────────────
+    # AUTH-01: the nginx config is generated at install time and embeds
+    # proxy_secret as the X-WG-Secret header value.  Restoring an old .env
+    # with a different PROXY_SECRET breaks auth because nginx keeps sending the
+    # fresh-install secret.  Save it now and re-inject it after the restore.
+    local live_proxy_secret=""
+    if [[ -f "$YNH_SETTINGS" ]]; then
+        live_proxy_secret=$(awk '/^proxy_secret:/{print $2}' "$YNH_SETTINGS" | tr -d '"' | tr -d "'" | xargs 2>/dev/null || true)
+    fi
+
     # ── Stop service ────────────────────────────────────────────────────────
     if service_running; then
         info "Stopping ${APP}…"
@@ -239,6 +249,19 @@ do_restore() {
             warn "YunoHost app dir ${YNH_SETTINGS_DIR} not found — settings not restored"
             warn "Reinstall the app first, then run restore again"
             (( skipped++ )) || true
+        fi
+    fi
+
+    # ── Sync proxy_secret so nginx ↔ .env stay consistent ───────────────────
+    # After a fresh install + restore, nginx still uses the new proxy_secret.
+    # Re-inject it into .env (and settings.yml) so the app can authenticate.
+    if [[ -n "$live_proxy_secret" ]]; then
+        if [[ -f "$ENV_FILE" ]]; then
+            sed -i "s/^PROXY_SECRET=.*/PROXY_SECRET=${live_proxy_secret}/" "$ENV_FILE"
+            ok "Synced PROXY_SECRET in .env to match current nginx config"
+        fi
+        if [[ -f "$YNH_SETTINGS" ]]; then
+            sed -i "s/^proxy_secret:.*/proxy_secret: ${live_proxy_secret}/" "$YNH_SETTINGS"
         fi
     fi
 
