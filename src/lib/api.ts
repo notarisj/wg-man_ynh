@@ -41,6 +41,15 @@ export type WgConfig = {
   ipv6LeakRisk: boolean;
 };
 
+export type RelayState = 'online' | 'offline' | 'removed' | 'outdated' | 'unknown';
+
+/** Mullvad server status per config name, from Mullvad's public relay list */
+export type RelayStatusReport = {
+  checkedAt: number | null;
+  error: string | null;
+  configs: Record<string, { status: RelayState; detail: string }>;
+};
+
 export type SystemMetrics = {
   cpuPercent: number;
   ramPercent: number;
@@ -180,6 +189,8 @@ export const api = {
   authConfig: () => apiFetch<{ dexEnabled: boolean }>('/auth/config'),
   status: () => apiFetch<VpnStatus>('/status'),
   configs: () => apiFetch<WgConfig[]>('/configs'),
+  relayStatus: () => apiFetch<RelayStatusReport>('/configs/relay-status'),
+  recheckRelays: () => apiFetch<RelayStatusReport>('/configs/relay-status', { method: 'POST' }),
   logs: (lines = 100) => apiFetch<string[]>(`/logs?lines=${lines}`),
   searchLogs: (q: string) => apiFetch<string[]>(`/logs/search?q=${encodeURIComponent(q)}`),
   history: (limit = 500) => apiFetch<VpnHistoryEvent[]>(`/history?limit=${limit}`),

@@ -636,3 +636,62 @@
   gap: 8px;
   margin-top: 4px;
 }
+
+/* ── Mullvad server status ───────────────────────────────────── */
+
+.configs-page__relay-checked {
+  color: var(--clr-text-dim);
+}
+
+.config-card--dead {
+  opacity: 0.6;
+}
+
+.config-card--dead:hover {
+  opacity: 0.9;
+}
+
+.config-card__relay-badge {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 99px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  color: var(--clr-red);
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.config-card__relay-badge--outdated,
+.config-card__relay-badge--unknown {
+  color: var(--clr-amber);
+  background: rgba(245, 158, 11, 0.12);
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+.config-card__relay {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.config-card__relay .config-card__action-btn {
+  width: 20px;
+  height: 20px;
+}
+
+.config-card__relay-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--clr-text-dim);
+}
+
+.config-card__relay-dot--online   { background: var(--clr-green); }
+.config-card__relay-dot--offline,
+.config-card__relay-dot--removed  { background: var(--clr-red); }
+.config-card__relay-dot--outdated { background: var(--clr-amber); }

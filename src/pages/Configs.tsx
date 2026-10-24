@@ -1,18 +1,33 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   Layers, CheckCircle2, Circle, RefreshCw, ServerCrash, AlertCircle,
-  Search, X, Plus, Pencil, Trash2, LayoutGrid, List,
+  Search, X, Plus, Pencil, Trash2, LayoutGrid, List, Activity,
 } from 'lucide-react';
 import { useVpnStore } from '../store/vpnStore';
 import { GlassCard } from '../components/ui/GlassCard';
 import { PasskeyPrompt } from '../components/ui/PasskeyPrompt';
 import { ConfigEditor } from '../components/ui/ConfigEditor';
 import { api } from '../lib/api';
-import type { PasskeyStatus } from '../lib/api';
+import type { PasskeyStatus, RelayState, RelayStatusReport } from '../lib/api';
 import { showToast } from '../lib/toast';
 import './Configs.css';
 
 type PendingAction = { type: 'create' } | { type: 'edit'; name: string } | { type: 'delete'; name: string };
+
+const RELAY_LABEL: Record<RelayState, string> = {
+  online: 'Online', offline: 'Offline', removed: 'Removed', outdated: 'Outdated', unknown: 'Unknown',
+};
+
+/** Servers that will not complete a handshake if switched to */
+const isDeadRelay = (s?: RelayState) => s === 'offline' || s === 'removed' || s === 'outdated';
+
+function formatAgo(ts: number): string {
+  const min = Math.round((Date.now() - ts) / 60000);
+  if (min < 1) return 'just now';
+  if (min < 60) return `${min} min ago`;
+  const h = Math.round(min / 60);
+  return h < 48 ? `${h} h ago` : `${Math.round(h / 24)} days ago`;
+}
 
 export const Configs: React.FC = () => {
   const { configs, fetchConfigs, switchConfig, isSwitching, isLoadingConfigs, error } = useVpnStore();
@@ -38,12 +53,42 @@ export const Configs: React.FC = () => {
   const [deleteError, setDeleteError]     = useState<string | null>(null);
   const [isDeleting, setIsDeleting]       = useState(false);
 
+  // Mullvad server status
+  const [relays, setRelays]               = useState<RelayStatusReport | null>(null);
+  const [checkingRelays, setCheckingRelays] = useState(false);
+
   const namePrefix = 'wg-';
 
   useEffect(() => {
     fetchConfigs();
     api.passkey.status().then((res) => { if (res.ok) setPasskeyStatus(res.data); });
+    api.relayStatus().then((res) => { if (res.ok) setRelays(res.data); });
   }, []);
+
+  /** Recheck every config against Mullvad; `name` only picks the toast wording. */
+  const recheckRelays = async (name?: string) => {
+    setCheckingRelays(true);
+    const res = await api.recheckRelays();
+    setCheckingRelays(false);
+    if (!res.ok) { showToast(res.error, 'error'); return; }
+    setRelays(res.data);
+    if (res.data.error) { showToast(res.data.error, 'error'); return; }
+    const states = Object.values(res.data.configs).map((c) => c.status);
+    if (name) {
+      const st = res.data.configs[name]?.status ?? 'unknown';
+      showToast(`${name}: ${RELAY_LABEL[st].toLowerCase()}`, isDeadRelay(st) ? 'error' : undefined);
+    } else {
+      const dead = states.filter((st) => isDeadRelay(st)).length;
+      showToast(dead ? `${dead} of ${states.length} servers are not usable` : `All ${states.length} servers are online`,
+                dead ? 'error' : undefined);
+    }
+  };
+
+  const relayBadge = (name: string) => {
+    const r = relays?.configs[name];
+    if (!r || r.status === 'online') return null;
+    return <span className={`config-card__relay-badge config-card__relay-badge--${r.status}`} title={r.detail}>{RELAY_LABEL[r.status]}</span>;
+  };
 
   // ── Passkey gate ────────────────────────────────────────────
 
@@ -70,6 +115,11 @@ export const Configs: React.FC = () => {
   // ── CRUD handlers ────────────────────────────────────────────
 
   const handleSwitch = async (name: string) => {
+    const r = relays?.configs[name];
+    if (r && isDeadRelay(r.status) &&
+        !window.confirm(`${r.detail}.\n\nSwitching will most likely fail and the monitor will switch back. Switch anyway?`)) {
+      return;
+    }
     const ok = await switchConfig(name);
     if (ok) {
       showToast(`Switched to ${name}`);
@@ -115,6 +165,11 @@ export const Configs: React.FC = () => {
       <div className="configs-page__topbar">
         <p className="configs-page__count">
           {search ? `${filtered.length} of ${configs.length}` : configs.length} configuration{configs.length !== 1 ? 's' : ''} found
+          {relays?.checkedAt && (
+            <span className="configs-page__relay-checked" title={relays.error ?? undefined}>
+              {' · '}servers checked {formatAgo(relays.checkedAt)}{relays.error ? ' (last check failed)' : ''}
+            </span>
+          )}
         </p>
         <div className="page-search">
           <Search size={14} className="page-search__icon" />
@@ -161,6 +216,15 @@ export const Configs: React.FC = () => {
             Refresh
           </button>
           <button
+            className="btn btn-ghost btn-sm"
+            title="Ask Mullvad which of these servers are online"
+            onClick={() => recheckRelays()}
+            disabled={checkingRelays}
+          >
+            {checkingRelays ? <span className="spinner spinner-sm" /> : <Activity size={15} />}
+            Check Servers
+          </button>
+          <button
             className="btn btn-primary btn-sm"
             onClick={() => requirePasskey({ type: 'create' })}
           >
@@ -191,8 +255,10 @@ export const Configs: React.FC = () => {
           {filtered.map((cfg) => {
             const isActive = cfg.isActive;
             const isBusy = isSwitching === cfg.name;
+            const relay = relays?.configs[cfg.name];
+            const isDead = isDeadRelay(relay?.status);
             return (
-              <GlassCard key={cfg.name} className={`config-card${isActive ? ' config-card--active' : ''}`}>
+              <GlassCard key={cfg.name} className={`config-card${isActive ? ' config-card--active' : ''}${isDead ? ' config-card--dead' : ''}`}>
                 {isActive && <div className="config-card__active-glow" />}
                 <div className="config-card__header">
                   <div className="config-card__title-row">
@@ -207,6 +273,7 @@ export const Configs: React.FC = () => {
                     </div>
                     <div className="config-card__right">
                       {isActive && <span className="config-card__badge">Active</span>}
+                      {relayBadge(cfg.name)}
                       <div className="config-card__actions">
                         <button className="config-card__action-btn" title="Edit config" onClick={() => requirePasskey({ type: 'edit', name: cfg.name })}>
                           <Pencil size={13} />
@@ -232,14 +299,29 @@ export const Configs: React.FC = () => {
                     <span className="config-card__meta-label">Endpoint</span>
                     <span className="config-card__meta-val mono">{cfg.endpoint ?? '—'}</span>
                   </div>
+                  <div className="config-card__meta-row">
+                    <span className="config-card__meta-label">Server</span>
+                    <span className="config-card__meta-val config-card__relay" title={relay?.detail ?? 'Not checked yet'}>
+                      <span className={`config-card__relay-dot config-card__relay-dot--${relay?.status ?? 'unknown'}`} />
+                      {relay ? RELAY_LABEL[relay.status] : 'Not checked'}
+                      <button
+                        className="config-card__action-btn"
+                        title="Recheck with Mullvad"
+                        onClick={() => recheckRelays(cfg.name)}
+                        disabled={checkingRelays}
+                      >
+                        <RefreshCw size={11} className={checkingRelays ? 'spinning' : ''} />
+                      </button>
+                    </span>
+                  </div>
                 </div>
                 <div className="config-card__footer">
                   {isActive ? (
                     <button className="btn btn-ghost btn-sm" disabled><CheckCircle2 size={14} /> Currently Active</button>
                   ) : (
-                    <button id={`btn-switch-${cfg.name}`} className="btn btn-primary btn-sm" onClick={() => handleSwitch(cfg.name)} disabled={!!isSwitching}>
+                    <button id={`btn-switch-${cfg.name}`} className={`btn btn-sm ${isDead ? 'btn-ghost' : 'btn-primary'}`} onClick={() => handleSwitch(cfg.name)} disabled={!!isSwitching}>
                       {isBusy ? <span className="spinner spinner-sm" /> : <Layers size={14} />}
-                      {isBusy ? 'Switching…' : 'Switch to This'}
+                      {isBusy ? 'Switching…' : isDead ? 'Switch Anyway' : 'Switch to This'}
                     </button>
                   )}
                 </div>
@@ -252,8 +334,9 @@ export const Configs: React.FC = () => {
           {filtered.map((cfg) => {
             const isActive = cfg.isActive;
             const isBusy = isSwitching === cfg.name;
+            const isDead = isDeadRelay(relays?.configs[cfg.name]?.status);
             return (
-              <GlassCard key={cfg.name} className={`config-row${isActive ? ' config-row--active' : ''}`}>
+              <GlassCard key={cfg.name} className={`config-row${isActive ? ' config-row--active' : ''}${isDead ? ' config-card--dead' : ''}`}>
                 {isActive && <div className="config-card__active-glow" />}
                 <div className="config-row__icon">
                   {isActive
@@ -271,10 +354,11 @@ export const Configs: React.FC = () => {
                 </div>
                 <div className="config-row__right">
                   {isActive && <span className="config-card__badge">Active</span>}
+                  {relayBadge(cfg.name)}
                   {isActive ? (
                     <button className="btn btn-ghost btn-sm" disabled><CheckCircle2 size={14} /> Active</button>
                   ) : (
-                    <button className="btn btn-primary btn-sm" onClick={() => handleSwitch(cfg.name)} disabled={!!isSwitching}>
+                    <button className={`btn btn-sm ${isDead ? 'btn-ghost' : 'btn-primary'}`} onClick={() => handleSwitch(cfg.name)} disabled={!!isSwitching}>
                       {isBusy ? <span className="spinner spinner-sm" /> : <Layers size={14} />}
                       {isBusy ? 'Switching…' : 'Switch'}
                     </button>

@@ -20,6 +20,7 @@ import {
 } from '../services/wg';
 import { getCronStatus, setCron, disableCron } from '../services/cron';
 import { getHistory } from '../services/vpnHistory';
+import { getRelayStatus } from '../services/relayStatus';
 
 const router = Router();
 
@@ -242,6 +243,28 @@ router.put('/script', mutationLimiter, requireAdmin, requirePasskey, async (req,
 });
 
 // ── Config CRUD (passkey-gated) ───────────────────────────────
+
+// ── Mullvad server status ─────────────────────────────────────
+
+/** GET /api/configs/relay-status — cached Mullvad online/offline status per config */
+router.get('/configs/relay-status', async (_req, res) => {
+  try {
+    res.json(await getRelayStatus(false));
+  } catch (err: any) {
+    console.error('[api] Failed to get relay status:', err);
+    res.status(500).json({ error: 'Failed to check servers' });
+  }
+});
+
+/** POST /api/configs/relay-status — recheck all configs against Mullvad now */
+router.post('/configs/relay-status', async (_req, res) => {
+  try {
+    res.json(await getRelayStatus(true));
+  } catch (err: any) {
+    console.error('[api] Failed to recheck relay status:', err);
+    res.status(500).json({ error: 'Failed to check servers' });
+  }
+});
 
 /** GET /api/configs/:name/content — read raw config file content */
 router.get('/configs/:name/content', requireAdmin, async (req, res) => {
