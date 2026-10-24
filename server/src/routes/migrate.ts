@@ -9,6 +9,7 @@ import {
   latestImport,
   helperAvailable,
 } from '../services/migrate';
+import { lastSecurityReport, runSecurityCheck } from '../services/security';
 
 const router = Router();
 
@@ -91,6 +92,22 @@ router.get('/:id/status', limiter(120), async (req, res) => {
     res.json(await importStatus(req.params.id));
   } catch (err: any) {
     res.status(400).json({ error: err.message ?? 'Unknown migration' });
+  }
+});
+
+// ── Security check (read-only) ─────────────────────────────────
+
+/** GET /api/migrate/security — last security check report */
+router.get('/security', limiter(60), async (_req, res) => {
+  res.json({ report: await lastSecurityReport(), available: await helperAvailable() });
+});
+
+/** POST /api/migrate/security — run the read-only security check now */
+router.post('/security', limiter(6), async (_req, res) => {
+  try {
+    res.json({ report: await runSecurityCheck() });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message ?? 'Security check failed' });
   }
 });
 

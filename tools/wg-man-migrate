@@ -5,6 +5,8 @@ Run as root by wg-man through systemd-run, outside wg-man's sandbox:
 
     wg-man-migrate plan  <id>   print a JSON plan (dry run, changes nothing)
     wg-man-migrate apply <id>   migrate; progress goes to <id>/progress.json
+    wg-man-migrate check        read-only audit that the VPN-bound apps cannot
+                                reach the internet outside the tunnel (JSON)
 
 wg-man stages the request in /var/lib/wg-man/migrations/<id>/:
     request.json      selected configs, connect order, new pattern and DNS
@@ -58,6 +60,10 @@ DEFAULTS = {
     "restartAfter": [],
     "handshakeWait": 15,
     "maxTries": 6,
+    "restartUnits": [],
+    "checkContainers": [],
+    "checkDns": [],
+    "securityReport": "/var/lib/wg-man/security-check.json",
 }
 
 
@@ -585,7 +591,11 @@ def cmd_apply(mid):
         current = "resume"
         prog.step(current, "running")
         start_units(was_active)
-        prog.step(current, "ok", ", ".join(was_active))
+        # Apps that keep running get restarted so they drop connections from the old address
+        restarted = [u for u in cfg["restartUnits"] if unit_exists(u)]
+        for u in restarted:
+            run(["systemctl", "try-restart", u], check=False, timeout=180)
+        prog.step(current, "ok", ", ".join(was_active + restarted))
 
         # ---- verify
         current = "verify"
@@ -657,15 +667,261 @@ def cmd_apply(mid):
         if mon_lock:
             mon_lock.close()
 
+# ---------------------------------------------------------------- check
+
+# Read-only audit that the VPN-bound apps cannot reach the internet any other
+# way. Nothing is changed or restarted; probes run as each app user.
+
+PUBLIC_EXCLUDE = [ipaddress.ip_network(n) for n in (
+    "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "100.64.0.0/10", "127.0.0.0/8",
+    "169.254.0.0/16", "224.0.0.0/4", "0.0.0.0/8", "::1/128", "fc00::/7", "fe80::/10", "ff00::/8", "::/128")]
+
+
+def is_public(ip):
+    try:
+        a = ipaddress.ip_address(ip.split("%")[0].strip("[]"))
+    except ValueError:
+        return False
+    if getattr(a, "ipv4_mapped", None):
+        a = a.ipv4_mapped
+    return not any(a in n for n in PUBLIC_EXCLUDE if n.version == a.version)
+
+
+def as_user(user, cmd, timeout=30):
+    pw = pwd.getpwnam(user)
+    return run(["setpriv", "--reuid=%d" % pw.pw_uid, "--regid=%d" % pw.pw_gid, "--clear-groups"] + cmd,
+               check=False, timeout=timeout)
+
+
+def exit_info(p):
+    try:
+        j = json.loads(p.stdout)
+        return j
+    except ValueError:
+        return None
+
+
+def chk(name, status, detail=""):
+    return {"name": name, "status": status, "detail": detail}
+
+
+def plain_ip(addr):
+    """'[::ffff:10.0.0.1]' / '10.0.0.1%wg0' -> '10.0.0.1' (dual-stack sockets show IPv4 as mapped IPv6)."""
+    a = addr.split("%")[0].strip("[]")
+    try:
+        ip = ipaddress.ip_address(a)
+    except ValueError:
+        return a
+    return str(ip.ipv4_mapped) if getattr(ip, "ipv4_mapped", None) else str(ip)
+
+
+def tunnel_addresses(iface):
+    p = run(["ip", "-o", "addr", "show", "dev", iface], check=False)
+    return set(re.findall(r"inet6? ([0-9a-f.:]+)/", p.stdout))
+
+
+def check_user(cfg, user, ctx):
+    pw = pwd.getpwnam(user)
+    uid, iface = pw.pw_uid, cfg["staticInterface"]
+    out = []
+
+    # Routing: which way would the kernel send this user's traffic?
+    p = run(["ip", "route", "get", cfg["checkIp"], "uid", str(uid)], check=False)
+    m = re.search(r"\bdev (\S+)", p.stdout)
+    dev = m.group(1) if m else None
+    out.append(chk("Route to the internet", "pass" if dev == iface else "fail",
+                   "via %s" % (dev or "no route (%s)" % (p.stderr.strip() or "?"))))
+
+    # Exit IP through the normal path
+    j = exit_info(as_user(user, ["curl", "-s", "-m", "15", cfg["verifyUrl"]]))
+    if j is None:
+        out.append(chk("Exits through the VPN", "fail", "no response — blocked or DNS failed"))
+    else:
+        ip, host = j.get("ip", "?"), j.get("mullvad_exit_ip_hostname") or "not Mullvad"
+        ok = bool(j.get("mullvad_exit_ip")) and ip != ctx.get("hostIp")
+        out.append(chk("Exits through the VPN", "pass" if ok else "fail",
+                       "%s (%s, %s)" % (ip, host, j.get("country", "?"))))
+        ctx.setdefault("exits", set()).add(ip)
+
+    # DNS works for the app
+    p = as_user(user, ["getent", "ahostsv4", "example.com"], timeout=20)
+    out.append(chk("DNS resolves", "pass" if p.returncode == 0 and p.stdout.strip() else "fail",
+                   "example.com -> %s" % p.stdout.split()[0] if p.stdout.strip() else "lookup failed"))
+
+    # Try to bypass the tunnel: bind to the LAN address, then to the network card itself
+    for label, bind in (("LAN address", ctx.get("lanIp")), ("network card", ctx.get("lanDev") and "if!" + ctx["lanDev"])):
+        if not bind:
+            continue
+        p = as_user(user, ["curl", "-s", "-o", "/dev/null", "-w", "%{http_code}", "-m", "6",
+                           "--interface", bind, "https://1.1.1.1/"], timeout=20)
+        leaked = p.returncode == 0 and p.stdout.strip() not in ("", "000")
+        out.append(chk("Bypass via the %s is blocked" % label, "fail" if leaked else "pass",
+                       ("connected through %s (HTTP %s) — LEAK" % (bind, p.stdout.strip())) if leaked
+                       else "%s: no connection, as expected" % bind.replace("if!", "")))
+
+    # IPv6
+    if ctx.get("hasV6"):
+        p = as_user(user, ["curl", "-6", "-s", "-o", "/dev/null", "-w", "%{http_code}", "-m", "6",
+                           "https://[2606:4700:4700::1111]/"], timeout=20)
+        leaked = p.returncode == 0 and p.stdout.strip() not in ("", "000")
+        out.append(chk("IPv6 is blocked", "fail" if leaked else "pass",
+                       "connected over IPv6 — LEAK" if leaked else "blocked"))
+
+    # Fail-closed rules for when the tunnel goes down
+    rej = re.compile(r"--uid-owner %d(\s|$).*-j (REJECT|DROP)" % uid)
+    v4 = any(rej.search(l) for l in ctx["ipt4"].splitlines())
+    out.append(chk("Kill switch rule (IPv4)", "pass" if v4 else "fail",
+                   "REJECT for uid %d" % uid if v4 else "no REJECT/DROP rule for uid %d" % uid))
+    if ctx.get("hasV6"):
+        v6 = any(rej.search(l) for l in ctx["ipt6"].splitlines())
+        out.append(chk("Kill switch rule (IPv6)", "pass" if v6 else "fail", "" if v6 else "no rule for uid %d" % uid))
+    fb = False
+    for m in re.finditer(r"uidrange (\d+)-(\d+) (?:prohibit|unreachable|blackhole)", ctx["rules"]):
+        fb = fb or int(m.group(1)) <= uid <= int(m.group(2))
+    out.append(chk("Fail-closed route fallback", "pass" if fb else "warn",
+                   "traffic is refused if the VPN routing table empties" if fb
+                   else "no prohibit rule — relies on the kill switch alone"))
+
+    # What the app is actually connected to right now
+    # A connection from one of this host's other addresses is a leak; one from an
+    # address no interface has any more (an old tunnel) is stale and cannot send.
+    socks = [l for l in ctx["ss"].splitlines() if re.search(r"\buid:%d\b" % uid, l)]
+    good, leaks, stale = 0, [], []
+    for l in socks:
+        f = l.split()
+        if len(f) < 6:
+            continue
+        local, peer = plain_ip(f[4].rsplit(":", 1)[0]), f[5].rsplit(":", 1)[0]
+        if not is_public(peer):
+            continue
+        if local in ctx["tunnelIps"]:
+            good += 1
+        elif local in ctx["hostIps"] or local in ("0.0.0.0", "::", "*"):
+            leaks.append("%s -> %s" % (f[4], f[5]))
+        else:
+            stale.append(local)
+    if leaks:
+        out.append(chk("Live connections use the tunnel", "fail",
+                       "%d outside the tunnel — LEAK: %s" % (len(leaks), ", ".join(leaks[:5]))))
+    elif stale:
+        out.append(chk("Live connections use the tunnel", "warn",
+                       "%d stale connection(s) from an old tunnel address (%s); they cannot send — restart %s to drop them"
+                       % (len(stale), ", ".join(sorted(set(stale))), user)))
+    else:
+        out.append(chk("Live connections use the tunnel", "pass",
+                       "%d connection(s) to the internet, all from the tunnel address" % good))
+    return {"id": user, "title": user, "checks": out}
+
+
+def check_container(cfg, name, ctx):
+    out = []
+    p = run(["docker", "inspect", "-f", "{{.State.Pid}}", name], check=False, timeout=20)
+    pid = p.stdout.strip()
+    if p.returncode != 0 or not pid.isdigit() or pid == "0":
+        return {"id": "container:" + name, "title": name + " (container)",
+                "checks": [chk("Container running", "warn", "not running — skipped")]}
+    host = re.sub(r"^https?://([^/:]+).*$", r"\1", cfg["verifyUrl"])
+    res = []
+    try:
+        import socket
+        res = sorted({ai[4][0] for ai in socket.getaddrinfo(host, 443, socket.AF_INET)})
+    except OSError:
+        pass
+    if not res:
+        return {"id": "container:" + name, "title": name + " (container)",
+                "checks": [chk("Exits through the VPN", "warn", "could not resolve %s on the host" % host)]}
+    p = run(["nsenter", "-t", pid, "-n", "curl", "-s", "-m", "15", "--resolve", "%s:443:%s" % (host, res[0]),
+             cfg["verifyUrl"]], check=False, timeout=30)
+    j = exit_info(p)
+    if j is None:
+        out.append(chk("Exits through the VPN", "fail", "no response — blocked?"))
+    else:
+        ok = bool(j.get("mullvad_exit_ip")) and j.get("ip") != ctx.get("hostIp")
+        out.append(chk("Exits through the VPN", "pass" if ok else "fail",
+                       "%s (%s, %s)" % (j.get("ip"), j.get("mullvad_exit_ip_hostname") or "not Mullvad",
+                                        j.get("country", "?"))))
+    return {"id": "container:" + name, "title": name + " (container)", "checks": out}
+
+
+def cmd_check():
+    from concurrent.futures import ThreadPoolExecutor
+    cfg = load_config()
+    iface = cfg["staticInterface"]
+    started = time.time()
+    groups = []
+
+    # Tunnel
+    t = []
+    up = run(["wg", "show", iface], check=False).returncode == 0
+    t.append(chk("Interface %s is up" % iface, "pass" if up else "fail"))
+    age = handshake_age(iface) if up else None
+    t.append(chk("Recent handshake", "pass" if age is not None and age < 180 else "fail",
+                 "%ds ago" % age if age is not None else "none"))
+    ping = run(["ping", "-c", "2", "-W", "3", "-I", iface, cfg["checkIp"]], check=False, timeout=15) if up else None
+    t.append(chk("Traffic passes through the tunnel", "pass" if ping and ping.returncode == 0 else "fail",
+                 "ping %s" % cfg["checkIp"]))
+    for d in cfg.get("checkDns") or ([cfg["currentDns"]] if cfg["currentDns"] else []):
+        p = run(["ip", "route", "get", d], check=False)
+        m = re.search(r"\bdev (\S+)", p.stdout)
+        t.append(chk("VPN DNS %s is routed into the tunnel" % d, "pass" if m and m.group(1) == iface else "fail",
+                     "via %s" % (m.group(1) if m else "no route")))
+    groups.append({"id": "tunnel", "title": "Tunnel", "checks": t})
+
+    # Context shared by the per-user checks
+    ctx = {"tunnelIps": tunnel_addresses(iface)}
+    all_ips = set(re.findall(r"inet6? ([0-9a-f.:]+)/", run(["ip", "-o", "addr", "show"], check=False).stdout))
+    ctx["hostIps"] = all_ips - ctx["tunnelIps"]
+    dr = run(["ip", "-4", "route", "get", cfg["checkIp"]], check=False).stdout
+    m = re.search(r"\bsrc (\S+)", dr)
+    ctx["lanIp"] = m.group(1) if m and m.group(1) not in ctx["tunnelIps"] else None
+    m = re.search(r"\bdev (\S+)", dr)
+    ctx["lanDev"] = m.group(1) if m and m.group(1) != iface else None
+    ctx["hasV6"] = bool(run(["ip", "-6", "route", "show", "default"], check=False).stdout.strip())
+    ctx["ipt4"] = run(["iptables", "-w", "5", "-S"], check=False).stdout
+    ctx["ipt6"] = run(["ip6tables", "-w", "5", "-S"], check=False).stdout if ctx["hasV6"] else ""
+    ctx["rules"] = run(["ip", "-4", "rule", "show"], check=False).stdout
+    ctx["ss"] = run(["ss", "-tunaHe"], check=False).stdout
+    host = exit_info(run(["curl", "-s", "-m", "15", cfg["verifyUrl"]], check=False, timeout=30))
+    ctx["hostIp"] = host.get("ip") if host else None
+
+    users = [u for u in cfg["verifyUsers"] if user_exists(u)]
+    with ThreadPoolExecutor(max(1, min(8, len(users)))) as ex:
+        groups += list(ex.map(lambda u: check_user(cfg, u, ctx), users))
+    for c in cfg.get("checkContainers") or []:
+        groups.append(check_container(cfg, c, ctx))
+
+    if len(ctx.get("exits", ())) > 1:
+        groups[0]["checks"].append(chk("All apps share one exit", "warn", ", ".join(sorted(ctx["exits"]))))
+
+    counts = {"pass": 0, "fail": 0, "warn": 0}
+    for g in groups:
+        for c in g["checks"]:
+            counts[c["status"]] = counts.get(c["status"], 0) + 1
+        g["status"] = "fail" if any(c["status"] == "fail" for c in g["checks"]) else \
+                      "warn" if any(c["status"] == "warn" for c in g["checks"]) else "pass"
+    report = {
+        "checkedAt": int(time.time()), "durationMs": int((time.time() - started) * 1000),
+        "ok": counts["fail"] == 0, "counts": counts,
+        "host": {"ip": ctx["hostIp"], "mullvad": bool(host and host.get("mullvad_exit_ip")),
+                 "country": host.get("country") if host else None},
+        "groups": groups,
+    }
+    if cfg.get("securityReport"):
+        write_atomic(cfg["securityReport"], json.dumps(report), mode=0o640)
+    print(json.dumps(report))
+
 
 def main(argv):
-    if len(argv) != 3 or argv[1] not in ("plan", "apply"):
-        print("usage: wg-man-migrate {plan|apply} <id>", file=sys.stderr)
+    if not (len(argv) == 3 and argv[1] in ("plan", "apply")) and argv[1:] != ["check"]:
+        print("usage: wg-man-migrate {plan|apply} <id> | check", file=sys.stderr)
         return 2
     if os.geteuid() != 0:
         print("must run as root", file=sys.stderr)
         return 2
     try:
+        if argv[1] == "check":
+            cmd_check()
+            return 0
         if argv[1] == "plan":
             cmd_plan(argv[2])
             return 0

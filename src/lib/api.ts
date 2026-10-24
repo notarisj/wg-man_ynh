@@ -99,6 +99,17 @@ export type MigrationProgress = {
 
 export type MigrationStatus = { id: string; running: boolean; progress: MigrationProgress | null };
 
+export type SecurityStatus = 'pass' | 'fail' | 'warn';
+
+export type SecurityReport = {
+  checkedAt: number;
+  durationMs: number;
+  ok: boolean;
+  counts: { pass: number; fail: number; warn: number };
+  host: { ip: string | null; mullvad: boolean; country: string | null };
+  groups: { id: string; title: string; status: SecurityStatus; checks: { name: string; status: SecurityStatus; detail: string }[] }[];
+};
+
 export type SystemMetrics = {
   cpuPercent: number;
   ramPercent: number;
@@ -271,6 +282,10 @@ export const api = {
       apiFetch<MigrationPlan>(`/migrate/${id}/plan`, { method: 'POST', body: JSON.stringify({ configs, archiveOld }) }),
     apply:   (id: string) => apiFetch<{ ok: boolean }>(`/migrate/${id}/apply`, { method: 'POST' }),
     status:  (id: string) => apiFetch<MigrationStatus>(`/migrate/${id}/status`),
+  },
+  security: {
+    last: () => apiFetch<{ report: SecurityReport | null; available: { ok: boolean; reason: string | null } }>('/migrate/security'),
+    run:  () => apiFetch<{ report: SecurityReport }>('/migrate/security', { method: 'POST' }),
   },
   recheckRelays: () => apiFetch<RelayStatusReport>('/configs/relay-status', { method: 'POST' }),
   logs: (lines = 100) => apiFetch<string[]>(`/logs?lines=${lines}`),
