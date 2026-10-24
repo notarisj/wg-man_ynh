@@ -1,0 +1,679 @@
+#!/usr/bin/python3 -I
+"""wg-man-migrate — move the VPN stack to a new set of WireGuard configs.
+
+Run as root by wg-man through systemd-run, outside wg-man's sandbox:
+
+    wg-man-migrate plan  <id>   print a JSON plan (dry run, changes nothing)
+    wg-man-migrate apply <id>   migrate; progress goes to <id>/progress.json
+
+wg-man stages the request in /var/lib/wg-man/migrations/<id>/:
+    request.json      selected configs, connect order, new pattern and DNS
+    configs/*.conf    the configs, already rendered for this server
+
+What depends on the old account (tunnel address, DNS, config pattern) is
+described in /etc/wg-man/migrate.json, so this script holds no
+server-specific paths. Every step after the backup is rolled back on failure.
+"""
+
+import difflib
+import fcntl
+import fnmatch
+import ipaddress
+import json
+import os
+import pwd
+import re
+import shutil
+import subprocess
+import sys
+import tarfile
+import time
+
+STAGING_ROOT = "/var/lib/wg-man/migrations"
+CONFIG_FILE = "/etc/wg-man/migrate.json"
+BACKUP_ROOT = "/root/wg-man-migrations"
+RUN_LOCK = "/run/wg-man-migrate.lock"
+
+ID_RE = re.compile(r"^[0-9a-f]{16}$")
+NAME_RE = re.compile(r"^[A-Za-z0-9_-]+$")
+PATTERN_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]*\*[A-Za-z0-9_.-]*\.conf$")
+SECRET_LINE_RE = re.compile(r"(?i)^([+\- ]?\s*[^=:\n]*(secret|password|passwd|token|privatekey|salt|_key)[^=:\n]*[=:]\s*).+$")
+
+DEFAULTS = {
+    "wireguardDir": "/etc/wireguard",
+    "staticInterface": "wg-vpn",
+    "stateFile": "/var/lib/vpn-monitor.current",
+    "extraStateFiles": [],
+    "monitorLock": "/var/run/vpn-monitor.lock",
+    "checkIp": "1.1.1.1",
+    "currentDns": "",
+    "files": [],
+    "pauseUnits": [],
+    "stopUnits": [],
+    "afterSwitch": [],
+    "verifyUsers": [],
+    "verifyUrl": "https://am.i.mullvad.net/json",
+    "ynhApp": "",
+    "ynhPatternSetting": "",
+    "restartAfter": [],
+    "handshakeWait": 15,
+    "maxTries": 6,
+}
+
+
+class MigrateError(Exception):
+    pass
+
+
+# ---------------------------------------------------------------- helpers
+
+def load_config():
+    cfg = dict(DEFAULTS)
+    try:
+        with open(CONFIG_FILE) as fh:
+            cfg.update(json.load(fh))
+    except FileNotFoundError:
+        pass
+    return cfg
+
+
+def save_current_dns(dns):
+    """Remember the DNS now in use; configs on disk have their DNS line stripped."""
+    try:
+        with open(CONFIG_FILE) as fh:
+            data = json.load(fh)
+    except FileNotFoundError:
+        return
+    data["currentDns"] = dns
+    write_atomic(CONFIG_FILE, json.dumps(data, indent=2) + "\n")
+
+
+def run(cmd, timeout=120, check=True):
+    p = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+    if check and p.returncode != 0:
+        raise MigrateError("%s failed: %s" % (" ".join(cmd), (p.stderr or p.stdout).strip()[-300:]))
+    return p
+
+
+def write_atomic(path, text, mode=None):
+    st = os.stat(path) if os.path.exists(path) else None
+    tmp = "%s.wgmig-tmp" % path
+    with open(tmp, "w") as fh:
+        fh.write(text)
+    if st:
+        os.chown(tmp, st.st_uid, st.st_gid)
+        os.chmod(tmp, st.st_mode & 0o7777)
+    elif mode is not None:
+        os.chmod(tmp, mode)
+    os.replace(tmp, path)
+
+
+def read(path):
+    with open(path) as fh:
+        return fh.read()
+
+
+def ip_pattern(ip):
+    # Match the address only as a whole token (10.64.0.1 must not hit 10.64.0.10)
+    return re.compile(r"(?<![0-9A-Za-z.:])%s(?![0-9A-Za-z:]|\.[0-9])" % re.escape(ip))
+
+
+def conf_value(text, key):
+    m = re.search(r"^\s*%s\s*=\s*(.+?)\s*$" % key, text, re.M)
+    return m.group(1) if m else ""
+
+
+def split_address(addr):
+    v4 = v6 = ""
+    for part in addr.split(","):
+        ip = part.strip().split("/")[0]
+        if not ip:
+            continue
+        if ":" in ip:
+            v6 = v6 or ip
+        else:
+            v4 = v4 or ip
+    return v4, v6
+
+
+def endpoint_port(ep):
+    m = re.search(r":(\d+)$", ep.strip())
+    return m.group(1) if m else ""
+
+
+def mask_secrets(diff_lines):
+    return [SECRET_LINE_RE.sub(lambda m: m.group(1) + "••••••", ln) for ln in diff_lines]
+
+
+def unit_exists(unit):
+    p = run(["systemctl", "list-unit-files", "--no-legend", unit], check=False)
+    return bool(p.stdout.strip())
+
+
+# ---------------------------------------------------------------- request
+
+def load_request(mid, cfg):
+    if not ID_RE.match(mid):
+        raise MigrateError("bad migration id")
+    base = os.path.join(STAGING_ROOT, mid)
+    req = json.loads(read(os.path.join(base, "request.json")))
+
+    names = req.get("configs") or []
+    if not names or not all(isinstance(n, str) and NAME_RE.match(n) for n in names):
+        raise MigrateError("invalid config list")
+    if cfg["staticInterface"] in names:
+        raise MigrateError("a config may not be named %s" % cfg["staticInterface"])
+    pattern = req.get("newPattern", "")
+    if not PATTERN_RE.match(pattern):
+        raise MigrateError("invalid config pattern %r" % pattern)
+    if fnmatch.fnmatch(cfg["staticInterface"] + ".conf", pattern):
+        raise MigrateError("pattern %s would match %s.conf" % (pattern, cfg["staticInterface"]))
+
+    configs = {}
+    for n in names:
+        if not fnmatch.fnmatch(n + ".conf", pattern):
+            raise MigrateError("%s does not match the pattern %s" % (n, pattern))
+        text = read(os.path.join(base, "configs", n + ".conf"))
+        for key in ("PrivateKey", "Address", "PublicKey", "Endpoint", "AllowedIPs"):
+            if not conf_value(text, key):
+                raise MigrateError("%s: missing %s" % (n, key))
+        configs[n] = text
+
+    v4s = {split_address(conf_value(t, "Address"))[0] for t in configs.values()}
+    v6s = {split_address(conf_value(t, "Address"))[1] for t in configs.values()}
+    ports = {endpoint_port(conf_value(t, "Endpoint")) for t in configs.values()}
+    if len(v4s) != 1 or not next(iter(v4s)):
+        raise MigrateError("the configs must share one IPv4 tunnel address (one Mullvad device)")
+    if len(ports) != 1:
+        raise MigrateError("the configs use different WireGuard ports: %s" % ", ".join(sorted(ports)))
+    ipaddress.IPv4Address(next(iter(v4s)))
+
+    dns = req.get("newDns") or ""
+    if dns:
+        ipaddress.ip_address(dns)
+    order = [n for n in (req.get("tryOrder") or []) if n in configs] or sorted(configs)
+
+    return {
+        "id": mid, "base": base, "configs": configs, "pattern": pattern,
+        "ip4": next(iter(v4s)), "ip6": next(iter(v6s)), "port": next(iter(ports)),
+        "dns": dns, "order": order, "archiveOld": bool(req.get("archiveOld", True)),
+        "oldPattern": req.get("currentPattern", ""),
+    }
+
+
+def current_state(cfg, req):
+    """Values the running system was built for, taken from the active config."""
+    wgdir, static = cfg["wireguardDir"], cfg["staticInterface"]
+    active = ""
+    try:
+        active = read(cfg["stateFile"]).strip()
+    except OSError:
+        pass
+    text = ""
+    # The static interface file is a copy of what is running, so prefer it
+    cands = [os.path.join(wgdir, static + ".conf")]
+    cands += [os.path.join(wgdir, active + ".conf")] if NAME_RE.match(active) else []
+    for cand in cands:
+        if os.path.isfile(cand):
+            text = read(cand)
+            break
+    v4, v6 = split_address(conf_value(text, "Address")) if text else ("", "")
+    return {
+        "active": active, "ip4": v4, "ip6": v6,
+        "port": endpoint_port(conf_value(text, "Endpoint")) if text else "",
+        "dns": conf_value(text, "DNS").split(",")[0].strip() or cfg.get("currentDns", ""),
+        "pattern": req["oldPattern"],
+        "text": text,
+    }
+
+
+def old_config_files(cfg, pattern):
+    wgdir, static = cfg["wireguardDir"], cfg["staticInterface"]
+    if not pattern:
+        return []
+    return sorted(f for f in os.listdir(wgdir)
+                  if f.endswith(".conf") and f != static + ".conf" and fnmatch.fnmatch(f, pattern))
+
+
+# ---------------------------------------------------------------- plan
+
+def replacements(old, req):
+    reps = []
+    if old["ip4"] and old["ip4"] != req["ip4"]:
+        reps.append(("tunnel IPv4", ip_pattern(old["ip4"]), req["ip4"], None))
+    if old["ip6"] and req["ip6"] and old["ip6"] != req["ip6"]:
+        reps.append(("tunnel IPv6", ip_pattern(old["ip6"]), req["ip6"], None))
+    if old["dns"] and req["dns"] and old["dns"] != req["dns"]:
+        # A file that already lists the new resolver keeps both
+        reps.append(("DNS", ip_pattern(old["dns"]), req["dns"], ip_pattern(req["dns"])))
+    if old["pattern"] and old["pattern"] != req["pattern"]:
+        reps.append(("config pattern", re.compile(re.escape(old["pattern"])), req["pattern"], None))
+    return reps
+
+
+def file_changes(cfg, old, req):
+    reps = replacements(old, req)
+    changes = []
+    for path in cfg["files"]:
+        if not os.path.isfile(path):
+            changes.append({"path": path, "missing": True, "what": [], "diff": [], "new": None})
+            continue
+        before = read(path)
+        after, what = before, []
+        for label, rx, new, skip_if in reps:
+            if skip_if is not None and skip_if.search(after):
+                continue
+            after, n = rx.subn(new, after)
+            if n:
+                what.append("%s (%d)" % (label, n))
+        diff = list(difflib.unified_diff(before.splitlines(), after.splitlines(),
+                                         path, path, lineterm="", n=1))
+        changes.append({"path": path, "missing": False, "what": what,
+                        "diff": mask_secrets(diff), "new": after if after != before else None})
+    return changes
+
+
+def build_plan(cfg, req):
+    old = current_state(cfg, req)
+    if old["port"] and old["port"] != req["port"]:
+        raise MigrateError("the WireGuard port changes (%s -> %s); update the kill switch by hand"
+                           % (old["port"], req["port"]))
+    changes = file_changes(cfg, old, req)
+    olds = old_config_files(cfg, old["pattern"])
+    return old, changes, olds
+
+
+def cmd_plan(mid):
+    cfg = load_config()
+    req = load_request(mid, cfg)
+    old, changes, olds = build_plan(cfg, req)
+    out = {
+        "current": {k: v for k, v in old.items() if k != "text"},
+        "new": {"ip4": req["ip4"], "ip6": req["ip6"], "dns": req["dns"] or old["dns"],
+                "pattern": req["pattern"], "count": len(req["configs"]), "port": req["port"]},
+        "configs": {"install": sorted(req["configs"]), "archive": olds if req["archiveOld"] else [],
+                    "overwrite": sorted(set(n + ".conf" for n in req["configs"]) & set(olds))},
+        "files": [{k: c[k] for k in ("path", "missing", "what", "diff")} for c in changes],
+        "pauseUnits": [u for u in cfg["pauseUnits"] if unit_exists(u)],
+        "stopUnits": [u for u in cfg["stopUnits"] if unit_exists(u)],
+        "verifyUsers": [u for u in cfg["verifyUsers"] if user_exists(u)],
+        "ynhSetting": bool(cfg["ynhApp"] and cfg["ynhPatternSetting"] and old["pattern"] != req["pattern"]),
+        "configured": os.path.isfile(CONFIG_FILE),
+    }
+    print(json.dumps(out))
+
+
+# ---------------------------------------------------------------- apply
+
+class Progress:
+    STEPS = [
+        ("check", "Check the new configs"),
+        ("backup", "Back up the current setup"),
+        ("pause", "Pause the VPN monitor and stop the torrent client"),
+        ("configs", "Install the new configs"),
+        ("account", "Update kill switch, DNS and app settings"),
+        ("switch", "Connect to the new VPN"),
+        ("rebuild", "Rebuild DNS routing"),
+        ("resume", "Restart apps and the monitor"),
+        ("verify", "Verify every app exits through the VPN"),
+        ("finish", "Finish up"),
+    ]
+
+    def __init__(self, base):
+        self.path = os.path.join(base, "progress.json")
+        self.data = {"state": "running", "startedAt": int(time.time()), "finishedAt": None,
+                     "steps": [{"id": i, "label": l, "status": "pending", "detail": ""} for i, l in self.STEPS],
+                     "rollback": None, "verify": [], "result": {}, "log": []}
+        self.save()
+
+    def save(self):
+        write_atomic(self.path, json.dumps(self.data), mode=0o600)
+
+    def log(self, msg):
+        self.data["log"].append("%s  %s" % (time.strftime("%H:%M:%S"), msg))
+        self.data["log"] = self.data["log"][-300:]
+        self.save()
+
+    def step(self, sid, status, detail=""):
+        for s in self.data["steps"]:
+            if s["id"] == sid:
+                s["status"] = status
+                if detail:
+                    s["detail"] = detail
+        self.save()
+
+
+def user_exists(name):
+    try:
+        pwd.getpwnam(name)
+        return True
+    except KeyError:
+        return False
+
+
+def handshake_age(iface):
+    p = run(["wg", "show", iface, "latest-handshakes"], check=False)
+    ts = [int(x) for x in re.findall(r"\s(\d+)\s*$", p.stdout, re.M)]
+    return int(time.time()) - max(ts) if ts and max(ts) > 0 else None
+
+
+def bring_up(cfg, name, text, prog):
+    iface = cfg["staticInterface"]
+    static = os.path.join(cfg["wireguardDir"], iface + ".conf")
+    run(["wg-quick", "down", iface], check=False, timeout=30)
+    run(["ip", "link", "delete", iface], check=False)
+    write_atomic(static, text, mode=0o600)
+    os.chmod(static, 0o600)
+    p = run(["wg-quick", "up", iface], check=False, timeout=60)
+    if p.returncode != 0:
+        prog.log("%s: wg-quick up failed: %s" % (name, (p.stderr or "").strip().splitlines()[-1:] or "?"))
+        return False
+    deadline = time.time() + cfg["handshakeWait"]
+    while time.time() < deadline:
+        age = handshake_age(iface)
+        if age is not None and age < 30:
+            ping = run(["ping", "-c", "1", "-W", "3", "-I", iface, cfg["checkIp"]], check=False, timeout=10)
+            if ping.returncode == 0:
+                for sf in [cfg["stateFile"]] + cfg["extraStateFiles"]:
+                    write_atomic(sf, name + "\n", mode=0o644)
+                return True
+        time.sleep(1)
+    prog.log("%s: no handshake within %ss" % (name, cfg["handshakeWait"]))
+    return False
+
+
+def connect_any(cfg, order, configs, prog):
+    for name in order[:cfg["maxTries"]]:
+        prog.log("trying %s" % name)
+        if bring_up(cfg, name, configs[name], prog):
+            prog.log("%s connected" % name)
+            return name
+    return None
+
+
+def run_after_switch(cfg, prog):
+    for cmd in cfg["afterSwitch"]:
+        p = run(cmd, check=False, timeout=120)
+        prog.log("%s -> exit %s" % (" ".join(cmd)[:80], p.returncode))
+        if p.returncode != 0:
+            raise MigrateError("%s failed: %s" % (" ".join(cmd)[:80], (p.stderr or p.stdout).strip()[-200:]))
+
+
+def verify_apps(cfg, prog):
+    results = []
+    for user in cfg["verifyUsers"]:
+        if not user_exists(user):
+            continue
+        pw = pwd.getpwnam(user)
+        res = {"user": user, "ok": False, "detail": ""}
+        for attempt in range(3):
+            p = run(["setpriv", "--reuid=%d" % pw.pw_uid, "--regid=%d" % pw.pw_gid, "--clear-groups",
+                     "curl", "-s", "-m", "15", cfg["verifyUrl"]], check=False, timeout=30)
+            try:
+                j = json.loads(p.stdout)
+                res["detail"] = "%s, %s" % (j.get("mullvad_exit_ip_hostname") or j.get("ip", "?"),
+                                            j.get("country", "?"))
+                res["ok"] = bool(j.get("mullvad_exit_ip"))
+                if not res["ok"]:
+                    res["detail"] += " (not a Mullvad exit)"
+            except ValueError:
+                res["detail"] = "no response (blocked or DNS failed)"
+            if res["ok"]:
+                break
+            time.sleep(5)
+        prog.log("verify %s: %s %s" % (user, "ok" if res["ok"] else "FAILED", res["detail"]))
+        results.append(res)
+    return results
+
+
+def start_units(units):
+    for u in units:
+        run(["systemctl", "start", u], check=False, timeout=180)
+
+
+def ynh_setting(cfg, value=None):
+    app, key = cfg["ynhApp"], cfg["ynhPatternSetting"]
+    if not (app and key and shutil.which("yunohost")):
+        return None
+    if value is None:
+        p = run(["yunohost", "app", "setting", app, key], check=False, timeout=120)
+        return p.stdout.strip() if p.returncode == 0 else None
+    run(["yunohost", "app", "setting", app, key, "-v", value], timeout=180)
+    return value
+
+
+def cmd_apply(mid):
+    cfg = load_config()
+    base = os.path.join(STAGING_ROOT, mid) if ID_RE.match(mid) else None
+    if not base or not os.path.isdir(base):
+        raise MigrateError("unknown migration")
+    prog = Progress(base)
+
+    run_lock = open(RUN_LOCK, "w")
+    try:
+        fcntl.flock(run_lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        prog.data["state"] = "failed"
+        prog.log("another migration is running")
+        prog.step("check", "failed", "another migration is running")
+        return 1
+
+    undo = []           # file rollback actions, run in reverse
+    was_active = []     # units stopped in "pause", restarted in "resume" or by the rollback
+    tunnel_touched = False
+    backup_dir = os.path.join(BACKUP_ROOT, time.strftime("%Y%m%d-%H%M%S-") + mid)
+    current = "check"
+    mon_lock = None
+    try:
+        # ---- check
+        prog.step(current, "running")
+        req = load_request(mid, cfg)
+        old, changes, olds = build_plan(cfg, req)
+        prog.data["result"] = {"oldIp4": old["ip4"], "newIp4": req["ip4"], "oldPattern": old["pattern"],
+                               "newPattern": req["pattern"], "oldActive": old["active"],
+                               "count": len(req["configs"])}
+        prog.step(current, "ok", "%d configs, tunnel %s, pattern %s" % (len(req["configs"]), req["ip4"], req["pattern"]))
+
+        # ---- backup
+        current = "backup"
+        prog.step(current, "running")
+        os.makedirs(backup_dir, mode=0o700)
+        wgdir = cfg["wireguardDir"]
+        with tarfile.open(os.path.join(backup_dir, "backup.tar.gz"), "w:gz") as tar:
+            for f in sorted(os.listdir(wgdir)):
+                if f.endswith(".conf"):
+                    tar.add(os.path.join(wgdir, f))
+            for c in changes:
+                if not c["missing"]:
+                    tar.add(c["path"])
+            for sf in [cfg["stateFile"]] + cfg["extraStateFiles"]:
+                if os.path.isfile(sf):
+                    tar.add(sf)
+        ynh_old = ynh_setting(cfg)
+        json.dump({"old": {k: v for k, v in old.items() if k != "text"}, "ynhSetting": ynh_old, "id": mid},
+                  open(os.path.join(backup_dir, "meta.json"), "w"))
+        prog.data["result"]["backup"] = backup_dir
+        prog.step(current, "ok", backup_dir)
+
+        def restore_files():
+            prog.log("restoring files from %s" % backup_dir)
+            for f in os.listdir(wgdir):     # drop the new configs, the backup holds the old set
+                if f.endswith(".conf") and f[:-5] in req["configs"]:
+                    os.remove(os.path.join(wgdir, f))
+            with tarfile.open(os.path.join(backup_dir, "backup.tar.gz")) as tar:
+                tar.extractall("/")
+            if ynh_old is not None and old["pattern"] != req["pattern"]:
+                try:
+                    ynh_setting(cfg, ynh_old)
+                except MigrateError as e:
+                    prog.log("could not restore the YunoHost setting: %s" % e)
+        undo.append(("restore the backup", restore_files))
+
+        # ---- pause
+        current = "pause"
+        prog.step(current, "running")
+        mon_lock = open(cfg["monitorLock"], "w")
+        for _ in range(60):
+            try:
+                fcntl.flock(mon_lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                break
+            except OSError:
+                time.sleep(1)
+        else:
+            raise MigrateError("the VPN monitor is busy (lock held for 60 s)")
+        for u in cfg["pauseUnits"] + cfg["stopUnits"]:
+            if run(["systemctl", "is-active", "--quiet", u], check=False).returncode == 0:
+                was_active.append(u)
+                run(["systemctl", "stop", u], check=False, timeout=120)
+        prog.step(current, "ok", ", ".join(was_active) or "nothing was running")
+
+        # ---- configs
+        current = "configs"
+        prog.step(current, "running")
+        if req["archiveOld"] and olds:
+            arch = os.path.join(wgdir, "archive-" + time.strftime("%Y%m%d-%H%M%S"))
+            os.makedirs(arch, mode=0o700)
+            for f in olds:
+                shutil.move(os.path.join(wgdir, f), os.path.join(arch, f))
+            prog.data["result"]["archive"] = arch
+            undo.append(("remove the archive copy", lambda a=arch: shutil.rmtree(a, ignore_errors=True)))
+        for name, text in req["configs"].items():
+            dst = os.path.join(wgdir, name + ".conf")
+            with open(dst + ".wgmig-tmp", "w") as fh:
+                fh.write(text)
+            os.chown(dst + ".wgmig-tmp", 0, 0)
+            os.chmod(dst + ".wgmig-tmp", 0o600)
+            os.replace(dst + ".wgmig-tmp", dst)
+        prog.step(current, "ok", "%d installed%s" % (len(req["configs"]),
+                  ", %d old archived" % len(olds) if req["archiveOld"] and olds else ""))
+
+        # ---- account values
+        current = "account"
+        prog.step(current, "running")
+        changed = []
+        for c in changes:
+            if c["new"] is not None:
+                write_atomic(c["path"], c["new"])
+                changed.append(c["path"])
+                prog.log("updated %s: %s" % (c["path"], ", ".join(c["what"])))
+        if ynh_old is not None and old["pattern"] != req["pattern"]:
+            try:
+                ynh_setting(cfg, req["pattern"])
+                prog.log("YunoHost setting %s = %s" % (cfg["ynhPatternSetting"], req["pattern"]))
+            except MigrateError as e:
+                prog.log("warning: %s" % e)
+        prog.step(current, "ok", "%d file(s) updated" % len(changed))
+
+        # ---- switch
+        current = "switch"
+        prog.step(current, "running")
+        tunnel_touched = True
+        connected = connect_any(cfg, req["order"], req["configs"], prog)
+        if not connected:
+            raise MigrateError("none of the first %d configs completed a handshake — is the new "
+                               "Mullvad device active on your account?" % min(cfg["maxTries"], len(req["order"])))
+        prog.data["result"]["connected"] = connected
+        prog.step(current, "ok", connected)
+
+        # ---- rebuild
+        current = "rebuild"
+        prog.step(current, "running")
+        run_after_switch(cfg, prog)
+        prog.step(current, "ok", "%d command(s)" % len(cfg["afterSwitch"]))
+
+        # ---- resume
+        current = "resume"
+        prog.step(current, "running")
+        start_units(was_active)
+        prog.step(current, "ok", ", ".join(was_active))
+
+        # ---- verify
+        current = "verify"
+        prog.step(current, "running")
+        time.sleep(3)
+        results = verify_apps(cfg, prog)
+        prog.data["verify"] = results
+        bad = [r["user"] for r in results if not r["ok"]]
+        if bad:
+            raise MigrateError("not going through the VPN: %s" % ", ".join(bad))
+        prog.step(current, "ok", "%d app(s) on a Mullvad exit" % len(results) if results else "no apps configured")
+
+        # ---- finish
+        current = "finish"
+        prog.step(current, "running")
+        if req["dns"]:
+            save_current_dns(req["dns"])
+        shutil.rmtree(os.path.join(base, "configs"), ignore_errors=True)   # private keys
+        prog.data["state"] = "done"
+        prog.data["finishedAt"] = int(time.time())
+        prog.step(current, "ok", "restarting wg-man" if cfg["restartAfter"] else "")
+        mon_lock.close()
+        mon_lock = None
+        for u in cfg["restartAfter"]:
+            run(["systemctl", "--no-block", "restart", u], check=False)
+        return 0
+
+    except Exception as exc:                       # noqa: BLE001 — anything aborts and rolls back
+        msg = str(exc) or exc.__class__.__name__
+        prog.step(current, "failed", msg)
+        prog.log("FAILED at %s: %s" % (current, msg))
+        rb = {"ok": True, "steps": []}
+        if undo:
+            prog.data["state"] = "rolling_back"
+            prog.save()
+            # Stop the apps and the monitor first so nothing runs on half-restored rules
+            for u in reversed(was_active):
+                run(["systemctl", "stop", u], check=False, timeout=120)
+            for label, fn in reversed(undo):
+                try:
+                    fn()
+                    rb["steps"].append({"label": label, "ok": True})
+                except Exception as e:             # noqa: BLE001
+                    rb["ok"] = False
+                    rb["steps"].append({"label": label, "ok": False, "detail": str(e)})
+                    prog.log("rollback step '%s' failed: %s" % (label, e))
+            if tunnel_touched:
+                try:
+                    old_conf = {(old["active"] or cfg["staticInterface"]): old["text"]} if old["text"] else {}
+                    back = connect_any(cfg, list(old_conf), old_conf, prog) if old_conf else None
+                    rb["reconnected"] = back
+                    if back:
+                        run_after_switch(cfg, prog)
+                    else:
+                        prog.log("the previous config does not connect either; the kill switch keeps "
+                                 "the apps offline until a working config is active")
+                except Exception as e:             # noqa: BLE001
+                    rb["ok"] = False
+                    prog.log("reconnect after rollback failed: %s" % e)
+            start_units(was_active)
+            prog.data["state"] = "rolled_back"
+        else:
+            prog.data["state"] = "failed"
+        prog.data["rollback"] = rb
+        prog.data["finishedAt"] = int(time.time())
+        prog.save()
+        return 1
+    finally:
+        if mon_lock:
+            mon_lock.close()
+
+
+def main(argv):
+    if len(argv) != 3 or argv[1] not in ("plan", "apply"):
+        print("usage: wg-man-migrate {plan|apply} <id>", file=sys.stderr)
+        return 2
+    if os.geteuid() != 0:
+        print("must run as root", file=sys.stderr)
+        return 2
+    try:
+        if argv[1] == "plan":
+            cmd_plan(argv[2])
+            return 0
+        return cmd_apply(argv[2])
+    except MigrateError as exc:
+        print(json.dumps({"error": str(exc)}))
+        return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))

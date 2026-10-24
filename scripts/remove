@@ -38,6 +38,7 @@ fi
 #=================================================
 ynh_script_progression "Removing rescue script..."
 ynh_safe_rm /usr/local/bin/wg-man-rescue
+ynh_safe_rm /usr/local/sbin/wg-man-migrate
 ynh_safe_rm /etc/cron.d/wg-man-rescue
 
 #=================================================

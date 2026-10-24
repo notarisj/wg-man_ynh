@@ -25,7 +25,7 @@ export type RelayStatusReport = {
   configs: Record<string, RelayStatusEntry>;
 };
 
-type MullvadRelay = {
+export type MullvadRelay = {
   hostname: string;
   active: boolean;
   ipv4_addr_in: string;
@@ -56,7 +56,7 @@ async function saveCache(report: RelayStatusReport): Promise<void> {
   await rename(tmp, CACHE_FILE);
 }
 
-function classify(name: string, content: string, relays: MullvadRelay[]): RelayStatusEntry {
+export function classify(name: string, content: string, relays: MullvadRelay[]): RelayStatusEntry {
   const pubkey   = content.match(/^PublicKey\s*=\s*(\S+)/m)?.[1] ?? null;
   const endpoint = content.match(/^Endpoint\s*=\s*(\S+)/m)?.[1] ?? '';
   const host     = endpoint.replace(/^\[/, '').replace(/\]?:\d+$/, '');
@@ -78,14 +78,20 @@ function classify(name: string, content: string, relays: MullvadRelay[]): RelayS
   return { status: 'online', detail: `${relay.hostname} is online` };
 }
 
+/** Download Mullvad's public WireGuard relay list. */
+export async function fetchRelayList(): Promise<MullvadRelay[]> {
+  const res = await fetch(RELAY_LIST_URL, { signal: AbortSignal.timeout(15000) });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const relays = await res.json() as MullvadRelay[];
+  if (!Array.isArray(relays)) throw new Error('unexpected response');
+  return relays;
+}
+
 async function check(): Promise<RelayStatusReport> {
   const configs = await listConfigs();
   let relays: MullvadRelay[];
   try {
-    const res = await fetch(RELAY_LIST_URL, { signal: AbortSignal.timeout(15000) });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    relays = await res.json() as MullvadRelay[];
-    if (!Array.isArray(relays)) throw new Error('unexpected response');
+    relays = await fetchRelayList();
   } catch (err: any) {
     // Keep the last known statuses but surface the failure
     const prev = await loadCache();

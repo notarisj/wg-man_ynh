@@ -8,6 +8,7 @@ import './Header.css';
 const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
   '/':                       { title: 'Dashboard',          subtitle: 'Real-time VPN overview' },
   '/configs':                { title: 'Configs',            subtitle: 'Manage WireGuard configurations' },
+  '/import':                 { title: 'Import',             subtitle: 'Move to a new set of VPN configs' },
   '/logs':                   { title: 'Logs',               subtitle: 'Monitor activity & events' },
   '/history':                { title: 'History',            subtitle: 'Connection history & uptime' },
   '/settings':               { title: 'Settings',           subtitle: 'Application configuration' },

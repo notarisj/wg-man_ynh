@@ -95,6 +95,7 @@ popd
 #=================================================
 ynh_script_progression "Updating rescue script..."
 install -o root -g root -m 755 "$YNH_APP_BASEDIR/tools/wg-man-rescue.sh" /usr/local/bin/wg-man-rescue
+install -o root -g root -m 755 "$YNH_APP_BASEDIR/tools/wg-man-migrate" /usr/local/sbin/wg-man-migrate
 
 #=================================================
 # UPDATE CONFIGURATIONS

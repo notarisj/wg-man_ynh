@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Layers, CheckCircle2, Circle, RefreshCw, ServerCrash, AlertCircle,
-  Search, X, Plus, Pencil, Trash2, LayoutGrid, List, Activity,
+  Search, X, Plus, Pencil, Trash2, LayoutGrid, List, Activity, PackagePlus,
 } from 'lucide-react';
 import { useVpnStore } from '../store/vpnStore';
 import { GlassCard } from '../components/ui/GlassCard';
@@ -31,6 +32,7 @@ function formatAgo(ts: number): string {
 
 export const Configs: React.FC = () => {
   const { configs, fetchConfigs, switchConfig, isSwitching, isLoadingConfigs, error } = useVpnStore();
+  const navigate = useNavigate();
 
   const [viewMode, setViewMode] = useState<'grid' | 'list'>(
     () => (localStorage.getItem('configs-view-mode') as 'grid' | 'list') ?? 'grid',
@@ -223,6 +225,13 @@ export const Configs: React.FC = () => {
           >
             {checkingRelays ? <span className="spinner spinner-sm" /> : <Activity size={15} />}
             Check Servers
+          </button>
+          <button
+            className="btn btn-ghost btn-sm"
+            title="Import a Mullvad zip and migrate the whole VPN setup to it"
+            onClick={() => navigate('/import')}
+          >
+            <PackagePlus size={15} /> Import
           </button>
           <button
             className="btn btn-primary btn-sm"

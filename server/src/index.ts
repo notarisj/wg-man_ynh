@@ -13,6 +13,7 @@ import serverConfigRouter from './routes/serverConfig';
 import pluginsRouter from './routes/plugins';
 import qbittorrentRouter from './routes/qbittorrent';
 import { makeArrRouter } from './routes/arr';
+import migrateRouter from './routes/migrate';
 import { createWebSocketServer } from './websocket';
 import { pruneOldLogs } from './services/wg';
 import { startHistoryTracker } from './services/vpnHistory';
@@ -122,6 +123,9 @@ app.use('/api/plugins',              pluginsRouter);
 app.use('/api/plugins/qbittorrent',  qbittorrentRouter);
 app.use('/api/plugins/radarr',       makeArrRouter('radarr'));
 app.use('/api/plugins/sonarr',       makeArrRouter('sonarr'));
+
+// Config import / account migration (admin + passkey, inside migrateRouter)
+app.use('/api/migrate', migrateRouter);
 
 // API routes (protected by ssowatAuth inside vpnRouter)
 app.use('/api', vpnRouter);

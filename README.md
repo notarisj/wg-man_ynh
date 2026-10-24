@@ -16,7 +16,8 @@ A self-hosted WireGuard VPN manager designed for [YunoHost](https://yunohost.org
 ## Features
 
 - **Dashboard** — live connection status, handshake age, traffic counters, CPU/RAM metrics, uptime history bar
-- **Configs** — list, create, edit, delete, and switch WireGuard `.conf` files; grid or list view
+- **Configs** — list, create, edit, delete, and switch WireGuard `.conf` files; grid or list view; Mullvad server status (online / offline / removed) with per-config recheck
+- **Import** — upload a Mullvad zip and migrate the whole setup to it: review, dry-run diffs, then back up, install, update dependent files, reconnect, verify and roll back automatically on failure (see below)
 - **Logs** — real-time log tail over WebSocket, full-text search
 - **Scripts** — create and manage custom shell scripts; schedule each as an independent cron job; run on demand; all mutations passkey-gated
 - **History** — connection uptime timeline with selectable time windows
@@ -111,6 +112,21 @@ systemctl enable --now wg-man
 | `HISTORY_FILE` | `/var/lib/wg-man/history.json` | Connection history storage |
 | `WG_DATA_DIR` | `/var/lib/wg-man` | Passkey credential storage |
 
+
+## Importing new configs
+
+The Import page parses a Mullvad zip (or `.conf` files), rewrites each config with the
+`Table` / `PostUp` / `PostDown` / keepalive lines of the config running now, and hands the
+migration to `/usr/local/sbin/wg-man-migrate` (installed by the package). The helper runs as
+its own systemd unit, outside wg-man's sandbox, so it survives wg-man restarting at the end.
+
+It is disabled until `/etc/wg-man/migrate.json` exists; start from
+`tools/wg-man-migrate.example.json`. In `files`, list every file that contains the current
+tunnel address, VPN DNS or config pattern (kill-switch script, torrent client bind address,
+DNS forwarder, ...). `stopUnits` are stopped while those files change, `afterSwitch` commands
+run once the new tunnel is up, and each user in `verifyUsers` must reach `verifyUrl` through
+the VPN for the migration to succeed. Backups go to `/root/wg-man-migrations/`, old configs to
+`/etc/wireguard/archive-<date>/`.
 
 ## Security notes
 

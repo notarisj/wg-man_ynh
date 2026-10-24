@@ -50,6 +50,55 @@ export type RelayStatusReport = {
   configs: Record<string, { status: RelayState; detail: string }>;
 };
 
+// ── Config import / account migration ────────────────────────
+
+export type ImportSummary = {
+  id: string;
+  configs: { name: string; location: string; endpoint: string; relay: { status: RelayState; detail: string } | null }[];
+  skipped: { name: string; reason: string }[];
+  device: string | null;
+  ip4: string;
+  ip6: string;
+  dns: string;
+  port: string;
+  sameDevice: boolean;
+  current: { ip4: string; pattern: string; active: string | null; device: string | null; count: number };
+  templateSource: string | null;
+  relayError: string | null;
+  errors: string[];
+  warnings: string[];
+};
+
+export type MigrationPlan = {
+  current: { active: string; ip4: string; ip6: string; dns: string; pattern: string; port: string };
+  new: { ip4: string; ip6: string; dns: string; pattern: string; count: number; port: string };
+  configs: { install: string[]; archive: string[]; overwrite: string[] };
+  files: { path: string; missing: boolean; what: string[]; diff: string[] }[];
+  pauseUnits: string[];
+  stopUnits: string[];
+  verifyUsers: string[];
+  ynhSetting: boolean;
+  tryOrder: string[];
+};
+
+export type MigrationStepStatus = 'pending' | 'running' | 'ok' | 'failed' | 'skipped';
+
+export type MigrationProgress = {
+  state: 'running' | 'done' | 'failed' | 'rolling_back' | 'rolled_back';
+  startedAt: number;
+  finishedAt: number | null;
+  steps: { id: string; label: string; status: MigrationStepStatus; detail: string }[];
+  rollback: { ok: boolean; reconnected?: string | null; steps: { label: string; ok: boolean; detail?: string }[] } | null;
+  verify: { user: string; ok: boolean; detail: string }[];
+  result: {
+    oldIp4?: string; newIp4?: string; oldPattern?: string; newPattern?: string;
+    count?: number; backup?: string; archive?: string; connected?: string;
+  };
+  log: string[];
+};
+
+export type MigrationStatus = { id: string; running: boolean; progress: MigrationProgress | null };
+
 export type SystemMetrics = {
   cpuPercent: number;
   ramPercent: number;
@@ -176,6 +225,30 @@ async function apiFetch<T>(
   }
 }
 
+/** Upload a Mullvad zip (sent as raw bytes) or a set of .conf files for import. */
+async function uploadImport(files: File[]): Promise<ApiResult<ImportSummary>> {
+  const zip = files.find((f) => /\.zip$/i.test(f.name));
+  try {
+    const body = zip
+      ? zip
+      : JSON.stringify({ files: await Promise.all(files.map(async (f) => ({ name: f.name, content: await f.text() }))) });
+    const res = await fetch(`${BASE_URL}/api/migrate/upload`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': zip ? 'application/zip' : 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+      },
+      body,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) return { ok: false, error: data.error ?? `HTTP ${res.status}` };
+    return { ok: true, data };
+  } catch (err: any) {
+    return { ok: false, error: err.message ?? 'Network error' };
+  }
+}
+
 export type PasskeyStatus = {
   registered: boolean;
   registrationLocked: boolean;
@@ -190,6 +263,15 @@ export const api = {
   status: () => apiFetch<VpnStatus>('/status'),
   configs: () => apiFetch<WgConfig[]>('/configs'),
   relayStatus: () => apiFetch<RelayStatusReport>('/configs/relay-status'),
+  migrate: {
+    current: () => apiFetch<{ available: { ok: boolean; reason: string | null };
+                              latest: { id: string; state: string; finishedAt: number | null } | null }>('/migrate/current'),
+    upload:  uploadImport,
+    plan:    (id: string, configs: string[], archiveOld: boolean) =>
+      apiFetch<MigrationPlan>(`/migrate/${id}/plan`, { method: 'POST', body: JSON.stringify({ configs, archiveOld }) }),
+    apply:   (id: string) => apiFetch<{ ok: boolean }>(`/migrate/${id}/apply`, { method: 'POST' }),
+    status:  (id: string) => apiFetch<MigrationStatus>(`/migrate/${id}/status`),
+  },
   recheckRelays: () => apiFetch<RelayStatusReport>('/configs/relay-status', { method: 'POST' }),
   logs: (lines = 100) => apiFetch<string[]>(`/logs?lines=${lines}`),
   searchLogs: (q: string) => apiFetch<string[]>(`/logs/search?q=${encodeURIComponent(q)}`),

@@ -1,0 +1,30 @@
+{
+  "_comment": "Copy to /etc/wg-man/migrate.json (root:root, mode 600) to enable Import in wg-man. List every file that contains the tunnel address, VPN DNS or config pattern of the current configs; they are rewritten during a migration and restored on failure.",
+  "wireguardDir": "/etc/wireguard",
+  "staticInterface": "wg-vpn",
+  "stateFile": "/var/lib/vpn-monitor.current",
+  "extraStateFiles": ["/var/lib/wg-man/state.current"],
+  "monitorLock": "/var/run/vpn-monitor.lock",
+  "checkIp": "1.1.1.1",
+  "currentDns": "10.64.0.1",
+  "files": [
+    "/usr/local/bin/vpn-monitor.sh",
+    "/var/lib/wg-man/server-config.json",
+    "/opt/wg-man/server/.env"
+  ],
+  "_files_examples": [
+    "/usr/local/sbin/my-killswitch.sh",
+    "/path/to/qBittorrent/config/qBittorrent.conf",
+    "/etc/dnsmasq-vpn.conf"
+  ],
+  "pauseUnits": [],
+  "stopUnits": [],
+  "afterSwitch": [],
+  "verifyUsers": [],
+  "verifyUrl": "https://am.i.mullvad.net/json",
+  "ynhApp": "wg-man",
+  "ynhPatternSetting": "wg_config_pattern",
+  "restartAfter": ["wg-man.service"],
+  "handshakeWait": 15,
+  "maxTries": 6
+}

@@ -13,6 +13,11 @@ const STATE_FILE     = process.env.STATE_FILE          || '/var/lib/vpn-monitor.
 const CHECK_IP       = process.env.CHECK_IP            || '1.1.1.1';
 const MAX_HANDSHAKE_AGE = parseInt(process.env.MAX_HANDSHAKE_AGE || '150', 10);
 
+/** Read-only view of the settings above, for the config importer. */
+export function getWgSettings() {
+  return { configDir: CONFIG_DIR, configPattern: CONFIG_PATTERN, staticIface: STATIC_IFACE, stateFile: STATE_FILE };
+}
+
 // ── Validation helpers (run once at import time) ────────────
 
 const SAFE_PATH_RE  = /^\/[a-zA-Z0-9/_.-]+$/;

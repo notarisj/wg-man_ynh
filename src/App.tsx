@@ -12,6 +12,7 @@ import { Plugins } from './pages/Plugins';
 import { QBittorrent } from './pages/QBittorrent';
 import { Radarr } from './pages/Radarr';
 import { Sonarr } from './pages/Sonarr';
+import { Migrate } from './pages/Migrate';
 import './index.css';
 
 // Remove App.css - we use the design system from index.css
@@ -30,6 +31,7 @@ export default function App() {
               <Route path="/scripts" element={<Scripts />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/history"  element={<History />} />
+              <Route path="/import"   element={<Migrate />} />
               <Route path="/plugins"              element={<Plugins />} />
               <Route path="/plugins/qbittorrent"  element={<QBittorrent />} />
               <Route path="/plugins/radarr"       element={<Radarr />} />

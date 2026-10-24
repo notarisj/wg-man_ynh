@@ -17,6 +17,7 @@ import {
   Film,
   Tv,
   ChevronDown,
+  PackagePlus,
 } from 'lucide-react';
 import { useVpnStore } from '../../store/vpnStore';
 import { usePluginStore } from '../../store/pluginStore';
@@ -31,6 +32,7 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { to: '/',        icon: <LayoutDashboard size={20} />, label: 'Dashboard' },
   { to: '/configs', icon: <Layers size={20} />,          label: 'Configs' },
+  { to: '/import',  icon: <PackagePlus size={20} />,     label: 'Import' },
   { to: '/logs',    icon: <ScrollText size={20} />,      label: 'Logs' },
   { to: '/scripts', icon: <Terminal size={20} />,        label: 'Scripts' },
   { to: '/history', icon: <History size={20} />,         label: 'History' },

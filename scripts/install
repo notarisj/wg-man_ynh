@@ -142,6 +142,8 @@ chmod 750 "$data_dir"
 #=================================================
 ynh_script_progression "Installing rescue script..."
 install -o root -g root -m 755 "$YNH_APP_BASEDIR/tools/wg-man-rescue.sh" /usr/local/bin/wg-man-rescue
+# Config import helper; Import stays disabled until /etc/wg-man/migrate.json exists
+install -o root -g root -m 755 "$YNH_APP_BASEDIR/tools/wg-man-migrate" /usr/local/sbin/wg-man-migrate
 
 #=================================================
 # CONFIGURE NGINX
