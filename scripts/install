@@ -153,6 +153,9 @@ ynh_config_add_nginx
 # CONFIGURE SYSTEMD
 #=================================================
 ynh_script_progression "Configuring systemd service..."
+# The monitor script editor replaces the script atomically, so its
+# directory must be writable under ProtectSystem=strict
+monitor_script_dir=$(dirname "$monitor_script")
 ynh_config_add_systemd
 yunohost service add "$app" --description="WireGuard VPN Manager" --log="/var/log/$app.log"
 

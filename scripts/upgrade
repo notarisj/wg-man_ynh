@@ -103,6 +103,9 @@ ynh_script_progression "Updating nginx configuration..."
 ynh_config_add_nginx
 
 ynh_script_progression "Updating systemd service..."
+# The monitor script editor replaces the script atomically, so its
+# directory must be writable under ProtectSystem=strict
+monitor_script_dir=$(dirname "$monitor_script")
 ynh_config_add_systemd
 
 ynh_script_progression "Updating .env configuration..."

@@ -15,6 +15,26 @@ ynh_script_progression "Updating nginx configuration..."
 ynh_config_change_url_nginx
 
 #=================================================
+# PREPARE DEX OIDC VARIABLES (for .env substitution)
+# Only dex_client_secret is stored in settings; issuer and client id are
+# derived here as in upgrade. Without this the .env template keeps its raw
+# __DEX_*__ placeholders and the app cannot start after a URL change.
+#=================================================
+dex_issuer=""
+dex_client_id=""
+dex_client_secret=""
+
+if [ -n "$dex_domain" ]; then
+    dex_client_secret=$(ynh_app_setting_get --key=dex_client_secret)
+    if [ -z "$dex_client_secret" ]; then
+        dex_client_secret=$(ynh_string_random --length=32)
+        ynh_app_setting_set --key=dex_client_secret --value="$dex_client_secret"
+    fi
+    dex_client_id="$app"
+    dex_issuer="https://${dex_domain}/"
+fi
+
+#=================================================
 # RECONFIGURE .env (APP_PUBLIC_URL changes with domain/path)
 #=================================================
 ynh_script_progression "Updating .env configuration..."
