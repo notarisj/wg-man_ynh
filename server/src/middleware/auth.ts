@@ -36,11 +36,10 @@ export function extractYnhUser(headers: Record<string, string | string[] | undef
   const ynh_user =
     headers['ynh_user'] ||
     headers['ynh-user'] ||
-    headers['x-ynh-user'] ||    // ngx.req.set_header path via $http_ynh_user at proxy time
-    headers['remote-user'] ||
-    headers['auth-user'] ||
-    headers['x-remote-user'] ||
-    headers['x-forwarded-user'];
+    headers['x-ynh-user'];  // via $http_ynh_user at proxy time
+    // remote-user / auth-user / x-remote-user / x-forwarded-user were removed:
+    // SSOwat does not strip them, so a client could spoof the user on paths
+    // that bypass SSOwat but still get X-WG-Secret (e.g. /wg-man/api/auth/).
 
   if (!ynh_user) return null;
 

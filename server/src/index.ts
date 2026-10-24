@@ -86,7 +86,7 @@ app.use(express.json());
 
 // SEC-09: session hardening — 4-hour max age with sliding renewal,
 // SEC-10: sameSite 'strict' to prevent cross-site cookie submission.
-app.use(session({
+const sessionMiddleware = session({
   secret: SESSION_SECRET || 'dev-only-secret-change-in-production',
   resave: false,
   saveUninitialized: false,
@@ -97,7 +97,8 @@ app.use(session({
     sameSite: 'strict',     // SEC-10: upgraded from 'lax' — no cross-site cookie submission
     maxAge: 4 * 60 * 60 * 1000, // SEC-09: 4 hours (down from 7 days)
   },
-}));
+});
+app.use(sessionMiddleware);
 
 // Health check (no auth required)
 app.get('/healthz', (_req, res) => {
@@ -146,7 +147,7 @@ setInterval(
 
 // Create HTTP server and attach WebSocket
 const httpServer = createServer(app);
-createWebSocketServer(httpServer);
+createWebSocketServer(httpServer, sessionMiddleware);
 
 // Bind only to localhost — nginx will proxy from outside
 httpServer.listen(PORT, '127.0.0.1', () => {

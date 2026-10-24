@@ -127,8 +127,21 @@ router.get('/status', async (_req, res) => {
   }
 });
 
+/** True when this session asserted a passkey within the last 5 minutes. */
+function freshPasskey(req: any): boolean {
+  const v = req.session?.passkeyVerified;
+  return !!v && Date.now() - v.ts <= PASSKEY_WINDOW_MS &&
+         v.username === req.user?.username && v.generation === getGeneration();
+}
+
 /** POST /api/passkey/register/start */
 router.post('/register/start', requireAdmin, async (req, res) => {
+  // Once a passkey exists, adding another requires a fresh assertion with an
+  // existing one; an SSOwat session alone must not be able to enrol a key.
+  if ((await getStatus()).registered && !freshPasskey(req)) {
+    res.status(403).json({ error: 'Verify with an existing passkey before adding another', code: 'PASSKEY_REQUIRED' });
+    return;
+  }
   try {
     const ctx = await getRpContext(req);
     const result = await startRegistration(ctx);
@@ -145,6 +158,12 @@ router.post('/register/start', requireAdmin, async (req, res) => {
 
 /** POST /api/passkey/register/finish */
 router.post('/register/finish', assertLimiter, requireAdmin, async (req, res) => {
+  // Once a passkey exists, adding another requires a fresh assertion with an
+  // existing one; an SSOwat session alone must not be able to enrol a key.
+  if ((await getStatus()).registered && !freshPasskey(req)) {
+    res.status(403).json({ error: 'Verify with an existing passkey before adding another', code: 'PASSKEY_REQUIRED' });
+    return;
+  }
   const entry = req.session.passkeyChallenge;
   if (!entry || Date.now() > entry.expiresAt) {
     delete req.session.passkeyChallenge;

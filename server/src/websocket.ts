@@ -2,18 +2,20 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { IncomingMessage, Server } from 'http';
 import { getStatus, tailLog } from './services/wg';
 import { getSystemMetrics } from './services/system';
-import { authenticateRaw } from './middleware/auth';
+import type { RequestHandler } from 'express';
+import { authenticateRaw, APP_SESSION_TTL_MS } from './middleware/auth';
+import { getGeneration } from './services/passkey';
 
 const PUSH_INTERVAL_MS = 5000;
 // SEC-07: cap concurrent WebSocket connections to prevent resource exhaustion.
 // Each connection spawns a setInterval that runs wg + ping every 5 s.
 const MAX_WS_CLIENTS = parseInt(process.env.MAX_WS_CLIENTS || '10', 10);
 
-export function createWebSocketServer(httpServer: Server): WebSocketServer {
+export function createWebSocketServer(httpServer: Server, sessionMiddleware: RequestHandler): WebSocketServer {
   // API-03: cap incoming frame size to 1 KiB
   const wss = new WebSocketServer({ server: httpServer, path: '/ws', maxPayload: 1024 });
 
-  wss.on('connection', (ws: WebSocket, req: IncomingMessage) => {
+  wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
     // SEC-07: reject connections beyond the limit before authentication so the
     // auth check itself is not a resource sink.
     if (wss.clients.size > MAX_WS_CLIENTS) {
@@ -25,6 +27,27 @@ export function createWebSocketServer(httpServer: Server): WebSocketServer {
     const user = authenticateRaw(req);
     if (!user) {
       ws.close(4401, 'Unauthorized');
+      return;
+    }
+
+    // Require the same passkey app session as the HTTP API (not just SSOwat)
+    // and a same-origin upgrade (blocks cross-site WebSocket hijacking).
+    const origin = req.headers.origin;
+    let originOk = false;
+    try { originOk = !!origin && new URL(origin).host === req.headers.host; } catch { /* bad Origin */ }
+    if (!originOk) {
+      ws.close(4403, 'Forbidden origin');
+      return;
+    }
+    const passkeyOk = await new Promise<boolean>((resolve) => {
+      sessionMiddleware(req as any, {} as any, () => {
+        const v = (req as any).session?.passkeyVerified;
+        resolve(!!v && Date.now() - v.ts <= APP_SESSION_TTL_MS &&
+                v.username === user.username && v.generation === getGeneration());
+      });
+    });
+    if (!passkeyOk) {
+      ws.close(4403, 'Passkey session required');
       return;
     }
 

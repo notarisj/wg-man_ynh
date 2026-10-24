@@ -1,4 +1,4 @@
-import { execFile } from 'child_process';
+import { execFile, spawn } from 'child_process';
 import { readdir, readFile, writeFile, appendFile, chmod, stat, mkdir, rename, unlink } from 'fs/promises';
 import path from 'path';
 
@@ -410,7 +410,40 @@ export async function listConfigs(): Promise<WgConfig[]> {
   return results;
 }
 
+// Hold vpn-monitor.sh's flock for the whole switch so a cron/vpn-watch run of
+// the monitor cannot interleave its own down/cp/up with ours. The lock is held
+// by the spawned child itself (sh locks fd 9, then execs sleep, so the pid
+// we kill is the one holding the lock).
+const MONITOR_LOCK = '/var/run/vpn-monitor.lock';
+
+function acquireMonitorLock(): Promise<() => void> {
+  return new Promise((resolve, reject) => {
+    const child = spawn('sh', ['-c', 'exec 9>"$1"; flock -w 30 9 || exit 1; echo locked; exec sleep 300',
+                               'sh', MONITOR_LOCK], { stdio: ['ignore', 'pipe', 'ignore'] });
+    let locked = false;
+    child.stdout.on('data', (d) => {
+      if (!locked && d.toString().includes('locked')) { locked = true; resolve(() => { child.kill(); }); }
+    });
+    child.on('exit', () => { if (!locked) reject(new Error('VPN monitor is busy, try again shortly')); });
+    child.on('error', (err) => { if (!locked) reject(err); });
+  });
+}
+
 export async function switchConfig(configName: string): Promise<{ success: boolean; message: string }> {
+  let release: () => void;
+  try {
+    release = await acquireMonitorLock();
+  } catch (err: any) {
+    return { success: false, message: err.message ?? 'Could not lock VPN monitor' };
+  }
+  try {
+    return await switchConfigLocked(configName);
+  } finally {
+    release();
+  }
+}
+
+async function switchConfigLocked(configName: string): Promise<{ success: boolean; message: string }> {
   // Validate config name: only allow safe characters (prevents path traversal and injection)
   if (!/^[a-zA-Z0-9_-]+$/.test(configName)) {
     return { success: false, message: 'Invalid config name' };
@@ -482,7 +515,12 @@ export async function switchConfig(configName: string): Promise<{ success: boole
   // Record the active config name
   await mkdir(path.dirname(STATE_FILE), { recursive: true });
   await writeFile(STATE_FILE, configName, 'utf-8');
-  await appendLog('SUCCESS', `${configName} is now active — handshake confirmed`);
+  await appendLog('SUCCESS', `${configName} is now active`);
+
+  // qBittorrent 4.5 keeps DHT at 0 nodes after the interface is recreated
+  // until it is restarted (same as vpn-monitor.sh does after a switch).
+  const { ok: qbOk } = await runCmd('systemctl', ['try-restart', 'qbittorrent']);
+  if (qbOk) await appendLog('ACTION', 'Restarted qBittorrent to rebind DHT to the new tunnel');
 
   return { success: true, message: `Switched to ${configName}` };
 }
